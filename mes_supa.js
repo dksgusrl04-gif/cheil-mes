@@ -26,10 +26,27 @@
 
   const realFetch = window.fetch.bind(window);
 
-  /* 로그인 상태 — 새로고침해도 유지되도록 localStorage 에 둔다 */
+  /* ── 로그인 유지 범위 ────────────────────────────────────────
+     config.js 의 SESSION_MODE 로 정한다.
+
+       'tab'      기본. 탭을 닫으면 로그아웃된다. 새로 열면 다시 로그인.
+                  새로고침이나 탭 안에서의 이동은 유지된다 — 시연 중에
+                  실수로 F5 를 눌러도 끊기지 않는다.
+       'always'   페이지를 새로 그릴 때마다 로그인. 새로고침도 로그아웃.
+       'remember' 브라우저를 껐다 켜도 유지 (예전 방식).
+
+     sessionStorage 는 탭 단위 저장소라 탭을 닫으면 브라우저가 알아서 지운다. */
   const SESSION_KEY = 'mes_session';
+  const MODE = CFG.SESSION_MODE || 'tab';
+  const STORE = (MODE === 'remember') ? localStorage : sessionStorage;
+
   let SESSION = null;
-  try { SESSION = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { SESSION = null; }
+  if (MODE !== 'always') {
+    try { SESSION = JSON.parse(STORE.getItem(SESSION_KEY) || 'null'); } catch (e) { SESSION = null; }
+  }
+  // 저장 방식을 바꾼 뒤에도 예전 localStorage 기록이 남아 자동 로그인되면 안 된다
+  if (MODE !== 'remember') { try { localStorage.removeItem(SESSION_KEY); } catch (e) { /* 무시 */ } }
+  if (MODE === 'always') { try { STORE.removeItem(SESSION_KEY); } catch (e) { /* 무시 */ } }
 
   const URL_BASE = BASE;        // Edge Function 주소를 만들 때 쓴다
 
@@ -43,8 +60,9 @@
 
   function saveSession(s) {
     SESSION = s;
-    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    else localStorage.removeItem(SESSION_KEY);
+    if (MODE === 'always') return;          // 아무 데도 남기지 않는다
+    if (s) STORE.setItem(SESSION_KEY, JSON.stringify(s));
+    else STORE.removeItem(SESSION_KEY);
   }
 
   function headers(json) {
@@ -278,6 +296,19 @@
     };
   }
 
+  /* Edge Function 이 배포돼 있는가. 한 번만 확인하고 기억한다.
+     배포가 안 돼 있으면 브라우저는 404 대신 'Failed to fetch' 를 던진다.
+     CORS 헤더가 없는 응답이라 그렇다. 그래서 예외도 '없음' 으로 친다. */
+  let FN_OK = null;
+  async function probeFn() {
+    if (FN_OK !== null) return FN_OK;
+    try {
+      const r = await realFetch(FN(), { method: 'OPTIONS' });
+      FN_OK = r.ok || r.status === 204;
+    } catch (e) { FN_OK = false; }
+    return FN_OK;
+  }
+
   async function askClaude(q, context) {
     if (!SESSION || !SESSION.access_token) {
       throw Object.assign(new Error('로그인이 필요합니다'), { status: 401 });
@@ -293,14 +324,16 @@
         body: JSON.stringify({ q, context }),
       });
     } catch (e) {
-      throw Object.assign(new Error('질의 서버에 닿지 못했습니다 — ' + e.message), {
-        status: 503,
-        hint: 'Edge Function 이 배포되지 않았을 수 있습니다. supabase/functions/README.md 참고.',
+      FN_OK = false;
+      throw Object.assign(new Error('질의 기능이 아직 설정되지 않았습니다'), {
+        status: 501,
+        hint: 'supabase functions deploy mes-ask 를 한 번 실행하면 Claude 가 답합니다.',
       });
     }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
       if (r.status === 404) {
+        FN_OK = false;
         throw Object.assign(new Error('질의 기능이 아직 설정되지 않았습니다'), {
           status: 501,
           hint: 'supabase functions deploy mes-ask 를 한 번 실행하면 켜집니다.',
@@ -310,7 +343,23 @@
         status: r.status, hint: j.hint || '',
       });
     }
+    FN_OK = true;
     return { answer: j.answer, model: j.model, usage: j.usage, fallback: false };
+  }
+
+  /* 규칙 기반 답. 자료는 여기서 모아 넘긴다. */
+  async function askRule(q, qs) {
+    const b = basisFrom(qs || new URLSearchParams());
+    let orders = null, alerts = null;
+    try {
+      if (/발주|주문|누가|구매/.test(q)) {
+        orders = MES.orders(b, await db('GET', '/mes_orders?select=*&order=at.desc&limit=500'));
+      }
+      if (/경보|알림|위험|이상/.test(q)) alerts = { auto: autoAlerts(b) };
+    } catch (e) { /* 못 읽으면 그 부분만 비운다 */ }
+    return MESASK.answer(q, {
+      MES, basis: b, snapshot: SNAPSHOT, orders, alerts,
+    });
   }
 
   /* ═══════════════════════════ 재집계 ═══════════════════════════ */
@@ -456,9 +505,13 @@
       }
       case path === '/api/audit': {
         const rows = await db('GET', '/mes_audit?select=*&order=at.desc&limit=200');
+        const fn = await probeFn();
         return ok({
           log: rows, store: { backend: 'Supabase', online: true, url: REST },
-          agent: { provider: '웹 버전 미지원', online: false, model: null },
+          agent: {
+            provider: fn ? 'Claude (Supabase Edge Function)' : '규칙 기반 (내장)',
+            online: fn, model: fn ? 'claude-sonnet-5' : null,
+          },
         });
       }
       case path === '/api/uploads': {
@@ -552,17 +605,38 @@
       } catch (e) { return err({ error: e.message }, 500); }
     }
 
-    /* ── 질의 — Edge Function 을 거친다 (API 키는 그쪽에만 있다) */
+    /* ── 질의 ─────────────────────────────────────────────────
+       Edge Function 이 있으면 Claude 가, 없으면 규칙이 답한다.
+       규칙도 못 알아들으면 그때 안내를 띄운다. */
     if (path === '/api/ask') {
       const q = String(body.q || '').trim();
       if (!q) return err({ error: '질문을 입력하세요' }, 400);
-      try {
-        const r = await askClaude(q, body.context !== undefined ? body.context : askContext(qs));
-        await log('질의', q.slice(0, 80));
-        return ok(r);
-      } catch (e) {
-        return err({ error: e.message, hint: e.hint || '' }, e.status || 502);
+
+      if (await probeFn()) {
+        try {
+          const r = await askClaude(q, body.context !== undefined ? body.context : askContext(qs));
+          await log('질의', q.slice(0, 80));
+          return ok(r);
+        } catch (e) {
+          if (e.status !== 501) return err({ error: e.message, hint: e.hint || '' }, e.status || 502);
+          // 501 이면 아래 규칙으로 내려간다
+        }
       }
+
+      let r = null;
+      try { r = await askRule(q, qs); } catch (e) { /* 아래에서 안내 */ }
+      if (r) {
+        await log('질의', q.slice(0, 80));
+        return ok({ answer: r.answer, model: null, fallback: true, how: r.how });
+      }
+      return ok({
+        fallback: true, model: null,
+        answer: ['이 질문은 규칙으로 답할 수 없습니다.', '',
+          'Claude 질의를 켜면 자유로운 질문에 답할 수 있습니다 — ',
+          '`supabase functions deploy mes-ask` 한 번이면 됩니다.',
+          '', '지금 답할 수 있는 것은 이런 형태입니다.', '',
+          ...MESASK.CAN.map(s => '- ' + s)].join('\n'),
+      });
     }
 
     /* ── 업로드 + 재집계 — 브라우저가 CSV 를 직접 읽는다 ─────────

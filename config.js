@@ -16,4 +16,14 @@ window.MES_CONFIG = {
 
   // 집계본이 담긴 mes_docs 의 행 이름
   SNAPSHOT_NAME: 'snapshot',
+
+  // 로그인을 얼마나 유지할지
+  //   'tab'      탭을 닫으면 로그아웃. 새로 열면 다시 로그인 (기본)
+  //              새로고침은 유지되므로 시연 중 F5 를 눌러도 안 끊긴다
+  //   'always'   새로고침해도 매번 로그인
+  //   'remember' 브라우저를 껐다 켜도 유지
+  SESSION_MODE: 'tab',
+
+  // 질의를 중계하는 Edge Function 이름
+  ASK_FUNCTION: 'mes-ask',
 };
