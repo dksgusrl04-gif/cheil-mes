@@ -237,16 +237,20 @@
 
 <div id="modal" class="hide"></div>
 
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <!-- ── 웹 직결 (build_web.py 가 넣음) ──
      화면 코드는 손대지 않는다. mes_supa.js 가 /api/* 요청을 가로채
-     Supabase + 아래 계산기들로 처리한다. -->
-<script src="config.js"></script>
-<script src="mes_calc.js"></script>
-<script src="mes_agg.js"></script>
-<script src="mes_match.js"></script>
-<script src="mes_doc.js"></script>
-<script src="mes_ask.js"></script>
-<script src="mes_supa.js"></script>
+     Supabase + 아래 계산기들로 처리한다.
+     ?v= 뒤는 파일 내용의 지문이다. 내용이 바뀌면 저절로 달라져
+     브라우저가 새로 받는다. 사용자가 새로고침을 안 해도 된다. -->
+<script src="config.js?v=1e0fdbf6"></script>
+<script src="mes_calc.js?v=b0251511"></script>
+<script src="mes_agg.js?v=d86ea35a"></script>
+<script src="mes_match.js?v=b3aad343"></script>
+<script src="mes_doc.js?v=8c8f7911"></script>
+<script src="mes_ask.js?v=a570547e"></script>
+<script src="mes_supa.js?v=86dbed17"></script>
+<script src="mes_ui.js?v=d5875b9c"></script>
 <script>
 const $ = id => document.getElementById(id);
 let ME=null, TAB='dash', TOOLS=[], PROGS=null, BASIS=null;
