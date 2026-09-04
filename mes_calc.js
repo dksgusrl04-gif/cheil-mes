@@ -231,14 +231,18 @@
         from: this.from,
         sliced: !!this.seg._sliced,
         empty: !!this.seg._empty,
-        no_byday: !!this.seg._noByday,
+        /* 날짜를 고르기 전에도 알 수 있어야 한다. 골라 보고 나서야 '안 된다' 고
+           하면 사용자는 무엇이 잘못됐는지 모른다. */
+        no_byday: !(this.fullSeg.tools || [])
+          .some(t => Array.isArray(t.byday) && t.byday.length),
         date_range: (() => {
           const d = this.fullSeg.days || [];
           return d.length ? { min: d[0].date, max: d[d.length - 1].date, count: d.length }
             : { min: '', max: '', count: 0 };
         })(),
-        from_note: this.seg._noByday
-          ? '집계본이 예전 형식이라 날짜로 자를 수 없습니다. 현장 PC 에서 다시 집계해 올리세요.'
+        from_note: !(this.fullSeg.tools || [])
+          .some(t => Array.isArray(t.byday) && t.byday.length)
+          ? '이 집계본에는 날짜별 자료가 없어 기간을 자를 수 없습니다.'
           : (this.seg._sliced
             ? '마모율은 선택한 날짜 이후에 쌓인 양입니다. 전체 누적이 아닙니다.'
             : ''),

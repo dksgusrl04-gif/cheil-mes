@@ -249,9 +249,16 @@
     const box = document.querySelector('#basis .mes-date');
     if (!box) return;
     const R = (window.BASIS && window.BASIS.date_range) || {};
+    const off = !R.max || (window.BASIS && window.BASIS.no_byday);
     box.querySelectorAll('button[data-days]').forEach(b => {
-      const want = b.dataset.days === 'all' ? ''
-        : (R.max ? minus(R.max, parseInt(b.dataset.days, 10) - 1) : '');
+      const all = b.dataset.days === 'all';
+      /* 날짜 범위를 모르거나 자를 수 없는 집계본이면 '전체' 말고는 눌러도 소용없다.
+         눌리는 것처럼 보였다가 아무 일도 안 일어나는 게 제일 나쁘므로 아예 막는다. */
+      b.disabled = off && !all;
+      b.style.opacity = b.disabled ? '.45' : '';
+      b.style.cursor = b.disabled ? 'not-allowed' : 'pointer';
+      if (b.disabled) { b.removeAttribute('data-on'); return; }
+      const want = all ? '' : minus(R.max, parseInt(b.dataset.days, 10) - 1);
       if (want === FROM) b.setAttribute('data-on', '1');
       else b.removeAttribute('data-on');
     });
@@ -287,7 +294,11 @@
     updateDateBox();
   }
 
-  /* 고를 수 있는 범위와 안내 문구를 최신으로 */
+  /* 고를 수 있는 범위와 안내 문구를 최신으로.
+
+     주의 — 입력칸의 값은 FROM 이 주인이다. BASIS 에서 되받아 덮어쓰면 안 된다.
+     BASIS 는 대시보드를 그릴 때만 새로 채워지므로, 다른 탭에서는 옛 값(빈 문자열)이
+     남아 있다. 그걸로 덮어쓰면 사용자가 고른 날짜가 저 혼자 지워진다. */
   function updateDateBox() {
     const inp = document.getElementById('mes-from');
     const B = window.BASIS;
@@ -295,12 +306,20 @@
     const R = B.date_range || {};
     if (R.min) inp.min = R.min;
     if (R.max) inp.max = R.max;          // 마지막 날 뒤는 못 고르게 — 빈 결과 방지
-    if (inp.value !== (B.from || '')) inp.value = B.from || '';
-    FROM = B.from || FROM;
 
-    /* 예전 집계본이거나 기간이 잘린 상태면 알려 준다 */
+    /* 날짜로 자를 수 없는 집계본이면 고르게 두면 안 된다.
+       골라도 값이 안 바뀌는데 이유를 모르는 게 가장 답답하다. */
+    const blocked = !!B.no_byday;
+    if (blocked && FROM) { FROM = ''; inp.value = ''; }   // 고른 것을 정직하게 되돌린다
+    inp.disabled = blocked;
+    inp.style.opacity = blocked ? '.45' : '';
+    inp.style.cursor = blocked ? 'not-allowed' : 'pointer';
+
     let note = document.getElementById('mes-from-note');
-    const msg = B.no_byday ? B.from_note : (B.sliced ? B.from_note : '');
+    const msg = blocked
+      ? '이 집계본에는 날짜별 자료가 없어 기간을 자를 수 없습니다. '
+        + '«데이터 추가» 탭에서 CSV 를 올려 다시 집계하면 켜집니다.'
+      : (B.sliced ? B.from_note : '');
     if (msg) {
       if (!note) {
         note = document.createElement('div');
@@ -311,7 +330,7 @@
       }
       note.textContent = msg;
       note.style.display = '';
-      if (B.no_byday) { inp.disabled = true; inp.title = msg; }
+      inp.title = msg;
     } else if (note) note.style.display = 'none';
     syncQuick();
   }
