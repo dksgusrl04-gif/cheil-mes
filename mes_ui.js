@@ -21,6 +21,34 @@
 
   const $main = () => document.getElementById('main');
 
+  /* 눌러도 되는 것처럼 보여야 사람이 누른다.
+     화면 코드를 고치지 않으므로 필요한 모양만 여기서 얹는다. */
+  const CSS = `
+  #main .cards > [data-mes-wired]{
+    cursor:pointer; user-select:none; position:relative;
+    transition:box-shadow .12s ease, transform .12s ease, background .12s ease;
+  }
+  #main .cards > [data-mes-wired]:hover{
+    box-shadow:0 3px 10px rgba(27,54,93,.16); transform:translateY(-1px);
+  }
+  #main .cards > [data-mes-wired]:active{ transform:translateY(0); }
+  #main .cards > [data-mes-on]{
+    outline:2px solid #1b365d; outline-offset:-2px; background:#eef3fa;
+  }
+  #main .cards > [data-mes-wired]::after{
+    content:'클릭'; position:absolute; top:8px; right:10px;
+    font-size:10px; color:#94a3b0; letter-spacing:.5px;
+  }
+  #main .cards > [data-mes-on]::after{ content:'해제'; color:#1b365d; font-weight:600; }
+  `;
+  function addStyle() {
+    if (document.getElementById('mes-ui-style')) return;
+    const s = document.createElement('style');
+    s.id = 'mes-ui-style';
+    s.textContent = CSS;
+    (document.head || document.documentElement).appendChild(s);
+  }
+
   /* 이 카드가 어떤 종류인가 — 카드에 적힌 글자로 알아낸다 */
   function kindOf(card) {
     const txt = (card.textContent || '').replace(/\s+/g, ' ');
@@ -78,8 +106,8 @@
       const k = kindOf(card);
       if (!k) return;
       const on = FILTER === k.key;
-      card.style.outline = on ? '2px solid #1b365d' : '';
-      card.style.outlineOffset = on ? '-2px' : '';
+      if (on) card.setAttribute('data-mes-on', '1');
+      else card.removeAttribute('data-mes-on');
       card.style.cursor = 'pointer';
       card.title = on ? '다시 누르면 전체를 봅니다' : `${k.label}만 보기`;
     });
@@ -117,12 +145,20 @@
       any = true;
       if (card.dataset.mesWired) return;      // 두 번 달지 않는다
       card.dataset.mesWired = '1';
-      card.addEventListener('click', () => {
+
+      /* 마우스뿐 아니라 키보드로도 눌리게 한다 */
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      const toggle = () => {
         FILTER = (FILTER === k.key) ? null : k.key;   // 같은 걸 또 누르면 해제
         apply();
+      };
+      card.addEventListener('click', toggle);
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
       });
     });
-    if (any) apply();
+    if (any) { addStyle(); apply(); }
   }
 
   /* 화면이 다시 그려질 때마다 손잡이를 다시 단다.
