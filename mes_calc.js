@@ -81,6 +81,78 @@
     return '정상';
   }
 
+  /* ═══════════════════════════ 조회 시작일 ═══════════════════════
+     고른 날짜부터의 자료만 남긴 구간을 새로 만든다.
+
+     공구별 마모량은 집계본의 byday(공구 × 날짜)를 다시 더해서 낸다.
+     그래서 마모율이 '그 기간 동안 닳은 양' 으로 바뀐다 — 전체 누적이 아니다.
+
+     byday 가 없는 예전 집계본이면 자를 수 없다. 그때는 원래 구간을 그대로
+     돌려주고 sliced=false 로 알린다. 화면이 그 사실을 표시한다. */
+  function sliceSeg(seg, from) {
+    const days = seg.days || [];
+    if (!from || !days.length) return seg;
+    if (from <= days[0].date) return seg;               // 전체와 같다
+    const hasByday = (seg.tools || []).some(t => Array.isArray(t.byday) && t.byday.length);
+    if (!hasByday) return Object.assign({}, seg, { _noByday: true });
+
+    const keep = d => d >= from;
+    const D = days.filter(x => keep(x.date));
+    if (!D.length) {
+      // 마지막 날보다 뒤를 고르면 빈 결과가 된다 — 빈 채로 정직하게 보여준다
+      return Object.assign({}, seg, {
+        days: [], tools: [], events: [], rows: 0, cut_h: 0, raw_total: 0, parts: 0,
+        _from: from, _sliced: true, _empty: true,
+      });
+    }
+
+    const tools = [];
+    for (const t of (seg.tools || [])) {
+      const bd = (t.byday || []).filter(x => keep(x.date));
+      if (!bd.length) continue;                         // 이 기간에 안 쓴 공구는 뺀다
+      const raw = bd.reduce((s, x) => s + x.raw, 0);
+      if (!(raw > 0)) continue;
+      tools.push(Object.assign({}, t, {
+        raw: raw,
+        hours: round(bd.reduce((s, x) => s + x.hours, 0), 3),
+        rows: bd.reduce((s, x) => s + x.rows, 0),
+        byday: bd,
+        /* 인자별(f_m/f_o/f_s/f_c)은 날짜로 안 쪼개 뒀다. 기간 비율로 나눈 어림값이라
+           표시할 때 '어림' 이라고 알려야 한다. */
+        f_m: t.f_m * (raw / (t.raw || 1)), f_o: t.f_o * (raw / (t.raw || 1)),
+        f_s: t.f_s * (raw / (t.raw || 1)), f_c: t.f_c * (raw / (t.raw || 1)),
+      }));
+    }
+    tools.sort((a, b) => b.raw - a.raw);
+    const tot = tools.reduce((s, t) => s + t.raw, 0) || 1;
+    tools.forEach(t => { t.share = round(100 * t.raw / tot, 3); });
+
+    const cutH = round(D.reduce((s, x) => s + (x.cut_h || 0), 0), 3);
+    const out = Object.assign({}, seg, {
+      days: D, tools: tools, rows: D.reduce((s, x) => s + (x.rows || 0), 0),
+      cut_h: cutH, raw_total: tot,
+      parts: D.reduce((s, x) => s + (x.parts || 0), 0),
+      events: (seg.events || []).filter(e => String(e.time).slice(0, 10) >= from),
+      period: `${from} ~ ${D[D.length - 1].date}`,
+      _from: from, _sliced: true,
+    });
+
+    if (seg.oee) {
+      out.oee = Object.assign({}, seg.oee, {
+        states: (seg.oee.states || []).filter(s => keep(s.day)),
+      });
+      if (seg.oee.production) {
+        const pd = (seg.oee.production.days || []).filter(x => keep(x.day));
+        out.oee.production = Object.assign({}, seg.oee.production, {
+          days: pd,
+          events: (seg.oee.production.events || []).filter(e => keep(e.day)),
+          produced: pd.reduce((s, x) => s + (x.inc || 0), 0),
+        });
+      }
+    }
+    return out;
+  }
+
   /* ═══════════════════════════ 기준 적용 */
   class Basis {
     constructor(q) {
@@ -89,7 +161,11 @@
       const segs = DATA.segments || {};
       this.segKey = q.seg || d.segment || 'fa';
       if (!(this.segKey in segs)) this.segKey = Object.keys(segs)[0] || 'fa';
-      this.seg = segs[this.segKey] || {};
+      this.fullSeg = segs[this.segKey] || {};
+
+      /* 조회 시작일 — 'YYYY-MM-DD'. 비어 있으면 구간 전체다. */
+      this.from = /^\d{4}-\d{2}-\d{2}$/.test(String(q.from || '')) ? String(q.from) : '';
+      this.seg = this.from ? sliceSeg(this.fullSeg, this.from) : this.fullSeg;
 
       const f = (v, dflt) => {
         const n = parseFloat(v);
@@ -150,6 +226,22 @@
         segment: this.segKey,
         segment_label: this.seg.label || '',
         segment_period: this.seg.period || '',
+
+        /* 조회 시작일 관련 */
+        from: this.from,
+        sliced: !!this.seg._sliced,
+        empty: !!this.seg._empty,
+        no_byday: !!this.seg._noByday,
+        date_range: (() => {
+          const d = this.fullSeg.days || [];
+          return d.length ? { min: d[0].date, max: d[d.length - 1].date, count: d.length }
+            : { min: '', max: '', count: 0 };
+        })(),
+        from_note: this.seg._noByday
+          ? '집계본이 예전 형식이라 날짜로 자를 수 없습니다. 현장 PC 에서 다시 집계해 올리세요.'
+          : (this.seg._sliced
+            ? '마모율은 선택한 날짜 이후에 쌓인 양입니다. 전체 누적이 아닙니다.'
+            : ''),
         life_days: this.lifeDays,
         week_hours: this.weekHours,
         day_hours: round(this.dayHours, 4),

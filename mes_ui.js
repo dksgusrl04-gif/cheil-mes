@@ -135,6 +135,10 @@
   }
 
   function wire() {
+    /* 화면이 다시 그려졌다는 것은 조회가 끝났다는 뜻이다.
+       그때 BASIS 가 새로 채워지므로 달력의 범위·안내도 같이 맞춘다. */
+    if (document.getElementById('mes-from')) updateDateBox();
+
     const main = $main();
     if (!isAlertView(main)) { FILTER = null; return; }
 
@@ -178,5 +182,161 @@
     document.addEventListener('DOMContentLoaded', start);
   } else start();
 
-  window.MES_UI = { filter: k => { FILTER = k; apply(); }, current: () => FILTER };
+  /* ═══════════════════════════════════════════════════════════════
+   * 조회 시작일 — 기준 막대에 달력을 붙인다
+   * ═══════════════════════════════════════════════════════════════
+   * 화면은 qs() 로 조회 조건을 만들어 /api/* 에 붙인다. 그 함수가
+   * seg·life·week·anchor 넷만 담으므로, 감싸서 from 을 하나 더 넣는다.
+   * mes.html 은 여전히 안 고친다.
+   */
+  let FROM = '';
+
+  const DATE_CSS = `
+  #basis .mes-date{ display:flex; align-items:center; gap:6px; }
+  #basis .mes-date input[type=date]{
+    font:inherit; font-size:12px; padding:3px 6px; border:1px solid #c3ced8;
+    border-radius:5px; background:#fff; color:#1f2a33; cursor:pointer;
+  }
+  #basis .mes-date button{
+    font:inherit; font-size:11.5px; padding:3px 9px; border:1px solid #c3ced8;
+    border-radius:5px; background:#fff; color:#41525f; cursor:pointer;
+  }
+  #basis .mes-date button:hover{ background:#eef3fa; border-color:#9fb6cf; }
+  #basis .mes-date button[data-on]{ background:#1b365d; border-color:#1b365d; color:#fff; }
+  #mes-from-note{
+    font-size:11.5px; color:#8a6d1f; background:#fff8e6; border:1px solid #f0dfae;
+    border-radius:5px; padding:4px 9px; margin-left:4px;
+  }`;
+
+  function addDateStyle() {
+    if (document.getElementById('mes-date-style')) return;
+    const s = document.createElement('style');
+    s.id = 'mes-date-style';
+    s.textContent = DATE_CSS;
+    (document.head || document.documentElement).appendChild(s);
+  }
+
+  /* 화면의 qs() 를 감싸 from 을 얹는다 */
+  let hooked = false;
+  function hookQs() {
+    if (hooked || typeof window.qs !== 'function') return;
+    const orig = window.qs;
+    window.qs = function () {
+      const s = orig.apply(this, arguments);
+      if (!FROM) return s;
+      return s + (s ? '&' : '') + 'from=' + encodeURIComponent(FROM);
+    };
+    hooked = true;
+  }
+
+  const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-` +
+    `${String(d.getDate()).padStart(2, '0')}`;
+  function minus(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() - days);
+    return ymd(d);
+  }
+
+  function applyFrom(v) {
+    FROM = v || '';
+    const inp = document.getElementById('mes-from');
+    if (inp) inp.value = FROM;
+    syncQuick();
+    if (typeof window.reload === 'function') window.reload();
+  }
+
+  function syncQuick() {
+    const box = document.querySelector('#basis .mes-date');
+    if (!box) return;
+    const R = (window.BASIS && window.BASIS.date_range) || {};
+    box.querySelectorAll('button[data-days]').forEach(b => {
+      const want = b.dataset.days === 'all' ? ''
+        : (R.max ? minus(R.max, parseInt(b.dataset.days, 10) - 1) : '');
+      if (want === FROM) b.setAttribute('data-on', '1');
+      else b.removeAttribute('data-on');
+    });
+  }
+
+  /* 기준 막대에 달력 한 칸을 만든다 (한 번만) */
+  function ensureDateBox() {
+    const basis = document.getElementById('basis');
+    if (!basis || document.getElementById('mes-from')) { updateDateBox(); return; }
+    addDateStyle();
+
+    const wrap = document.createElement('div');
+    wrap.className = 'bset mes-date';
+    wrap.innerHTML = '<span>조회 시작일</span>' +
+      '<input type="date" id="mes-from" title="이 날짜부터의 자료만 봅니다">' +
+      '<button type="button" data-days="all">전체</button>' +
+      '<button type="button" data-days="7">최근 7일</button>' +
+      '<button type="button" data-days="3">최근 3일</button>';
+
+    const note = document.getElementById('bnote');
+    if (note && note.parentNode === basis) basis.insertBefore(wrap, note);
+    else basis.appendChild(wrap);
+
+    wrap.querySelector('#mes-from').addEventListener('change', e => applyFrom(e.target.value));
+    wrap.querySelectorAll('button[data-days]').forEach(b => {
+      b.addEventListener('click', () => {
+        const R = (window.BASIS && window.BASIS.date_range) || {};
+        if (b.dataset.days === 'all') return applyFrom('');
+        if (!R.max) return;
+        applyFrom(minus(R.max, parseInt(b.dataset.days, 10) - 1));
+      });
+    });
+    updateDateBox();
+  }
+
+  /* 고를 수 있는 범위와 안내 문구를 최신으로 */
+  function updateDateBox() {
+    const inp = document.getElementById('mes-from');
+    const B = window.BASIS;
+    if (!inp || !B) return;
+    const R = B.date_range || {};
+    if (R.min) inp.min = R.min;
+    if (R.max) inp.max = R.max;          // 마지막 날 뒤는 못 고르게 — 빈 결과 방지
+    if (inp.value !== (B.from || '')) inp.value = B.from || '';
+    FROM = B.from || FROM;
+
+    /* 예전 집계본이거나 기간이 잘린 상태면 알려 준다 */
+    let note = document.getElementById('mes-from-note');
+    const msg = B.no_byday ? B.from_note : (B.sliced ? B.from_note : '');
+    if (msg) {
+      if (!note) {
+        note = document.createElement('div');
+        note.id = 'mes-from-note';
+        const basis = document.getElementById('basis');
+        const box = document.querySelector('#basis .mes-date');
+        if (basis && box) basis.insertBefore(note, box.nextSibling);
+      }
+      note.textContent = msg;
+      note.style.display = '';
+      if (B.no_byday) { inp.disabled = true; inp.title = msg; }
+    } else if (note) note.style.display = 'none';
+    syncQuick();
+  }
+
+  /* 화면 뼈대가 준비될 때까지 몇 번 기다린다. 영영 안 되면 그만둔다 —
+     못 붙였다고 계속 돌면 배터리만 먹는다. */
+  let tries = 0;
+  function startDate() {
+    hookQs();
+    ensureDateBox();
+    if (hooked && document.getElementById('mes-from')) return;
+    if (++tries > 60) return;                  // 약 15초
+    setTimeout(startDate, 250);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startDate);
+  } else startDate();
+
+  /* 화면이 다시 그려질 때마다 안내 문구를 맞춘다 */
+  if (typeof setInterval === 'function') {
+    setInterval(() => { if (document.getElementById('mes-from')) updateDateBox(); }, 700);
+  }
+
+  window.MES_UI = {
+    filter: k => { FILTER = k; apply(); }, current: () => FILTER,
+    from: () => FROM, setFrom: applyFrom,
+  };
 })();

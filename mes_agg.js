@@ -268,7 +268,7 @@
     /* 같은 초를 공유하는 행을 모았다가, 다음 초가 오면 한꺼번에 처리한다.
        한 행이 갖는 시간 = (다음 초까지의 간격) ÷ (그 초를 나눠 쓰는 행 수) */
     let pend = [], pool = [], pendSec = null, prevTool = null, prevFeed = 0, prevRpm = 0;
-    let bootMin = Infinity, bootMax = -Infinity, total = 0;
+    let bootMin = Infinity, bootMax = -Infinity, total = 0, backwards = 0;
 
     function flush(nextSec) {
       if (!pend.length) return;
@@ -331,12 +331,20 @@
 
       const t = bump(S.T, row.tool, () => ({
         name: '', sec: new Kahan(), rows: 0, raw: new Kahan(),
-        m: new Kahan(), o: new Kahan(), s: new Kahan(), c: new Kahan(), progs: new Map(),
+        m: new Kahan(), o: new Kahan(), s: new Kahan(), c: new Kahan(),
+        progs: new Map(), days: new Map(),
       }));
       if (!t.name && row.name) t.name = row.name;
       t.rows++; t.sec.add(sec); t.raw.add(raw);
       t.m.add(d_m); t.o.add(d_o); t.s.add(d_s); t.c.add(d_c);
       t.progs.set(row.prog, (t.progs.get(row.prog) || 0) + raw);
+
+      /* 공구 × 날짜. 조회 시작일을 고르면 이 값으로 다시 더해 마모율을 낸다.
+         이게 없으면 '이 날짜 이후로 얼마나 닳았나' 를 답할 수 없다.
+         구간당 공구 수 × 일수라 크기는 얼마 안 된다. */
+      let td = t.days.get(day);
+      if (!td) { td = { raw: new Kahan(), sec: new Kahan(), rows: 0 }; t.days.set(day, td); }
+      td.raw.add(raw); td.sec.add(sec); td.rows++;
 
       const p = bump(S.PR, row.prog, () => ({
         main: '', sec: new Kahan(), rows: 0, raw: new Kahan(), tools: new Map(),
@@ -424,7 +432,12 @@
 
          순서가 중요하다. 자리를 먼저 잡고 나중에 flush 하면, 앞 초가 비워지면서
          이미 pend 에 들어간 객체를 덮어쓴다. 반드시 flush 를 끝내고 자리를 잡는다. */
+      /* 이 방식은 시각이 오름차순이라는 것을 전제로 한다. 한 초에 모인 행을
+         모았다가 다음 초가 오면 간격을 나눠 갖기 때문이다.
+         거꾸로 가는 행이 있으면 그 행의 시간 배분이 틀어진다. 조용히 틀린 숫자를
+         내는 것이 가장 나쁘므로 세어 두었다가 결과에 붙여 알린다. */
       const s = (ms / 1000) | 0;
+      if (pendSec !== null && s < pendSec) backwards++;
       if (pendSec === null) pendSec = s;
       else if (s !== pendSec) { flush(s); pendSec = s; }
 
@@ -453,7 +466,7 @@
     await streamLines(file, onHeader, onLine, opt.onProgress);
     flush(null);                                  // 마지막 초는 간격 0
 
-    return finish(segs, { rows: total, missing, bootMin, bootMax, name: file.name });
+    return finish(segs, { rows: total, missing, bootMin, bootMax, backwards, name: file.name });
   }
 
   /* ═══════════════════════════ 결과 조립 ═══════════════════════ */
@@ -463,10 +476,16 @@
       const progs = {};
       Array.from(t.progs.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8)
         .forEach(([k, v]) => { progs[k] = v; });
+      /* 날짜순으로. 조회 시작일 이후만 더하면 그 기간 마모량이 나온다. */
+      const byDay = Array.from(t.days.keys()).sort().map(d => {
+        const v = t.days.get(d);
+        return { date: d, raw: v.raw.val(), hours: r3(v.sec.val() / 3600), rows: v.rows };
+      });
       tools.push({
         tool: tno, name: t.name || ('T' + tno), cls: toolClass(t.name),
         raw: t.raw.val(), hours: r3(t.sec.val() / 3600), rows: t.rows,
-        f_m: t.m.val(), f_o: t.o.val(), f_s: t.s.val(), f_c: t.c.val(), progs: progs,
+        f_m: t.m.val(), f_o: t.o.val(), f_s: t.s.val(), f_c: t.c.val(),
+        progs: progs, byday: byDay,
       });
     }
     tools.sort((a, b) => b.raw - a.raw);
@@ -588,7 +607,14 @@
       weights: { 실가공: 50, 과부하: 27, 충격: 8, 조건급변: 5, 알람: 10 },
       defaults: { life_days: 400, week_hours: 38.0, anchor: 'mean', segment: keys[0] },
       segments: out,
-      source: { file: meta.name, rows: meta.rows, missing: meta.missing },
+      source: {
+        file: meta.name, rows: meta.rows, missing: meta.missing,
+        backwards: meta.backwards || 0,
+        warn: meta.backwards
+          ? `시각이 거꾸로 가는 행이 ${meta.backwards.toLocaleString()}개 있습니다. `
+            + '수집 파일이 시간순이 아니면 절삭시간 배분이 부정확해집니다.'
+          : '',
+      },
     };
   }
 
@@ -600,11 +626,26 @@
     for (const src of [A.tools, B.tools]) {
       for (const t of src) {
         const e = T.get(t.tool);
-        if (!e) { T.set(t.tool, Object.assign({}, t, { progs: Object.assign({}, t.progs) })); continue; }
+        if (!e) {
+          T.set(t.tool, Object.assign({}, t, {
+            progs: Object.assign({}, t.progs),
+            byday: (t.byday || []).map(d => Object.assign({}, d)),
+          }));
+          continue;
+        }
         e.raw += t.raw; e.hours = r3(e.hours + t.hours); e.rows += t.rows;
         e.f_m += t.f_m; e.f_o += t.f_o; e.f_s += t.f_s; e.f_c += t.f_c;
         if (!e.name && t.name) { e.name = t.name; e.cls = t.cls; }
         for (const k of Object.keys(t.progs || {})) e.progs[k] = (e.progs[k] || 0) + t.progs[k];
+
+        /* 같은 날짜가 양쪽에 있으면 더한다 (같은 주차를 두 번 올린 경우) */
+        const dm = new Map((e.byday || []).map(d => [d.date, d]));
+        for (const d of (t.byday || [])) {
+          const x = dm.get(d.date);
+          if (x) { x.raw += d.raw; x.hours = r3(x.hours + d.hours); x.rows += d.rows; }
+          else dm.set(d.date, Object.assign({}, d));
+        }
+        e.byday = Array.from(dm.values()).sort((x, y) => (x.date < y.date ? -1 : 1));
       }
     }
     const tools = Array.from(T.values()).sort((a, b) => b.raw - a.raw);
