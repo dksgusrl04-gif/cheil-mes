@@ -404,6 +404,7 @@
 
     /* 3) 기존 집계본과 합쳐 올린다. 새 주차가 더해지는 형태다. */
     const merged = MESAGG.merge(SNAPSHOT, snap);
+    for (const n of (merged.merge_notes || [])) say('[안내] ' + n);
     say('[저장] Supabase 에 올리는 중');
     await db('POST', '/mes_docs?on_conflict=name', [{
       name: SNAP, data: merged, updated_at: now(),

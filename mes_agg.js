@@ -672,16 +672,35 @@
     });
   }
 
+  const hasByday = seg => (seg && seg.tools || []).some(t => Array.isArray(t.byday) && t.byday.length);
+
+  /* 옛 집계본과 새 집계본을 합친다.
+
+     주의 — 옛 것에 날짜별 자료(byday)가 없으면 합치면 안 된다.
+     합계는 옛 자료까지 더해지는데 날짜별은 새 것만 있어서, 날짜로 자를 때
+     숫자가 안 맞는다. 그런 구간은 합치지 않고 새 것으로 바꾼다.
+     조용히 틀린 값을 내는 것보다 낫고, 무슨 일이 있었는지 notes 로 알린다. */
   function merge(oldSnap, newSnap) {
     if (!oldSnap || !oldSnap.segments) return newSnap;
     const out = Object.assign({}, newSnap);
     out.segments = Object.assign({}, oldSnap.segments);
+    const notes = [];
+
     for (const k of Object.keys(newSnap.segments)) {
-      out.segments[k] = out.segments[k]
-        ? mergeSeg(out.segments[k], newSnap.segments[k]) : newSnap.segments[k];
+      const prev = out.segments[k];
+      if (!prev) { out.segments[k] = newSnap.segments[k]; continue; }
+      if (!hasByday(prev) && hasByday(newSnap.segments[k])) {
+        out.segments[k] = newSnap.segments[k];
+        notes.push(`${prev.label || k} — 예전 집계본에 날짜별 자료가 없어 합치지 못하고 `
+          + '이번 파일로 새로 만들었습니다.');
+        continue;
+      }
+      out.segments[k] = mergeSeg(prev, newSnap.segments[k]);
     }
+
     out.defaults = oldSnap.defaults || newSnap.defaults;
     if (oldSnap.quality) out.quality = oldSnap.quality;
+    if (notes.length) out.merge_notes = notes;
     return out;
   }
 
