@@ -1,0 +1,1255 @@
+<meta charset="utf-8">
+<title>MCT MES — 공구 마모 관리</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"맑은 고딕","Malgun Gothic",system-ui,sans-serif;background:#eef1f4;color:#1f2a33;font-size:13px}
+  .hide{display:none!important}
+  code{background:#fff;padding:1px 5px;border-radius:3px;font-size:11.5px}
+
+  /* ── 로그인 */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .lbox{background:#fff;padding:38px 40px;border-radius:10px;box-shadow:0 6px 30px rgba(0,0,0,.12);width:370px}
+  .lbox h1{font-size:19px;color:#1b365d;margin-bottom:4px}
+  .lbox .sub{color:#8c9ba5;font-size:12px;margin-bottom:22px}
+  .lbox label{display:block;font-size:12px;color:#6b7a86;margin:12px 0 5px}
+  .lbox input{width:100%;padding:10px 12px;border:1px solid #d5dde3;border-radius:6px;font-size:13px}
+  .lbox input:focus{outline:none;border-color:#2d6cdf}
+  .lbox button{width:100%;margin-top:20px;padding:11px;background:#2d6cdf;color:#fff;border:0;
+    border-radius:6px;font-size:14px;cursor:pointer}
+  .lbox button:hover{background:#245ac0}
+  .lerr{margin-top:14px;padding:10px;border-radius:6px;background:#fdecea;color:#c0392b;
+    font-size:12.5px;line-height:1.65;text-align:left}
+  .hint{margin-top:16px;font-size:11.5px;color:#a4b0b9;text-align:center}
+
+  /* ── 레이아웃 */
+  /* header · 기준바 · 경보바 · 본문 = 4행. 경보바를 빼먹으면 그 줄이 1fr 을 먹어
+     화면이 통째로 밀린다. */
+  #app{display:grid;grid-template-columns:225px 1fr;
+    grid-template-rows:auto auto auto auto 1fr;min-height:100vh}
+  header{grid-column:1/3;background:#1b365d;color:#fff;padding:0 20px;display:flex;
+    align-items:center;gap:20px;height:52px}
+  header h1{font-size:15.5px;font-weight:600}
+  nav{display:flex;gap:3px;margin-left:14px}
+  nav button{background:transparent;border:0;color:#a9bdd8;padding:8px 15px;border-radius:6px;
+    font-size:13px;cursor:pointer}
+  nav button:hover{color:#fff;background:rgba(255,255,255,.09)}
+  nav button.on{background:#fff;color:#1b365d;font-weight:600}
+  .spacer{flex:1}
+  #who{font-size:12px;color:#c5d4e6}
+  header .out{background:rgba(255,255,255,.13);border:0;color:#fff;padding:6px 12px;
+    border-radius:5px;font-size:12px;cursor:pointer}
+
+  /* ── 기준 선택 바 */
+  #basis{grid-column:1/3;background:#fff;border-bottom:1px solid #dde4ea;padding:9px 20px;
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .bset{display:flex;align-items:center;gap:7px}
+  .bset > span{font-size:11.5px;color:#6b7a86;white-space:nowrap}
+  .bset select{padding:5px 8px;border:1px solid #d5dde3;border-radius:5px;font-size:12.5px;
+    background:#fff;cursor:pointer}
+  .bset select:focus{outline:none;border-color:#2d6cdf}
+  #bnote{font-size:11.5px;color:#8c9ba5;margin-left:auto;text-align:right;line-height:1.5}
+  #bnote b{color:#2d6cdf}
+  .warnbar{grid-column:1/3;align-self:start;background:#fff8e6;border-bottom:1px solid #f0dfae;color:#8a6d1f;
+    padding:8px 20px;font-size:12px}
+
+  aside{background:#f7f9fb;border-right:1px solid #dde4ea;padding:14px 0;overflow-y:auto}
+  aside h3{font-size:11px;color:#8c9ba5;padding:0 16px;margin:14px 0 6px;letter-spacing:.4px}
+  aside h3:first-child{margin-top:0}
+  .item{padding:8px 16px;cursor:pointer;font-size:12.5px;border-left:3px solid transparent}
+  .item:hover{background:#eef2f6}
+  .item.on{background:#e7effc;border-left-color:#2d6cdf;color:#1b365d;font-weight:600}
+  .item .m{display:block;font-size:11px;color:#8c9ba5;font-weight:400;margin-top:2px}
+  main{padding:20px 22px 40px;overflow-y:auto}
+  h2{font-size:17px;margin-bottom:3px}
+  .desc{color:#8c9ba5;font-size:12px;margin-bottom:16px}
+
+  .cards{display:flex;gap:11px;flex-wrap:wrap;margin-bottom:15px}
+  .card{background:#fff;border:1px solid #e2e8ee;border-radius:8px;padding:12px 16px;min-width:132px}
+  .card .k{font-size:11px;color:#8c9ba5;margin-bottom:5px}
+  .card .v{font-size:20px;font-weight:600}
+  .card .u{font-size:11.5px;color:#8c9ba5;font-weight:400;margin-left:3px}
+  .card.warn{background:#fff8e6;border-color:#f0dfae}
+  .card.ok{background:#eefaf1;border-color:#c3e8ce}
+  .card.hl{background:#e7effc;border-color:#b9cff2}
+
+  .panel{background:#fff;border:1px solid #e2e8ee;border-radius:8px;padding:15px 17px;margin-bottom:15px}
+  .panel h4{font-size:13px;margin-bottom:11px;color:#1b365d}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+
+  select#tsel{width:100%;padding:9px 11px;border:1px solid #d5dde3;border-radius:6px;font-size:13px;background:#fff}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+  .chip{background:#f2f5f8;border:1px solid #dfe6ec;border-radius:16px;padding:6px 13px;
+    font-size:12px;cursor:pointer;display:flex;gap:7px;align-items:center}
+  .chip:hover{background:#e7effc;border-color:#b9cff2}
+  .chip.on{background:#2d6cdf;color:#fff;border-color:#2d6cdf}
+  .chip .r{font-size:11px;opacity:.75}
+
+  .gauge{position:relative;height:34px;background:#eef1f4;border-radius:17px;overflow:hidden;margin:6px 0 13px}
+  .gauge i{display:block;height:100%;background:linear-gradient(90deg,#4a90e2,#2d6cdf);border-radius:17px}
+  .gauge i.w{background:linear-gradient(90deg,#f0ad4e,#e8901a)}
+  .gauge i.d{background:linear-gradient(90deg,#e57373,#d9534f)}
+  .gauge span{position:absolute;top:0;left:0;right:0;line-height:34px;text-align:center;
+    font-weight:600;font-size:13px;text-shadow:0 1px 3px rgba(255,255,255,.85)}
+  .bar{height:7px;background:#eef1f4;border-radius:4px;overflow:hidden}
+  .bar i{display:block;height:100%;background:#2d6cdf}
+
+  .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f3f6;font-size:12.5px}
+  .row:last-child{border:0}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:#6b7a86;font-weight:600;font-size:11.5px;padding:7px 8px;
+    border-bottom:1.5px solid #e2e8ee;background:#fafbfc}
+  td{padding:7px 8px;border-bottom:1px solid #f2f5f8}
+  tr:hover td{background:#fafbfc}
+  .n{text-align:right}
+  .mono{font-variant-numeric:tabular-nums}
+  .muted{color:#a4b0b9}
+  tr.hot td{background:#fff6f6}
+  .tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px}
+  .tag.w{background:#e7effc;color:#2d6cdf}
+  .tag.b{background:#fdecea;color:#c0392b}
+  .tag.g{background:#eefaf1;color:#2e7d4f}
+  #log{max-height:250px;overflow-y:auto;font-size:11.5px;line-height:1.85}
+  #log div{border-bottom:1px solid #f2f5f8;padding:2px 0}
+  canvas{width:100%;height:150px}
+  button.act{background:#2d6cdf;color:#fff;border:0;padding:5px 11px;border-radius:5px;
+    font-size:11.5px;cursor:pointer}
+  button.act:hover{background:#245ac0}
+  button.act:disabled{background:#c9d2da;cursor:not-allowed}
+  button.act.sec{background:#6b7a86}
+  /* ── 발주 모달 */
+  #modal{position:fixed;inset:0;background:rgba(20,30,40,.45);display:flex;
+    align-items:center;justify-content:center;z-index:100}
+  .mbox{background:#fff;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.25);
+    width:640px;max-width:92vw;max-height:86vh;display:flex;flex-direction:column}
+  .mhead{padding:16px 20px;border-bottom:1px solid #e2e8ee}
+  .mhead h3{font-size:15px;color:#1b365d}
+  .mhead .s{font-size:11.5px;color:#8c9ba5;margin-top:3px}
+  .mbody{padding:14px 20px;overflow-y:auto}
+  .mfoot{padding:13px 20px;border-top:1px solid #e2e8ee;display:flex;gap:9px;
+    align-items:center;justify-content:flex-end}
+  .mfoot .tot{margin-right:auto;font-size:12px;color:#6b7a86}
+  .qrow{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #f2f5f8}
+  .qrow:last-child{border:0}
+  .qrow .nm{flex:1;font-size:12.5px}
+  .qrow .nm b{display:block;font-size:11px;color:#8c9ba5;font-weight:400;margin-top:2px}
+  .qrow input[type=number]{width:74px;padding:6px 8px;border:1px solid #d5dde3;
+    border-radius:5px;font-size:12.5px;text-align:right}
+  .qrow .del{background:none;border:0;color:#a4b0b9;cursor:pointer;font-size:15px;padding:0 4px}
+  .qrow .del:hover{color:#d9534f}
+  #mnote{width:100%;padding:8px 10px;border:1px solid #d5dde3;border-radius:6px;
+    font-size:12.5px;margin-top:11px;font-family:inherit}
+  td.chk,th.chk{width:34px;text-align:center;padding-left:10px}
+  input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:#2d6cdf}
+  button.act.gray{background:#8c9ba5}
+  /* ── 빈 칸 명시 · 업로드 */
+  .gap{border:1px dashed #d5b26a;background:#fffdf5;border-radius:7px;padding:11px 14px;margin-bottom:9px}
+  .gap .t{font-weight:600;font-size:12.5px;color:#8a6d1f}
+  .gap .w{font-size:11.5px;color:#8a6d1f;opacity:.85;margin-top:3px;line-height:1.6}
+  .gap .i{font-size:11.5px;color:#2d6cdf;margin-top:5px}
+  .drop{border:2px dashed #c3cfda;border-radius:9px;padding:26px;text-align:center;
+    background:#fafbfc;cursor:pointer}
+  .drop:hover{border-color:#2d6cdf;background:#f5f9ff}
+  .drop b{display:block;font-size:13.5px;margin-bottom:5px}
+  .drop span{font-size:11.5px;color:#8c9ba5}
+  .msel{padding:4px 7px;border:1px solid #d5dde3;border-radius:5px;font-size:11.5px;width:100%}
+  .how{font-size:10.5px;padding:1px 6px;border-radius:3px;white-space:nowrap}
+  .how.dict{background:#eefaf1;color:#2e7d4f}
+  .how.sim{background:#e7effc;color:#2d6cdf}
+  .how.llm{background:#f3ecfd;color:#7048b6}
+  .how.none{background:#fdecea;color:#c0392b}
+  .how.man{background:#fff4e0;color:#a06a12}
+  /* ── 알림 · 질의 */
+  .badge{background:#d9534f;color:#fff;border-radius:9px;padding:1px 6px;font-size:10.5px;margin-left:4px}
+  .al{border:1px solid #e2e8ee;border-left-width:4px;border-radius:7px;padding:11px 14px;margin-bottom:9px;background:#fff}
+  .al.danger{border-left-color:#d9534f;background:#fff6f6}
+  .al.warn{border-left-color:#e8901a;background:#fffaf0}
+  .al.info{border-left-color:#2d6cdf}
+  .al .t{font-weight:600;font-size:13px;margin-bottom:3px}
+  .al .b{font-size:12px;color:#4c5a66;line-height:1.6}
+  .al .e{font-size:11px;color:#a4b0b9;margin-top:5px}
+  .al .meta{font-size:11px;color:#8c9ba5;margin-top:6px;display:flex;gap:10px;align-items:center}
+  .al.unread{box-shadow:0 0 0 2px #e7effc}
+  .sendbox{display:grid;grid-template-columns:130px 130px 1fr;gap:9px;margin-bottom:9px}
+  .sendbox select,.sendbox input,#askq{padding:8px 10px;border:1px solid #d5dde3;border-radius:6px;font-size:12.5px;width:100%;font-family:inherit}
+  #askq{min-height:66px;resize:vertical}
+  .qa{margin-bottom:13px}
+  .qa .q{background:#e7effc;padding:9px 13px;border-radius:8px 8px 8px 2px;font-size:12.5px;display:inline-block;max-width:80%}
+  .qa .a{background:#fff;border:1px solid #e2e8ee;padding:11px 14px;border-radius:8px 8px 2px 8px;
+    font-size:12.5px;line-height:1.75;margin-top:7px;white-space:pre-wrap}
+  .qa .src{font-size:11px;color:#a4b0b9;margin-top:6px}
+  .exq{background:#f2f5f8;border:1px solid #dfe6ec;border-radius:14px;padding:5px 12px;
+    font-size:11.5px;cursor:pointer;margin:0 5px 6px 0}
+  .exq:hover{background:#e7effc}
+</style>
+
+<div id="login">
+  <form class="lbox" onsubmit="doLogin(event)">
+    <h1>MCT 공구 마모 관리</h1>
+    <div class="sub">제일PMC · 설비 JPS-1070</div>
+    <label>아이디</label>
+    <input id="lid" autocomplete="username" autofocus>
+    <label>비밀번호</label>
+    <input id="lpw" type="password" autocomplete="current-password">
+    <button type="submit">로그인</button>
+    <div id="lerr" class="lerr hide"></div>
+    <div class="hint">관리자 admin · 작업자 worker</div>
+  </form>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <h1>MCT MES</h1>
+    <nav>
+      <button data-tab="dash" class="on">대시보드</button>
+      <button data-tab="mfg">제조관리</button>
+      <button data-tab="sales">영업관리</button>
+      <button data-tab="order">공구 주문</button>
+      <button data-tab="alert">알림 <span id="badge" class="badge hide"></span></button>
+      <button data-tab="ask" class="hide">질의</button>
+      <button data-tab="health">설비 건전성</button>
+      <button data-tab="oee">가동률</button>
+      <button data-tab="mach">가공 분석</button>
+      <button data-tab="data" class="hide">데이터 추가</button>
+    </nav>
+    <div class="spacer"></div>
+    <span id="who"></span>
+    <button class="out" onclick="doLogout()">로그아웃</button>
+  </header>
+
+  <div id="webnote" style="background:#e7effc;border-bottom:1px solid #b9cff2;
+  color:#1b365d;padding:7px 20px;font-size:11.5px;grid-column:1/3">
+  웹 버전 — 데이터는 Supabase 에서 직접 읽습니다.
+  질의(Claude)·재집계·파일 업로드는 현장 서버에서만 됩니다.
+</div>
+  <div id="basis">
+    <div class="bset"><span>구간</span><select id="b_seg" onchange="setBasis()"></select></div>
+    <div class="bset"><span>기준 수명</span><select id="b_life" onchange="setBasis()"></select></div>
+    <div class="bset"><span>주간 가동시간</span><select id="b_week" onchange="setBasis()"></select></div>
+    <div class="bset"><span>앵커</span><select id="b_anchor" onchange="setBasis()"></select></div>
+    <div id="bnote"></div>
+  </div>
+  <div id="warn" class="warnbar hide"></div>
+
+  <aside id="side"></aside>
+  <main id="main"></main>
+</div>
+
+<div id="modal" class="hide"></div>
+
+<!-- ── 웹 직결 (build_web.py 가 넣음) ──
+     화면 코드는 손대지 않는다. mes_supa.js 가 /api/* 요청을 가로채
+     Supabase + mes_calc.js 로 처리한다. -->
+<script src="config.js"></script>
+<script src="mes_calc.js"></script>
+<script src="mes_supa.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let ME=null, TAB='dash', TOOLS=[], PROGS=null, BASIS=null;
+let SEL={tool:null, prog:null, main:null};
+let B={seg:null, life:null, week:null, anchor:null};
+let ORDER_SEL = new Set();   // 발주 다중 선택
+
+// ───────── 로그인
+function lerr(m){ $('lerr').innerHTML=m; $('lerr').classList.remove('hide'); }
+const FILE_MODE = location.protocol === 'file:';
+const NO_SERVER = `<b>서버에 연결할 수 없습니다.</b><br>
+  이 화면은 <code>mes_server_simple.py</code> 가 떠 있어야 동작합니다.<br><br>
+  1) <code>mes_server_simple.py</code> · <code>mes_core.py</code> · <code>mes.html</code> ·
+     <code>mes_data.json</code> 을 같은 폴더에 두고<br>
+  2) <code>python mes_server_simple.py</code> 실행 후<br>
+  3) 주소창에 <b>http://localhost:8080</b> 을 직접 입력하세요.<br><br>
+  <span style="opacity:.7">※ mes.html 파일을 더블클릭해서 열면 동작하지 않습니다.</span>`;
+
+async function doLogin(e){
+  e.preventDefault();
+  if(FILE_MODE){ lerr(NO_SERVER); return; }
+  let r,j;
+  try{
+    r = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:$('lid').value, pw:$('lpw').value})});
+    j = await r.json();
+  }catch(err){ lerr(NO_SERVER); return; }
+  if(!r.ok){ lerr(j.error||'로그인 실패'); return; }
+  ME=j.user; start();
+}
+async function doLogout(){ try{ await fetch('/api/logout',{method:'POST'}); }catch(e){} location.reload(); }
+async function boot(){
+  if(FILE_MODE){ lerr(NO_SERVER); return; }
+  try{
+    const j = await (await fetch('/api/me')).json();
+    if(j.user){ ME=j.user; start(); }
+  }catch(err){ lerr(NO_SERVER); }
+}
+
+// ───────── 기준 (구간·수명·시간·앵커)
+function qs(){
+  const p=new URLSearchParams();
+  if(B.seg) p.set('seg',B.seg);
+  if(B.life) p.set('life',B.life);
+  if(B.week) p.set('week',B.week);
+  if(B.anchor) p.set('anchor',B.anchor);
+  return p.toString();
+}
+const api = p => fetch(p + (p.includes('?')?'&':'?') + qs()).then(r=>r.json());
+
+function setBasis(){
+  B.seg=$('b_seg').value; B.life=$('b_life').value;
+  B.week=$('b_week').value; B.anchor=$('b_anchor').value;
+  reload();
+}
+
+function fillBasisBar(b){
+  BASIS=b;
+  const sel=(el,items,val)=>{
+    el.innerHTML=items.map(i=>`<option value="${i.v}" ${String(i.v)===String(val)?'selected':''}>${i.t}</option>`).join('');
+  };
+  sel($('b_seg'), b.segments.map(s=>({v:s.key,t:`${s.label} — ${s.tools}종 · ${s.hours.toFixed(1)}h`})), b.segment);
+  sel($('b_life'), b.life_options.map(v=>({v,t:v+'일'})), b.life_days);
+  sel($('b_week'), b.week_options.map(w=>({v:w.v,t:`${w.v}h${w.note?' — '+w.note:''}`})), b.week_hours);
+  sel($('b_anchor'), b.anchor_options.map(a=>({v:a.v,t:a.label})), b.anchor);
+  B.seg=b.segment; B.life=b.life_days; B.week=b.week_hours; B.anchor=b.anchor;
+
+  $('bnote').innerHTML =
+    `기준 <b>${b.life_days}일 = 절삭 ${num(Math.round(b.life_cut_hours))}h</b> · 하루 ${b.day_hours.toFixed(2)}h<br>` +
+    `관측 ${b.observed_hours}h = 기준 수명의 <b>${(100*b.observed_hours/b.life_cut_hours).toFixed(2)}%</b>`;
+
+  const w=$('warn');
+  if(b.segment==='all'){
+    w.classList.remove('hide');
+    w.innerHTML = `⚠ <b>구간 혼합</b> — ${b.switch}. 전후로 공구 세트가 통째로 바뀌었습니다. ` +
+      `같은 공구 번호라도 다른 공구일 수 있어 이 구간의 적산값은 참고용입니다.`;
+  } else w.classList.add('hide');
+}
+
+async function start(){
+  $('login').classList.add('hide'); $('app').classList.remove('hide');
+  $('who').textContent = `${ME.name} (${ME.role==='manager'?'관리자':'작업자'})`;
+  fillBasisBar(await api('/api/basis'));
+  await loadReports();
+  await reload();
+}
+async function reload(){
+  TOOLS = await api('/api/tools');
+  PROGS = await api('/api/programs');
+  if(!TOOLS.find(t=>t.tool===SEL.tool)) SEL.tool = TOOLS[0]?.tool ?? null;
+  if(!PROGS.progs.find(p=>p.prog===SEL.prog)) SEL.prog = null;
+  if(!PROGS.mains.find(m=>m.main===SEL.main)) SEL.main = null;
+  render();
+}
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); TAB=b.dataset.tab; render();
+});
+
+// ───────── 유틸
+const f2=v=>(v??0).toFixed(2), f3=v=>(v??0).toFixed(3), f4=v=>(v??0).toFixed(4);
+const num=v=>(v??0).toLocaleString();
+const lvl=w=> w>=100?'d': w>=90?'w':'';
+const inten=v=> v==null?'-': v.toFixed(2)+'배';
+const days=v=> v==null?'-': v>=10000? (v/365).toFixed(0)+'년' : num(Math.round(v))+'일';
+const bar=(p,c)=>`<div class="bar"><i class="${c||''}" style="width:${Math.min(Math.max(p,0),100)}%"></i></div>`;
+const cardHtml=(k,v,u,c)=>`<div class="card ${c||''}"><div class="k">${k}</div><div class="v">${v}<span class="u">${u||''}</span></div></div>`;
+
+async function render(){
+  if(TAB==='dash') return renderDash();
+  if(TAB==='mfg') return renderMfg();
+  if(TAB==='sales') return renderSales();
+  if(TAB==='order') return renderOrder();
+  if(TAB==='alert') return renderAlert();
+  if(TAB==='ask') return renderAsk();
+  if(TAB==='health') return renderHealth();
+  if(TAB==='oee') return renderOee();
+  if(TAB==='mach') return renderMach();
+  if(TAB==='data') return renderData();
+}
+
+// ═════ 대시보드
+async function renderDash(){
+  const ov = await api('/api/overview');
+  const b = ov.basis; fillBasisBar(b);
+
+  $('side').innerHTML = `<h3>메인 프로그램</h3>` +
+    `<div class="item ${!SEL.main?'on':''}" onclick="SEL.main=null;render()">전체<span class="m">${PROGS.progs.length}개 프로그램</span></div>` +
+    PROGS.mains.map(m=>`<div class="item ${SEL.main===m.main?'on':''}" onclick="SEL.main='${m.main}';render()">
+      O${m.main}<span class="m">${f2(m.hours)}h · 마모 ${f3(m.wear)}%</span></div>`).join('') +
+    `<h3>세부 프로그램</h3>` +
+    PROGS.progs.filter(p=>!SEL.main||p.main===SEL.main).slice(0,20).map(p=>
+      `<div class="item ${SEL.prog===p.prog?'on':''}" onclick="SEL.prog='${p.prog}';TAB='mfg';
+        document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='mfg'));render()">
+        ${p.prog}<span class="m">${f2(p.hours)}h · ${num(p.rows)}행</span></div>`).join('');
+
+  const t = TOOLS.find(x=>x.tool===SEL.tool) || TOOLS[0];
+  const det = t ? await api('/api/tool/'+t.tool) : null;
+  const s = ov.summary;
+
+  $('main').innerHTML = `
+    <h2>대시보드 — ${b.segment_label}</h2>
+    <div class="desc">${b.segment_period} · 앵커 <b>${b.anchor_label}</b> = ${b.life_days}일 ·
+      주간 ${b.week_hours}h · 데이터 ${b.built}</div>
+
+    <div class="cards">
+      ${cardHtml('관측 절삭', f2(s.cut_hours), 'h')}
+      ${cardHtml('기준 대비 진행', f2(s.anchor_wear), '%', 'hl')}
+      ${cardHtml('평균 공구 마모', f2(s.mean_wear), '%')}
+      ${cardHtml('사용 공구', s.tools, '종')}
+      ${cardHtml('생산 수량', num(s.parts), '개')}
+      ${cardHtml('평균 초과 사용', ov.over, '종', ov.over?'warn':'ok')}
+    </div>
+
+    ${reportBar('wear')}
+    <div class="panel">
+      <h4>공구 선택</h4>
+      <select id="tsel" onchange="SEL.tool=+this.value;render()">
+        ${TOOLS.map(x=>`<option value="${x.tool}" ${x.tool===SEL.tool?'selected':''}>
+          T${x.tool} · ${x.name} — 마모 ${f2(x.wear)}% · 사용강도 ${inten(x.intensity)}</option>`).join('')}
+      </select>
+      <div class="chips">
+        <span class="muted" style="align-self:center;font-size:12px;margin-right:4px">사용량 TOP 5</span>
+        ${ov.top5.map(x=>`<button class="chip ${x.tool===SEL.tool?'on':''}" onclick="SEL.tool=${x.tool};render()">
+          T${x.tool} ${x.name}<span class="r">${f2(x.share)}%</span></button>`).join('')}
+      </div>
+    </div>
+
+    ${det ? `
+    <div class="grid2">
+      <div class="panel">
+        <h4>T${det.tool.tool} · ${det.tool.name}
+          <span class="tag ${det.tool.cls==='breakage'?'b':'w'}">${det.tool.cls==='breakage'?'파손형':'마모형'}</span></h4>
+        <div class="gauge"><i class="${lvl(det.tool.wear)}" style="width:${Math.min(det.tool.wear,100)}%"></i>
+          <span>${f3(det.tool.wear)} %</span></div>
+        <div class="row"><span>경보 단계</span><span>${det.level}</span></div>
+        <div class="row"><span>사용강도 (평균 대비)</span><span class="mono">${inten(det.tool.intensity)}</span></div>
+        <div class="row"><span>예상 수명 <span class="tag w">참고</span></span><span class="mono">${days(det.tool.life)}</span></div>
+        <div style="font-size:11px;color:#a4b0b9;line-height:1.6;margin-top:7px">${det.tool.life_basis||''}<br>앵커를 고르면 정해지는 환산값입니다. 공구별 내구성이 같다는 전제가 있어 교체 이력이 쌓이면 보정이 필요합니다.</div>
+        <div class="row"><span>누적 절삭</span><span class="mono">${f2(det.tool.hours)} h</span></div>
+        <div class="row"><span>세트 내 기여도</span><span class="mono">${f2(det.tool.share)} %</span></div>
+      </div>
+      <div class="panel">
+        <h4>인자별 마모 기여</h4>
+        ${[['실가공','machining'],['과부하','overload'],['충격','shock'],['조건급변','cond_change']].map(([k,f])=>{
+          const v=det.tool[f], p=det.tool.wear?100*v/det.tool.wear:0;
+          return `<div style="margin-bottom:9px"><div class="row" style="border:0;padding:3px 0">
+            <span>${k}</span><span class="mono">${f4(v)}% (${f2(p)}%)</span></div>${bar(p)}</div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h4>이 공구를 쓰는 프로그램</h4>
+        <table><thead><tr><th>프로그램</th><th class="n">마모 기여</th><th class="n">비중</th></tr></thead><tbody>
+        ${Object.entries(det.tool.progs).map(([p,v])=>`<tr><td>${p}</td><td class="n">${f4(v)}%</td>
+          <td class="n">${f2(det.tool.wear?100*v/det.tool.wear:0)}%</td></tr>`).join('')||'<tr><td colspan=3 class="muted">-</td></tr>'}
+        </tbody></table>
+      </div>
+      <div class="panel">
+        <h4>최근 이벤트 — 임계 초과</h4>
+        <div id="log">${(det.events.length?det.events:ov.events).slice(0,25).map(e=>
+          `<div><span class="muted">${e.time}</span> T${e.tool} — ${e.type}</div>`).join('')||'<div class="muted">없음</div>'}</div>
+      </div>
+    </div>`:''}
+
+    <div class="panel">
+      <h4>일별 절삭시간 · 마모 추이</h4>
+      <canvas id="cv"></canvas>
+    </div>`;
+  drawDays(ov.days);
+}
+
+function drawDays(days){
+  const cv=$('cv'); if(!cv) return;
+  const ctx=cv.getContext('2d'), w=cv.width=cv.clientWidth*2, h=cv.height=300;
+  ctx.clearRect(0,0,w,h);
+  const mx=Math.max(...days.map(d=>d.cut_h),1), n=days.length, bw=w/n*0.6;
+  days.forEach((d,i)=>{
+    const x=(i+0.5)*w/n, bh=d.cut_h/mx*(h-50);
+    ctx.fillStyle= d.cut_h>0?'#2d6cdf':'#dfe4e7';
+    ctx.fillRect(x-bw/2,h-30-bh,bw,bh);
+    if(n<=25){ ctx.fillStyle='#8c9ba5'; ctx.font='18px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(d.date.slice(5),x,h-8);
+      if(d.cut_h>0){ ctx.fillStyle='#1f2a33'; ctx.fillText(d.cut_h.toFixed(1),x,h-36-bh); } }
+  });
+}
+
+// ═════ 제조관리
+async function renderMfg(){
+  $('side').innerHTML = `<h3>메인 프로그램</h3>` +
+    `<div class="item ${!SEL.main?'on':''}" onclick="SEL.main=null;SEL.prog=null;render()">전체</div>` +
+    PROGS.mains.map(m=>`<div class="item ${SEL.main===m.main?'on':''}" onclick="SEL.main='${m.main}';SEL.prog=null;render()">
+      O${m.main}<span class="m">${f2(m.hours)}h</span></div>`).join('') +
+    `<h3>세부 프로그램</h3>` +
+    PROGS.progs.filter(p=>!SEL.main||p.main===SEL.main).map(p=>
+      `<div class="item ${SEL.prog===p.prog?'on':''}" onclick="SEL.prog='${p.prog}';render()">
+        ${p.prog}<span class="m">${f2(p.hours)}h · 마모 ${f3(p.wear)}%</span></div>`).join('');
+
+  const list = PROGS.progs.filter(p=>!SEL.main||p.main===SEL.main);
+  let detail='';
+  if(SEL.prog){
+    const d = await api('/api/program/'+SEL.prog);
+    if(!d.error) detail = `
+      <div class="panel">
+        <h4>${d.prog.prog} 상세 (메인 O${d.prog.main})</h4>
+        <div class="cards" style="margin-bottom:12px">
+          ${cardHtml('절삭 시간', f2(d.prog.hours),'h')}
+          ${cardHtml('수집 행수', num(d.prog.rows),'행')}
+          ${cardHtml('마모 기여', f3(d.prog.wear),'%')}
+          ${cardHtml('사용 공구', d.tools.length,'종')}
+        </div>
+        <table><thead><tr><th>공구</th><th>이름</th><th class="n">마모 기여</th>
+          <th class="n">프로그램 내 비중</th><th style="width:150px"></th></tr></thead><tbody>
+        ${d.tools.map(t=>`<tr><td>T${t.tool}</td><td>${t.name}</td><td class="n">${f4(t.wear)}%</td>
+          <td class="n">${f2(t.share)}%</td><td>${bar(t.share)}</td></tr>`).join('')}
+        </tbody></table>
+      </div>`;
+  }
+  const tot = list.reduce((a,b)=>a+b.wear,0)||1;
+  $('main').innerHTML = `
+    <h2>제조관리 — ${BASIS.segment_label}</h2>
+    <div class="desc">프로그램(제품)별 가동 현황과 공구 소모 — 좌측에서 선택</div>
+    ${detail}
+    <div class="panel">
+      <h4>프로그램 목록 ${SEL.main?`— 메인 O${SEL.main}`:''}</h4>
+      <table><thead><tr><th>프로그램</th><th>메인</th><th class="n">절삭(h)</th><th class="n">행수</th>
+        <th class="n">마모 기여</th><th style="width:170px">비중</th></tr></thead><tbody>
+      ${list.map(p=>`<tr style="cursor:pointer" onclick="SEL.prog='${p.prog}';render()">
+        <td><b>${p.prog}</b></td><td>O${p.main}</td><td class="n">${f2(p.hours)}</td>
+        <td class="n">${num(p.rows)}</td><td class="n">${f3(p.wear)}%</td>
+        <td>${bar(100*p.wear/tot)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>`;
+}
+
+// ═════ 영업관리
+async function renderSales(){
+  const s = await api('/api/sales');
+  const b = s.basis;
+  $('side').innerHTML = `<h3>제품 (메인 프로그램)</h3>` +
+    s.mains.map(m=>`<div class="item">O${m.main}<span class="m">${f2(m.hours)}h · 마모 ${f3(m.wear)}% (${m.share}%)</span></div>`).join('');
+  $('main').innerHTML = `
+    <h2>영업관리 — ${b.segment_label}</h2>
+    <div class="desc">생산량 기준 공구 소모 — 수주량으로 교체 시점을 역산한다</div>
+    <div class="cards">
+      ${cardHtml('누적 생산', num(s.parts),'개')}
+      ${cardHtml('누적 마모', f3(s.wear),'%')}
+      ${cardHtml('1,000개당', f4(s.per_1000),'%')}
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h4>수주량별 공구 소모 예측</h4>
+        <table><thead><tr><th class="n">생산 수량</th><th class="n">예상 마모</th><th class="n">소요 일수</th></tr></thead><tbody>
+        ${s.capacity.map(c=>`<tr><td class="n">${num(c.qty)}개</td><td class="n">${f2(c.wear)}%</td>
+          <td class="n">${f2(c.days)}일</td></tr>`).join('')}
+        </tbody></table>
+        <div class="muted" style="margin-top:10px;font-size:11.5px">
+          현재 관측 기간의 생산 속도 기준. 제품 믹스가 바뀌면 재산출 필요.</div>
+      </div>
+      <div class="panel">
+        <h4>제품별 공구 소모 비중</h4>
+        <table><thead><tr><th>메인 프로그램</th><th class="n">절삭(h)</th><th class="n">마모</th><th style="width:140px">비중</th></tr></thead><tbody>
+        ${s.mains.map(m=>`<tr><td><b>O${m.main}</b><span class="muted"> · 하위 ${m.progs}개</span></td>
+          <td class="n">${f2(m.hours)}</td><td class="n">${f3(m.wear)}%</td><td>${bar(m.share)}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+    <div class="panel">
+      <h4>일별 생산량 · 공구 소모</h4>
+      <table><thead><tr><th>일자</th><th class="n">절삭(h)</th><th class="n">생산량</th><th class="n">마모</th>
+        <th class="n">개당 마모</th></tr></thead><tbody>
+      ${s.days.map(d=>`<tr class="${d.cut_h>0?'':'muted'}"><td>${d.date}</td><td class="n">${f2(d.cut_h)}</td>
+        <td class="n">${num(d.parts)}</td><td class="n">${f4(d.wear)}%</td>
+        <td class="n">${d.parts? (d.wear/d.parts).toExponential(2):'-'}</td></tr>`).join('')}
+      </tbody></table>
+    </div>`;
+}
+
+// ═════ 공구 주문
+async function renderOrder(){
+  const o = await api('/api/orders');
+  const b = o.basis;
+  $('side').innerHTML = `<h3>기준</h3>
+    <div class="item">교체 주기<span class="m">${b.life_days}일 · 앵커 ${b.anchor_label}</span></div>
+    <div class="item">과다 판정<span class="m">마모율 ${o.order_level}% 이상</span></div>
+    <h3>현황</h3>
+    <div class="item">과다<span class="m">${o.recommend_count}종 / ${o.candidates.length}종</span></div>
+    <div class="item">평균 초과<span class="m">${o.over_count}종</span></div>
+    <div class="item">발주 이력<span class="m">${o.orders.length}건</span></div>`;
+  const canManage = ME.role==='manager';
+  const top = o.candidates.slice(0,20);
+  ORDER_CAND = Object.fromEntries(o.candidates.map(c=>[c.tool,c]));
+  // 구간이 바뀌어 없어진 공구는 선택에서 뺀다
+  [...ORDER_SEL].forEach(t=>{ if(!(t in ORDER_CAND)) ORDER_SEL.delete(t); });
+  $('main').innerHTML = `
+    <h2>공구 주문 — ${b.segment_label}</h2>
+    <div class="desc">소모가 많은 순 — ${canManage?'발주 가능':'조회 전용 (관리자만 발주)'}</div>
+    <div class="cards">
+      ${cardHtml(`마모 ${o.order_level}% 초과`, o.recommend_count,'종', o.recommend_count?'warn':'ok')}
+      ${cardHtml('평균 초과 사용', o.over_count,'종')}
+      ${cardHtml('발주 이력', o.orders.length,'건')}
+    </div>
+    <div class="panel" style="background:#f7f9fb">
+      <div style="font-size:11.5px;color:#6b7a86;line-height:1.7">
+        <b>잔여 일수와 발주 시점을 표시하지 않습니다.</b>
+        공구 교체 이력이 아직 수집되지 않아 "며칠 남았다"를 말할 근거가 없습니다.
+        대신 지금 얼마나 닳았는지(마모율)와 평균보다 몇 배 빨리 닳는지(사용강도)로 우선순위를 정합니다.
+        교체 이력이 확보되면 잔여 일수를 되살립니다.
+      </div>
+    </div>
+    ${reportBar('order','open=1')}
+    <div class="panel">
+      <h4>소모 많은 순 — 상위 20종</h4>
+      <div style="display:flex;gap:9px;align-items:center;margin-bottom:11px">
+        <button class="act" ${canManage?'':'disabled'} onclick="openOrder()">
+          선택 항목 발주 (<span id="selcnt">${ORDER_SEL.size}</span>)</button>
+        <button class="act gray" onclick="ORDER_SEL.clear();renderOrder()">선택 해제</button>
+        <button class="act sec" onclick="openReport('order','open=1')">미입고 발주서 출력</button>
+        <span class="muted" style="font-size:11.5px">공구 이름 왼쪽 체크박스로 여러 개를 고를 수 있습니다</span>
+      </div>
+      <table><thead><tr>
+        <th class="chk"><input type="checkbox" id="allchk" onclick="toggleAll(this.checked)"></th>
+        <th>공구</th><th>이름</th><th>부류</th><th class="n">마모율</th>
+        <th class="n">사용강도</th><th class="n">기여도</th><th class="n">절삭(h)</th>
+        <th>단계</th></tr></thead><tbody>
+      ${top.map(c=>`<tr class="${c.recommend?'hot':''}">
+        <td class="chk"><input type="checkbox" data-tool="${c.tool}" ${ORDER_SEL.has(c.tool)?'checked':''}
+          onclick="toggleTool(${c.tool},this.checked)"></td>
+        <td><b>T${c.tool}</b></td><td>${c.name}</td>
+        <td><span class="tag ${c.cls==='breakage'?'b':'w'}">${c.cls==='breakage'?'파손형':'마모형'}</span></td>
+        <td class="n">${f2(c.wear)}%${c.recommend?' <span class="tag b">과다</span>':''}</td>
+        <td class="n">${inten(c.intensity)}</td>
+        <td class="n">${f2(c.share)}%</td>
+        <td class="n">${f2(c.hours)}</td>
+        <td>${c.level==='정상'?'<span class="muted">정상</span>':`<span class="tag b">${c.level}</span>`}</td>
+        </tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div class="panel">
+      <h4>발주 이력</h4>
+      <table><thead><tr><th>일시</th><th>공구</th><th class="n">수량</th><th>담당</th><th>상태</th>
+        <th>비고</th><th style="width:74px">출력</th></tr></thead><tbody>
+      ${o.orders.length? o.orders.map(x=>`<tr><td class="mono">${x.at}</td>
+        <td>T${x.tool} ${x.name}</td><td class="n">${x.qty}</td><td>${x.by}</td>
+        <td><span class="tag ${x.status==='입고'?'g':'w'}">${x.status}</span>
+          ${canManage&&x.status!=='입고'?`<button class="act sec" style="margin-left:6px"
+            onclick="setStatus('${x.id}','입고')">입고 처리</button>`:''}</td>
+        <td class="muted">${x.note||''}</td>
+        <td><button class="act sec" title="이 건의 발주서를 새 창에서 엽니다"
+          onclick="openReport('order','${x.batch?('batch='+x.batch):('ids='+x.id)}')">발주서</button></td>
+        </tr>`).join('')
+        : '<tr><td colspan=7 class="muted">발주 이력이 없습니다</td></tr>'}
+      </tbody></table>
+    </div>`;
+}
+// ── 다중 선택
+let ORDER_CAND = {};
+function toggleTool(t,on){
+  on ? ORDER_SEL.add(t) : ORDER_SEL.delete(t);
+  const el=$('selcnt'); if(el) el.textContent=ORDER_SEL.size;
+  const all=$('allchk');
+  if(all){ const boxes=[...document.querySelectorAll('td.chk input')];
+    all.checked = boxes.length>0 && boxes.every(b=>b.checked); }
+}
+function toggleAll(on){
+  document.querySelectorAll('td.chk input').forEach(b=>{
+    b.checked=on; toggleTool(+b.dataset.tool,on);
+  });
+}
+
+// ── 발주 팝업
+function openOrder(){
+  if(ME.role!=='manager'){ alert('관리자만 발주할 수 있습니다'); return; }
+  if(ORDER_SEL.size===0){ alert('발주할 공구를 하나 이상 선택하세요'); return; }
+  const items=[...ORDER_SEL].map(t=>ORDER_CAND[t]).filter(Boolean)
+    .sort((a,b)=>b.wear-a.wear);
+  $('modal').classList.remove('hide');
+  $('modal').innerHTML = `
+    <div class="mbox">
+      <div class="mhead">
+        <h3>공구 발주 — ${items.length}종</h3>
+        <div class="s">공구별로 수량을 지정하세요. 기본값은 1개입니다.</div>
+      </div>
+      <div class="mbody">
+        ${items.map(c=>`<div class="qrow" data-tool="${c.tool}">
+          <div class="nm"><b style="display:inline;font-size:12.5px;color:#1f2a33;font-weight:600">T${c.tool}</b>
+            ${c.name}
+            <b>마모율 ${f2(c.wear)}% · 사용강도 ${inten(c.intensity)} ·
+               ${c.cls==='breakage'?'파손형':'마모형'}${c.recommend?' · 과다':''}</b></div>
+          <input type="number" min="1" max="999" value="1" class="qty" onchange="sumQty()">
+          <span class="muted" style="font-size:11.5px">개</span>
+          <button class="del" title="목록에서 제외"
+            onclick="ORDER_SEL.delete(${c.tool});openOrder()">×</button>
+        </div>`).join('')}
+        <input id="mnote" placeholder="비고 (선택) — 전체 항목에 함께 기록됩니다">
+      </div>
+      <div class="mfoot">
+        <span class="tot">합계 <b id="qtot">${items.length}</b>개</span>
+        <button class="act gray" onclick="closeOrder()">취소</button>
+        <button class="act" onclick="submitOrder()">발주 등록</button>
+      </div>
+    </div>`;
+}
+function closeOrder(){ $('modal').classList.add('hide'); $('modal').innerHTML=''; }
+function sumQty(){
+  const n=[...document.querySelectorAll('#modal .qty')]
+    .reduce((a,b)=>a+(Math.max(1,+b.value||1)),0);
+  const el=$('qtot'); if(el) el.textContent=n;
+}
+async function submitOrder(){
+  const note = $('mnote').value;
+  const items = [...document.querySelectorAll('#modal .qrow')].map(r=>{
+    const t=+r.dataset.tool;
+    return {tool:t, name:(ORDER_CAND[t]||{}).name||'',
+            qty:Math.max(1,+r.querySelector('.qty').value||1), note};
+  });
+  if(!items.length){ alert('발주할 공구가 없습니다'); return; }
+  const r = await fetch('/api/order',{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify({items,note})});
+  const j = await r.json();
+  if(!r.ok){ alert(j.error||'발주 실패'); return; }
+  closeOrder(); ORDER_SEL.clear(); renderOrder();
+}
+async function setStatus(id,status){
+  await fetch(`/api/order/${id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({status})});
+  renderOrder();
+}
+
+// ═════ 알림
+async function renderAlert(){
+  const a = await api('/api/alerts');
+  const canManage = ME.role==='manager';
+  const badge=$('badge'), n=a.counts.danger+a.counts.unread;
+  if(n){ badge.textContent=n; badge.classList.remove('hide'); } else badge.classList.add('hide');
+
+  const card = x => `<div class="al ${x.level}${x.unread?' unread':''}">
+      <div class="t">${x.title}</div><div class="b">${x.body||''}</div>
+      ${x.evidence?`<div class="e">근거 — ${x.evidence}</div>`:''}
+      ${x.by?`<div class="meta"><span>${x.by} · ${x.at} · 수신 ${
+        {all:'전체',manager:'관리자',operator:'작업자'}[x.to]||x.to}</span>
+        ${x.unread?`<button class="act sec" onclick="readAlert('${x.id}')">읽음</button>`:'<span>읽음</span>'}
+      </div>`:''}
+    </div>`;
+
+  $('side').innerHTML = `<h3>경보 규칙</h3>` +
+    a.rules.wear.map(r=>`<div class="item">마모율 ${r.threshold}%<span class="m">${r.name}</span></div>`).join('') +
+    `<div class="item">사용강도 ${a.rules.intensity}배<span class="m">과다 소모 경고</span></div>
+     <h3>현황</h3>
+     <div class="item">위험<span class="m">${a.counts.danger}건</span></div>
+     <div class="item">주의<span class="m">${a.counts.warn}건</span></div>
+     <div class="item">안 읽은 알림<span class="m">${a.counts.unread}건</span></div>`;
+
+  $('main').innerHTML = `
+    <h2>알림</h2>
+    <div class="desc">자동 경보는 선택한 기준으로 매번 다시 판정합니다 — 규칙 기반이라 근거를 그대로 보여줍니다</div>
+    <div class="cards">
+      ${cardHtml('위험', a.counts.danger,'건', a.counts.danger?'warn':'ok')}
+      ${cardHtml('주의', a.counts.warn,'건')}
+      ${cardHtml('안 읽은 알림', a.counts.unread,'건', a.counts.unread?'hl':'')}
+    </div>
+
+    ${canManage?`<div class="panel">
+      <h4>작업자에게 알림 보내기</h4>
+      <div class="sendbox">
+        <select id="s_to"><option value="all">전체</option>
+          <option value="operator">작업자</option><option value="manager">관리자</option></select>
+        <select id="s_lv"><option value="danger">위험</option>
+          <option value="warn">주의</option><option value="info" selected>안내</option></select>
+        <input id="s_title" placeholder="제목 — 예: T33 교체 요망">
+      </div>
+      <input id="s_body" placeholder="내용 (선택)" style="width:100%;padding:8px 10px;
+        border:1px solid #d5dde3;border-radius:6px;font-size:12.5px;margin-bottom:9px">
+      <button class="act" onclick="sendAlert()">전송</button>
+    </div>`:''}
+
+    <div class="panel">
+      <h4>받은 알림 ${a.manual.length?`(${a.manual.length})`:''}</h4>
+      ${a.manual.length? a.manual.map(card).join('') : '<div class="muted">받은 알림이 없습니다</div>'}
+    </div>
+
+    <div class="panel">
+      <h4>자동 경보 ${a.auto.length?`(${a.auto.length})`:''}</h4>
+      ${a.auto.length? a.auto.map(card).join('') : '<div class="muted">경보 없음</div>'}
+    </div>`;
+}
+async function sendAlert(){
+  const body={to:$('s_to').value, level:$('s_lv').value,
+              title:$('s_title').value, body:$('s_body').value};
+  if(!body.title.trim()){ alert('제목을 입력하세요'); return; }
+  const r=await fetch('/api/alert/send',{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json();
+  if(!r.ok){ alert(j.error); return; }
+  renderAlert();
+}
+async function readAlert(id){
+  await fetch(`/api/alert/${id}/read`,{method:'POST'});
+  renderAlert();
+}
+
+// ═════ 질의
+let QA=[];
+async function renderAsk(){
+  const info = await api('/api/audit');
+  const ex=['제일 많이 닳은 공구는?','8월 20일 가동시간 알려줘','현재 경보 요약해줘',
+            'T33 상태는?','누가 발주했나?','과부하가 많은 프로그램은?'];
+  $('side').innerHTML = `<h3>agent</h3>
+    <div class="item">엔진<span class="m">${info.agent.provider}</span></div>
+    <div class="item">모드<span class="m">${info.agent.online?'온라인 (Claude API)':'오프라인 (규칙 기반)'}</span></div>
+    <h3>MES 활동 로그</h3>` +
+    (info.log.length? info.log.slice(0,25).map(l=>
+      `<div class="item">${l.action}<span class="m">${l.at} · ${l.user}${l.detail?' · '+l.detail:''}</span></div>`).join('')
+      : '<div class="item muted">기록 없음</div>');
+
+  $('main').innerHTML = `
+    <h2>질의</h2>
+    <div class="desc">집계된 값과 MES 활동 로그로 답합니다 — 원본 데이터는 전송하지 않습니다</div>
+    ${info.agent.online?'':`<div class="panel" style="background:#fff8e6;border-color:#f0dfae">
+      <div style="font-size:12px;color:#8a6d1f;line-height:1.7">
+        <b>오프라인 모드</b> — 환경변수 <code>ANTHROPIC_API_KEY</code> 가 설정되지 않아
+        규칙 기반으로 동작합니다. 정해진 형태의 질문만 답할 수 있습니다.
+      </div></div>`}
+    <div class="panel">
+      <div>${ex.map(q=>`<button class="exq" onclick="ask('${q}')">${q}</button>`).join('')}</div>
+      <textarea id="askq" placeholder="질문을 입력하세요"
+        onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))ask()"></textarea>
+      <div style="margin-top:9px;display:flex;gap:9px;align-items:center">
+        <button class="act" onclick="ask()">질문 (Ctrl+Enter)</button>
+        <span class="muted" style="font-size:11.5px">기준: ${BASIS.segment_label} ·
+          ${BASIS.life_days}일 · 앵커 ${BASIS.anchor_label}</span>
+      </div>
+    </div>
+    <div class="panel" id="qalog">
+      <h4>대화</h4>
+      ${QA.length? QA.map(x=>`<div class="qa"><div class="q">${x.q}</div>
+        <div class="a">${x.a}</div>
+        <div class="src">${x.provider}${x.fallback?' · 오프라인으로 대체됨':''}${
+          x.context_size?` · 전송 ${(x.context_size/1024).toFixed(1)}KB`:''}</div></div>`).reverse().join('')
+        : '<div class="muted">질문을 입력하면 여기에 표시됩니다</div>'}
+    </div>`;
+}
+async function ask(preset){
+  const q = (preset || $('askq').value).trim();
+  if(!q) return;
+  if(!preset) $('askq').value='';
+  QA.push({q, a:'답변 생성 중...', provider:''});
+  renderAsk();
+  try{
+    const r = await fetch('/api/ask?'+qs(),{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({q})});
+    const j = await r.json();
+    QA[QA.length-1] = {q, a: j.answer || j.error || '응답 없음',
+                       provider: j.provider||'', fallback: j.fallback,
+                       context_size: j.context_size};
+  }catch(e){ QA[QA.length-1] = {q, a:'요청 실패 — '+e, provider:''}; }
+  renderAsk();
+}
+
+// ═════ 공통 — 빈 칸 명시
+function gapsHtml(gaps, title){
+  if(!gaps || !gaps.length) return '';
+  return `<div class="panel">
+    <h4>${title||'이 화면에서 비어 있는 항목'}</h4>
+    <div class="muted" style="font-size:11.5px;margin-bottom:10px">
+      데이터가 없어 만들지 못한 기능입니다. 숨기지 않고 사유와 대체 지표를 함께 적습니다.</div>
+    ${gaps.map(g=>`<div class="gap"><div class="t">${g.feature} — 비어 있음</div>
+      <div class="w">${g.why}</div>
+      ${g.instead?`<div class="i">대체 — ${g.instead}</div>`:''}</div>`).join('')}
+    <button class="act" style="margin-top:6px" onclick="askGaps()">Agent 에게 설명 요청</button>
+  </div>`;
+}
+function askGaps(){
+  TAB='ask';
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='ask'));
+  render().then(()=>ask('지금 화면에서 데이터가 없어 비어 있는 항목들이 왜 비었는지, 무엇을 받아야 채울 수 있는지, 그동안 대신 볼 지표는 무엇인지 설명해줘'));
+}
+const st1 = (o,k)=> o && o[k] ? o[k] : null;
+function statRow(label, s, unit){
+  if(!s) return `<div class="row"><span>${label}</span><span class="muted">데이터 없음</span></div>`;
+  return `<div class="row"><span>${label}${s.approx?' <span class="muted" style="font-size:10.5px">근사</span>':''}</span>
+    <span class="mono">중앙 ${f2(s.p50)}${unit} · p95 ${f2(s.p95)}${unit} · 최대 ${f2(s.max)}${unit}</span></div>`;
+}
+
+// ═════ 설비 건전성
+async function renderHealth(){
+  const h = await api('/api/health');
+  if(!h.available){ $('side').innerHTML=''; $('main').innerHTML=`<h2>설비 건전성</h2><div class="panel">${h.note}</div>`; return; }
+  const s = h.stats, b = h.basis;
+  const imb = s.imbalance;
+  const lvl = imb ? (imb.p50>=15?'warn':(imb.p50>=10?'':'ok')) : '';
+  $('side').innerHTML = `<h3>보는 것</h3>
+    <div class="item">3상 전류 불평형<span class="m">설비 전기계통 이상</span></div>
+    <div class="item">서보 축 부하<span class="m">축별 기계 부하</span></div>
+    <div class="item">진동 주파수<span class="m">회전체 상태</span></div>
+    <div class="item">온습도<span class="m">환경 조건</span></div>`;
+  $('main').innerHTML = `
+    <h2>설비 건전성 — ${b.segment_label}</h2>
+    <div class="desc">공구가 아니라 <b>설비 자체</b>의 상태. 지금까지 안 쓰던 컬럼으로 만들었습니다</div>
+    <div class="cards">
+      ${cardHtml('3상 불평형 (중앙)', imb?f2(imb.p50):'-','%', lvl)}
+      ${cardHtml('Y축 서보 부하', s.servo_y?f2(s.servo_y.p50):'-','%')}
+      ${cardHtml('진동 주파수 X', s.freq_x?f2(s.freq_x.p50):'-','Hz')}
+      ${cardHtml('진동센서 온도', s.vib_temp?f2(s.vib_temp.p50):'-','℃')}
+      ${cardHtml('습도', s.uyeg_humi?f2(s.uyeg_humi.p50):'-','%')}
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h4>3상 전류 — 불평형</h4>
+        <div class="muted" style="font-size:11.5px;margin-bottom:9px">
+          (최대상 − 최소상) ÷ 평균상. 통상 10% 이하가 정상, 지속적으로 높으면 결상·접촉불량을 의심합니다.</div>
+        ${statRow('불평형률', imb, '%')}
+        ${statRow('R상 전류', s.cur_r, '')}
+        ${statRow('S상 전류', s.cur_s, '')}
+        ${statRow('T상 전류', s.cur_t, '')}
+      </div>
+      <div class="panel">
+        <h4>서보 축 부하율</h4>
+        <div class="muted" style="font-size:11.5px;margin-bottom:9px">
+          전류가 아니라 부하율(%)입니다. Y축은 정지 기준선이 69%로 높습니다 (규격서 기준).</div>
+        ${statRow('X축', s.servo_x, '%')}
+        ${statRow('Y축', s.servo_y, '%')}
+        ${statRow('Z축', s.servo_z, '%')}
+        ${statRow('주축 부하', s.spindle_load, '%')}
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h4>진동 주파수</h4>
+        ${statRow('X축', s.freq_x, 'Hz')}
+        ${statRow('Y축', s.freq_y, 'Hz')}
+        ${statRow('Z축', s.freq_z, 'Hz')}
+      </div>
+      <div class="panel">
+        <h4>환경</h4>
+        ${statRow('진동센서 온도', s.vib_temp, '℃')}
+        ${statRow('UYeG 온도', s.uyeg_temp, '℃')}
+        ${statRow('UYeG 습도', s.uyeg_humi, '%')}
+      </div>
+    </div>
+    <div class="panel">
+      <h4>일별 추이 (중앙값)</h4>
+      <table><thead><tr><th>일자</th><th class="n">불평형(%)</th><th class="n">X서보</th>
+        <th class="n">Y서보</th><th class="n">Z서보</th><th class="n">진동주파수X</th>
+        <th class="n">온도(℃)</th><th class="n">습도(%)</th></tr></thead><tbody>
+      ${h.days.map(d=>`<tr><td>${d.day}</td><td class="n">${f2(d.imb)}</td>
+        <td class="n">${f2(d.sx)}</td><td class="n">${f2(d.sy)}</td><td class="n">${f2(d.sz)}</td>
+        <td class="n">${f2(d.fx)}</td><td class="n">${f2(d.temp)}</td><td class="n">${f2(d.humi)}</td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>
+    ${gapsHtml(h.gaps)}`;
+}
+
+// ═════ 가동률
+async function renderOee(){
+  const o = await api('/api/oee');
+  if(!o.available){ $('side').innerHTML=''; $('main').innerHTML=`<h2>가동률</h2><div class="panel">${o.note}</div>`; return; }
+  const s = o.summary, p = o.production, b = o.basis;
+  $('side').innerHTML = `<h3>요약</h3>
+    <div class="item">조업일<span class="m">${s.operating_days}일</span></div>
+    <div class="item">절삭<span class="m">${f2(s.cut_h)}h · 일평균 ${f2(s.daily_cut)}h</span></div>
+    <div class="item">공회전<span class="m">${f2(s.idle_h)}h</span></div>
+    <div class="item">절삭률<span class="m">${f2(s.cut_rate)}%</span></div>
+    <h3>생산</h3>
+    <div class="item">카운터<span class="m">${p.counter_stuck?'정지 — 집계 불가':num(p.produced)+'개 (' + p.n_events + '회)'}</span></div>
+    ${p.cycle_min.median?`<div class="item">실측 사이클<span class="m">${p.cycle_min.median}분/개</span></div>`:''}`;
+  $('main').innerHTML = `
+    <h2>가동률 — ${b.segment_label}</h2>
+    <div class="desc">조업창(첫 가동~마지막 가동) 대비 실제로 깎은 시간의 비율</div>
+    <div class="cards">
+      ${cardHtml('조업일', s.operating_days,'일')}
+      ${cardHtml('절삭', f2(s.cut_h),'h')}
+      ${cardHtml('공회전', f2(s.idle_h),'h')}
+      ${cardHtml('일평균 절삭', f2(s.daily_cut),'h','hl')}
+      ${cardHtml('절삭률', f2(s.cut_rate),'%')}
+    </div>
+    ${p.counter_stuck? `<div class="panel" style="background:#fffdf5;border-color:#d5b26a">
+      <div style="font-size:12px;color:#8a6d1f;line-height:1.7">
+        <b>이 구간의 생산량은 알 수 없습니다.</b>
+        PartCount 누적 카운터가 ${num(p.counter_max)} 에서 한 번도 움직이지 않았습니다.
+        설비에서 카운터를 세지 않았거나 수집이 끊긴 것으로 보입니다.
+        생산량이 필요한 지표(개당 소모율·수주량 예측)는 이 구간에서 산출할 수 없습니다.</div></div>`
+    : `<div class="panel">
+      <h4>생산 실적 — 카운터 증분 기준</h4>
+      <div class="cards" style="margin-bottom:10px">
+        ${cardHtml('생산량', num(p.produced),'개')}
+        ${cardHtml('카운터', num(p.counter_min)+' → '+num(p.counter_max),'')}
+        ${cardHtml('실측 사이클', p.cycle_min.median??'-','분/개','hl')}
+        ${cardHtml('사이클 편차', p.cycle_min.min&&p.cycle_min.max?`${p.cycle_min.min}~${p.cycle_min.max}`:'-','분')}
+      </div>
+      <div class="muted" style="font-size:11.5px;margin-bottom:9px">
+        누적 카운터를 일별 최댓값으로 더하면 안 됩니다. 증분만 셉니다.</div>
+      <table><thead><tr><th>시각</th><th class="n">카운터</th></tr></thead><tbody>
+      ${p.events.slice(-12).reverse().map(e=>`<tr><td class="mono">${e.time}</td>
+        <td class="n">${e.frm} → ${e.to}</td></tr>`).join('')}
+      </tbody></table></div>`}
+    <div class="panel">
+      <h4>일별 가동</h4>
+      <table><thead><tr><th>일자</th><th>조업창</th><th class="n">조업(h)</th>
+        <th class="n">절삭(h)</th><th class="n">공회전(h)</th><th class="n">절삭률</th>
+        <th style="width:150px"></th></tr></thead><tbody>
+      ${o.days.filter(d=>d.span>0).map(d=>`<tr>
+        <td>${d.date}</td><td class="mono">${d.start??'-'} ~ ${d.end??'-'}</td>
+        <td class="n">${f2(d.span)}</td><td class="n">${f2(d.cut)}</td>
+        <td class="n">${f2(d.idle)}</td><td class="n">${f2(d.cut_rate)}%</td>
+        <td>${bar(d.cut_rate)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    ${gapsHtml(o.gaps)}`;
+}
+
+// ═════ 가공 분석
+async function renderMach(){
+  const m = await api('/api/machining');
+  if(!m.available){ $('side').innerHTML=''; $('main').innerHTML=`<h2>가공 분석</h2><div class="panel">${m.note}</div>`; return; }
+  const b = m.basis;
+  $('side').innerHTML = `<h3>워크오프셋</h3>` +
+    m.offsets.map(o=>`<div class="item">${o.name}<span class="m">${f2(o.h)}h · ${o.share}%</span></div>`).join('') +
+    `<h3>이송모드</h3>` +
+    m.gcode.map(g=>`<div class="item">${g.name}<span class="m">${f2(g.h)}h · ${g.share}%</span></div>`).join('');
+  $('main').innerHTML = `
+    <h2>가공 분석 — ${b.segment_label}</h2>
+    <div class="desc">지그 위치(G54~G59)와 이송모드별 절삭 분해</div>
+    <div class="grid2">
+      <div class="panel">
+        <h4>워크오프셋별 절삭시간 — 지그 위치</h4>
+        <table><thead><tr><th>오프셋</th><th class="n">절삭(h)</th><th class="n">비중</th><th style="width:150px"></th></tr></thead><tbody>
+        ${m.offsets.map(o=>`<tr><td><b>${o.name}</b></td><td class="n">${f2(o.h)}</td>
+          <td class="n">${o.share}%</td><td>${bar(o.share)}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+      <div class="panel">
+        <h4>이송모드별 — G01 직선 · G00 급속 · G02/03 원호</h4>
+        <table><thead><tr><th>G코드</th><th class="n">시간(h)</th><th class="n">비중</th><th style="width:150px"></th></tr></thead><tbody>
+        ${m.gcode.map(g=>`<tr><td><b>${g.name}</b></td><td class="n">${f2(g.h)}</td>
+          <td class="n">${g.share}%</td><td>${bar(g.share)}</td></tr>`).join('')}
+        </tbody></table>
+        <div class="muted" style="margin-top:9px;font-size:11.5px">
+          절삭 판정은 RunState 로 합니다. 고정사이클 중에는 G00 이 유지되므로 G코드만으로는 판단할 수 없습니다.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h4>지그 × 공구 — 어느 위치에서 어느 공구를 쓰나</h4>
+      <table><thead><tr><th>오프셋</th><th>공구</th><th>이름</th><th class="n">절삭(h)</th></tr></thead><tbody>
+      ${m.offset_tool.slice(0,20).map(x=>`<tr><td>${x.offset}</td><td><b>T${x.tool}</b></td>
+        <td>${x.name}</td><td class="n">${f2(x.h)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h4>가공 좌표 범위 (기계좌표)</h4>
+        ${statRow('X', m.pos.x, '')}${statRow('Y', m.pos.y, '')}
+        ${statRow('Z', m.pos.z, '')}${statRow('B축', m.pos.b, '°')}
+      </div>
+      <div class="panel">
+        <h4>이송 오버라이드</h4>
+        <table><thead><tr><th class="n">오버라이드</th><th class="n">시간(h)</th></tr></thead><tbody>
+        ${m.feed_ovr.map(f=>`<tr><td class="n">${f.val}%</td><td class="n">${f2(f.h)}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+    ${gapsHtml(m.gaps)}`;
+}
+
+// ═════ 데이터 추가 (업로드 + 컬럼 매칭)
+let MATCH=null, STDCOLS={};
+async function renderData(){
+  const d = await api('/api/uploads');
+  STDCOLS = d.standard;
+  $('side').innerHTML = `<h3>올린 파일</h3>` +
+    (d.files.length? d.files.map(f=>`<div class="item">${f.name}
+      <span class="m">${f.size_kb}KB · ${f.at}<br>${f.mapped!=null?`매칭 ${f.mapped}/${f.total}`:'미매칭'}
+      ${f.confirmed?` · <b style="color:#2e7d4f">확정</b>`:''}</span></div>`).join('')
+     : '<div class="item muted">없음</div>') +
+    `<h3>매칭 단계</h3>
+     <div class="item">1 별칭 사전<span class="m">제일PMC 대응표 — 확실</span></div>
+     <div class="item">2 이름 유사도<span class="m">오탈자·표기 흔들림</span></div>
+     <div class="item">3 Agent<span class="m">값의 형태로 판단</span></div>`;
+
+  $('main').innerHTML = `
+    <h2>데이터 추가</h2>
+    <div class="desc">이름이 다른 데이터셋을 올리면 표준 컬럼에 자동 대응시킵니다 — 확정은 사람이 합니다</div>
+    <div class="panel">
+      <div class="drop" onclick="$('fpick').click()">
+        <b>CSV 파일을 선택하세요</b>
+        <span>파일 전체가 저장되고 앞 300행으로 컬럼을 매칭합니다 · 확정 전에는 집계에 반영되지 않습니다</span>
+      </div>
+      <input type="file" id="fpick" accept=".csv,.txt" class="hide" onchange="doUpload(this)">
+      <div id="upstat" class="muted" style="font-size:11.5px;margin-top:9px"></div>
+    </div>
+
+    <div class="panel">
+      <h4>집계 반영</h4>
+      <div class="muted" style="font-size:11.5px;line-height:1.7;margin-bottom:11px">
+        확정한 매핑을 적용해 CSV 를 다시 읽고 마모·건전성·가동률·가공을 모두 새로 계산합니다.
+        이 폴더의 <code>DBexport*.csv</code> 와 올린 파일을 함께 씁니다.
+        파일 3개 기준 2~3분 걸리며, 도는 동안에도 다른 탭은 그대로 볼 수 있습니다.
+      </div>
+      <div class="cards" style="margin-bottom:11px">
+        ${cardHtml('현재 집계본', d.built||'-','')}
+        ${cardHtml('읽은 파일', (d.sources||[]).length,'개')}
+      </div>
+      ${d.rebuild.pandas ? `
+        <button class="act" id="rbbtn" onclick="startRebuild()"
+          ${d.rebuild.running?'disabled':''}>${d.rebuild.running?'집계 중...':'지금 재집계'}</button>`
+      : `<div class="gap"><div class="t">서버에서 재집계할 수 없습니다</div>
+          <div class="w">이 파이썬에 pandas·numpy 가 없습니다. 집계는 벡터 연산이 필요해
+            표준 라이브러리만으로는 200만 행을 처리할 수 없습니다.</div>
+          <div class="i">터미널에서 <code>pip install pandas numpy</code> 후
+            <code>python mes_rebuild.py</code> 를 실행하세요</div></div>`}
+      <div id="rblog" class="hide" style="margin-top:11px;background:#1f2a33;color:#c9d6e2;
+        border-radius:7px;padding:12px 14px;font-size:11.5px;line-height:1.75;
+        max-height:260px;overflow-y:auto;font-family:Consolas,monospace"></div>
+    </div>
+    <div id="matchbox"></div>`;
+  if(MATCH) drawMatch();
+  if(d.rebuild.running || (d.rebuild.lines||[]).length) showRebuild(d.rebuild);
+  if(d.rebuild.running) pollRebuild();
+}
+
+function showRebuild(r){
+  const el=$('rblog'); if(!el) return;
+  el.classList.remove('hide');
+  const head = r.running ? '집계 중...' :
+    (r.code===0 ? '완료' : (r.code==null?'':'실패 (코드 '+r.code+')'));
+  el.innerHTML = (head?`<div style="color:${r.code===0?'#7ddc9a':(r.running?'#e8c04a':'#ff9d9d')}">
+    ■ ${head}${r.started?' · 시작 '+r.started:''}${r.ended?' · 종료 '+r.ended:''}</div>`:'')
+    + (r.lines||[]).map(l=>`<div>${l.replace(/</g,'&lt;')}</div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+let RBTIMER=null;
+async function startRebuild(){
+  const b=$('rbbtn'); if(b){ b.disabled=true; b.textContent='집계 중...'; }
+  const r = await fetch('/api/rebuild',{method:'POST'});
+  const j = await r.json();
+  if(!r.ok){
+    alert((j.error||'실패') + (j.hint? '\n\n'+j.hint : ''));
+    if(b){ b.disabled=false; b.textContent='지금 재집계'; }
+    return;
+  }
+  pollRebuild();
+}
+function pollRebuild(){
+  clearInterval(RBTIMER);
+  RBTIMER = setInterval(async ()=>{
+    const r = await api('/api/rebuild/status');
+    showRebuild(r);
+    if(!r.running){
+      clearInterval(RBTIMER); RBTIMER=null;
+      const b=$('rbbtn'); if(b){ b.disabled=false; b.textContent='지금 재집계'; }
+      if(r.code===0){
+        fillBasisBar(await api('/api/basis'));   // 새 집계본 기준으로 상단 바 갱신
+        await reload();
+      }
+    }
+  }, 1500);
+}
+
+const UPLOAD_MAX = 80*1024*1024;      // 사내 단독 서버라 넉넉히 둔다
+
+async function doUpload(el){
+  const f = el.files[0]; if(!f) return;
+  if(f.size > UPLOAD_MAX){
+    $('upstat').innerHTML = `<b style="color:#c0392b">파일이 큽니다 (${(f.size/1048576).toFixed(1)}MB).</b>
+      화면 업로드는 ${UPLOAD_MAX/1048576}MB 까지입니다.
+      큰 파일은 폴더에 직접 넣고 <code>python mes_rebuild.py</code> 를 실행하세요.`;
+    return;
+  }
+  $('upstat').textContent = `읽는 중... (${(f.size/1048576).toFixed(1)}MB)`;
+  // 파일 전체를 보낸다. 앞부분만 보내면 매칭은 되지만 집계가 잘린 데이터로 돌아간다.
+  const text = await f.text();
+  $('upstat').textContent = '매칭 중...';
+  const r = await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:f.name, text})});
+  const j = await r.json();
+  if(!r.ok){ $('upstat').innerHTML=`<b style="color:#c0392b">${j.error}</b>`; return; }
+  MATCH = j;
+  $('upstat').innerHTML = `<b>${j.file}</b> · ${j.rows_sampled}행 표본 · ${j.size_kb}KB`;
+  drawMatch();
+}
+
+function drawMatch(){
+  const j = MATCH;
+  const opts = Object.entries(STDCOLS).map(([k,v])=>`<option value="${k}">${k} — ${v}</option>`).join('');
+  const cls = h => h==='별칭 사전'||h==='이름 일치'?'dict': h==='이름 유사도'?'sim':
+                   h==='Agent 판단'?'llm': h==='사람 확정'?'man':'none';
+  $('matchbox').innerHTML = `
+    <div class="cards">
+      ${cardHtml('전체 컬럼', j.total,'개')}
+      ${cardHtml('매칭됨', j.mapped,'개','ok')}
+      ${cardHtml('미매칭', j.unmatched,'개', j.unmatched?'warn':'')}
+      ${cardHtml('별칭 사전', j.by_dict,'개')}
+      ${cardHtml('유사도', j.by_sim,'개')}
+      ${cardHtml('Agent', j.by_llm,'개', j.by_llm?'hl':'')}
+    </div>
+    ${j.missing_required.length? `<div class="panel" style="background:#fdecea;border-color:#f0b8b0">
+      <b style="color:#c0392b">필수 컬럼 누락</b> — ${j.missing_required.join(', ')}<br>
+      <span class="muted" style="font-size:11.5px">이 컬럼들이 없으면 마모 계산을 할 수 없습니다.</span></div>`:''}
+    ${!j.llm_used? `<div class="panel" style="background:#fffdf5;border-color:#d5b26a">
+      <span style="font-size:12px;color:#8a6d1f">Agent(Claude API) 없이 사전과 유사도만으로 매칭한 결과입니다.
+      미매칭 컬럼은 아래에서 직접 지정하세요. API 키를 넣으면 값의 형태를 보고 Agent 가 제안합니다.</span></div>`:''}
+    <div class="panel">
+      <h4>컬럼 매칭 — 확인 후 확정</h4>
+      <table><thead><tr><th>원본 컬럼</th><th style="width:210px">표준 컬럼</th><th>판단</th>
+        <th>근거</th><th>값 샘플</th></tr></thead><tbody>
+      ${j.rows.map(r=>`<tr class="${r.target?'':'hot'}">
+        <td><b>${r.source}</b></td>
+        <td><select class="msel" data-src="${r.source}">
+          <option value="">— 대응 없음 —</option>${opts}</select></td>
+        <td><span class="how ${cls(r.how)}">${r.how}</span>
+          ${r.score<1&&r.score>0?`<span class="muted" style="font-size:10.5px"> ${(r.score*100).toFixed(0)}%</span>`:''}</td>
+        <td style="font-size:11.5px;color:#6b7a86">${r.why}</td>
+        <td class="muted" style="font-size:11px">${(r.profile.sample||[]).slice(0,4).join(', ')}</td>
+      </tr>`).join('')}
+      </tbody></table>
+      <div style="margin-top:12px;display:flex;gap:9px;align-items:center">
+        <button class="act" onclick="confirmMatch()">이 매핑으로 확정</button>
+        <span class="muted" style="font-size:11.5px">확정하면 매핑표가 저장되고 활동 로그에 남습니다</span>
+      </div>
+    </div>`;
+  j.rows.forEach(r=>{
+    const el=document.querySelector(`select[data-src="${CSS.escape(r.source)}"]`);
+    if(el) el.value = r.target || '';
+  });
+}
+
+async function confirmMatch(){
+  const mapping={};
+  document.querySelectorAll('#matchbox select.msel').forEach(el=>{ mapping[el.dataset.src]=el.value; });
+  const r = await fetch('/api/upload/confirm',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({file:MATCH.file, mapping})});
+  const j = await r.json();
+  if(!r.ok){ alert(j.error); return; }
+  alert(`확정했습니다 — ${j.mapped}개 컬럼이 매핑되었습니다.\n\n집계에 반영하려면 mes_build_data.py 를 실행하세요.`);
+  MATCH=null; renderData();
+}
+
+// ═════ 서류 출력
+// 현재 선택한 기준(구간·수명·시간·앵커)을 그대로 넘긴다. 화면과 서류의 숫자가 갈리면 안 된다.
+function openReport(key, extra){
+  const url = '/report/' + encodeURIComponent(key) + '?' + qs() + (extra ? '&' + extra : '');
+  window.open(url, '_blank', 'noopener');
+}
+let REPORTS = [];
+async function loadReports(){
+  try{ const r = await api('/api/reports'); REPORTS = r.templates || []; }
+  catch(e){ REPORTS = []; }
+  return REPORTS;
+}
+function reportBar(dataKind, extra){
+  const list = REPORTS.filter(t => t.data === dataKind &&
+                                  (!t.role || t.role === ME.role));
+  if(!list.length) return '';
+  return `<div class="panel" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+    <b style="font-size:12.5px;color:#1b365d">서류 출력</b>
+    ${list.map(t=>`<button class="act" onclick="openReport('${t.key}'${extra?",'"+extra+"'":''})">
+      ${t.title}</button>`).join('')}
+    <span class="muted" style="font-size:11.5px;margin-left:auto">
+      새 창에서 열립니다 · 인쇄 대화상자에서 PDF 저장 가능</span>
+  </div>`;
+}
+
+boot();
+</script>

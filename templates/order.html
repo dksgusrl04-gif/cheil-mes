@@ -1,0 +1,120 @@
+<!--meta
+key: order
+title: 공구 발주서
+data: order
+role: manager
+note: 구매팀 제출용. 발주 이력에서 건별 또는 일괄 발주 단위로 출력한다.
+-->
+<!doctype html>
+<meta charset="utf-8">
+<title>공구 발주서 — {{발주번호}}</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"맑은 고딕","Malgun Gothic",sans-serif;color:#111;font-size:11pt;
+    line-height:1.5;padding:24px;max-width:900px;margin:0 auto;background:#fff}
+  .bar{position:sticky;top:0;background:#1b365d;color:#fff;padding:10px 16px;margin:-24px -24px 22px;
+    display:flex;gap:10px;align-items:center;font-size:10.5pt}
+  .bar button{background:#fff;color:#1b365d;border:0;padding:6px 14px;border-radius:5px;
+    font-size:10.5pt;cursor:pointer;font-weight:600}
+  .bar span{opacity:.8}
+  h1{font-size:21pt;text-align:center;letter-spacing:9px;margin-bottom:4px;font-weight:700}
+  .sub{text-align:center;color:#666;font-size:9.5pt;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;margin-bottom:16px}
+  th,td{border:1px solid #333;padding:6px 8px;font-size:10pt}
+  th{background:#eef1f5;font-weight:600;text-align:center}
+  td.n{text-align:right}
+  td.c{text-align:center}
+  .head td{border:none;padding:2px 0;font-size:10pt}
+  .head td.k{width:88px;color:#555}
+  .head td.v{font-weight:600;border-bottom:1px solid #999;padding-left:6px}
+  .two{display:flex;gap:30px;margin-bottom:18px}
+  .two > div{flex:1}
+  .sign{margin-top:26px;display:flex;justify-content:flex-end;gap:0}
+  .sign div{border:1px solid #333;width:92px;text-align:center;font-size:9pt}
+  .sign div .t{background:#eef1f5;padding:4px;border-bottom:1px solid #333}
+  .sign div .b{height:54px}
+  .note{margin-top:16px;font-size:9pt;color:#555;line-height:1.7;
+    border-left:3px solid #ccc;padding-left:10px}
+  .tot{background:#f7f9fb;font-weight:700}
+  .tag{display:inline-block;padding:1px 6px;border:1px solid #999;border-radius:3px;font-size:8.5pt}
+  .hot{color:#c0392b;font-weight:700}
+  @media print { .bar{display:none} body{padding:0} }
+</style>
+
+<div class="bar">
+  <button onclick="window.print()">인쇄 / PDF 저장</button>
+  <span>인쇄 대화상자에서 «PDF로 저장» 을 고르면 파일로 남습니다</span>
+</div>
+
+<h1>공 구 발 주 서</h1>
+<div class="sub">{{회사}} · {{설비}}</div>
+
+<div class="two">
+  <div>
+    <table class="head">
+      <tr><td class="k">발주번호</td><td class="v">{{발주번호}}</td></tr>
+      <tr><td class="k">발주일자</td><td class="v">{{발주일}}</td></tr>
+      <tr><td class="k">요청부서</td><td class="v">생산기술팀</td></tr>
+    </table>
+  </div>
+  <div>
+    <table class="head">
+      <tr><td class="k">요 청 자</td><td class="v">{{담당}}</td></tr>
+      <tr><td class="k">발행시각</td><td class="v">{{발행시각}}</td></tr>
+      <tr><td class="k">품목 / 수량</td><td class="v">{{건수}} 종 · 총 {{총수량}} 개</td></tr>
+    </table>
+  </div>
+</div>
+
+{{#if items}}
+<table>
+  <thead>
+    <tr>
+      <th style="width:34px">No</th>
+      <th style="width:52px">공구</th>
+      <th>품명 / 규격</th>
+      <th style="width:58px">부류</th>
+      <th style="width:50px">수량</th>
+      <th style="width:66px">마모율</th>
+      <th style="width:62px">사용강도</th>
+      <th>발주 사유</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{#each items}}
+    <tr>
+      <td class="c">{{@no}}</td>
+      <td class="c">T{{tool}}</td>
+      <td>{{규격}}</td>
+      <td class="c"><span class="tag">{{부류}}</span></td>
+      <td class="n">{{qty}}</td>
+      <td class="n">{{마모율|f2}} %</td>
+      <td class="n">{{사용강도|f2}} 배</td>
+      <td>{{#if note}}{{note}}{{else}}마모율 {{마모율|f2}}% · 평균 대비 {{사용강도|f2}}배 소모{{/if}}</td>
+    </tr>
+  {{/each}}
+    <tr class="tot">
+      <td class="c" colspan="4">합 계</td>
+      <td class="n">{{총수량}}</td>
+      <td colspan="3"></td>
+    </tr>
+  </tbody>
+</table>
+{{else}}
+<p style="padding:40px;text-align:center;color:#888">출력할 발주 건이 없습니다.</p>
+{{/if}}
+
+<div class="sign">
+  <div><div class="t">담당</div><div class="b"></div></div>
+  <div><div class="t">검토</div><div class="b"></div></div>
+  <div><div class="t">승인</div><div class="b"></div></div>
+</div>
+
+<div class="note">
+  <b>산출 기준</b> — {{구간}} ({{구간기간}}) · 기준 수명 {{기준일수}}일 · 주간 가동시간 {{주간시간}}h ·
+  앵커 {{앵커}} · 관측 절삭 {{관측시간|f2}}h<br>
+  마모율은 위 기준에서 산출한 상대값입니다. 공구 교체 이력이 아직 수집되지 않아
+  잔여 일수는 산출하지 않습니다. 사용강도는 평균 공구 대비 소모 배수로, 기준과 무관한 관측값입니다.<br>
+  집계본 {{집계시각}} · 발행 {{발행자}}
+</div>
