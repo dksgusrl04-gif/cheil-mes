@@ -405,10 +405,37 @@
     /* 3) 기존 집계본과 합쳐 올린다. 새 주차가 더해지는 형태다. */
     const merged = MESAGG.merge(SNAPSHOT, snap);
     for (const n of (merged.merge_notes || [])) say('[안내] ' + n);
+
+    /* 덮어쓰기 전에 지금 것을 따로 남긴다.
+       집계본은 한 칸짜리라 덮으면 되돌릴 방법이 없다. 잘못 올렸을 때
+       «되돌리기» 로 살릴 수 있어야 한다. 한 세대만 남긴다 — 무한정 쌓으면
+       무료 용량을 잡아먹는다. */
+    if (SNAPSHOT) {
+      try {
+        await db('POST', '/mes_docs?on_conflict=name', [{
+          name: SNAP + '_prev', data: SNAPSHOT, updated_at: now(),
+        }], 'resolution=merge-duplicates,return=minimal');
+        say('[백업] 덮어쓰기 전 집계본을 따로 남겼습니다 (되돌리기 가능)');
+      } catch (e) {
+        say('[경고] 백업을 남기지 못했습니다 — ' + (e.message || e).slice(0, 80));
+      }
+    }
+
     say('[저장] Supabase 에 올리는 중');
-    await db('POST', '/mes_docs?on_conflict=name', [{
-      name: SNAP, data: merged, updated_at: now(),
-    }], 'resolution=merge-duplicates,return=minimal');
+    try {
+      await db('POST', '/mes_docs?on_conflict=name', [{
+        name: SNAP, data: merged, updated_at: now(),
+      }], 'resolution=merge-duplicates,return=minimal');
+    } catch (e) {
+      /* 권한 문제는 원문만 보면 무슨 소린지 알 수 없다. 무엇을 해야 하는지 적어 준다. */
+      if (/row-level security|permission denied/i.test(e.message || '')) {
+        throw new Error('집계는 끝났지만 저장 권한이 없습니다.\n'
+          + '       Supabase → SQL Editor 에서 «집계본_쓰기권한_추가.sql» 을 한 번 실행하세요.\n'
+          + '       (mes_docs 에 관리자 쓰기 정책을 추가합니다)\n'
+          + '       원문 — ' + e.message);
+      }
+      throw e;
+    }
 
     SNAPSHOT = merged;
     MES.load(merged);
@@ -663,6 +690,34 @@
     }
     if (path === '/api/upload/confirm') {
       return ok({ ok: true, note: '웹 버전은 매칭 확인 후 바로 집계합니다' });
+    }
+
+    /* ── 되돌리기 — 직전 집계본으로 복구 ─────────────────────────
+       잘못 올렸을 때 쓴다. 한 세대만 남기므로 두 번은 못 돌아간다. */
+    if (path === '/api/rebuild/undo') {
+      if (u.role !== 'manager') return err({ error: '관리자만 사용할 수 있습니다' }, 403);
+      try {
+        const rows = await db('GET',
+          `/mes_docs?name=eq.${encodeURIComponent(SNAP + '_prev')}&select=data,updated_at&limit=1`);
+        if (!rows.length) {
+          return err({
+            error: '되돌릴 집계본이 없습니다',
+            hint: '재집계를 한 번도 안 했거나, 이미 되돌린 뒤입니다. '
+              + '현장 PC 에서 upload_snapshot.py 로 올리세요.',
+          }, 404);
+        }
+        const prev = rows[0].data;
+        await db('POST', '/mes_docs?on_conflict=name', [{
+          name: SNAP, data: prev, updated_at: now(),
+        }], 'resolution=merge-duplicates,return=minimal');
+        SNAPSHOT = prev; MES.load(prev); LOADED = true;
+        await log('집계본 되돌리기', `${rows[0].updated_at} 시점으로`);
+        const segs = Object.keys(prev.segments || {})
+          .map(k => `${prev.segments[k].label} ${prev.segments[k].tools.length}종`).join(' · ');
+        return ok({ ok: true, built: prev.built, segments: segs });
+      } catch (e) {
+        return err({ error: '되돌리기 실패 — ' + e.message }, 500);
+      }
     }
 
     if (u.role !== 'manager') return err({ error: '관리자만 사용할 수 있습니다' }, 403);

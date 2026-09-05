@@ -138,6 +138,7 @@
     /* 화면이 다시 그려졌다는 것은 조회가 끝났다는 뜻이다.
        그때 BASIS 가 새로 채워지므로 달력의 범위·안내도 같이 맞춘다. */
     if (document.getElementById('mes-from')) updateDateBox();
+    ensureUndo();
 
     const main = $main();
     if (!isAlertView(main)) { FILTER = null; return; }
@@ -163,6 +164,37 @@
       });
     });
     if (any) { addStyle(); apply(); }
+  }
+
+  /* ── 되돌리기 버튼 ───────────────────────────────────────────
+     집계본은 한 칸짜리라 잘못 올리면 이전 것이 사라진다. 덮어쓰기 직전에
+     한 세대를 따로 남겨 두므로, 그걸 되살릴 길을 «데이터 추가» 탭에 둔다. */
+  function ensureUndo() {
+    const main = $main();
+    if (!main || document.getElementById('mes-undo')) return;
+    // 데이터 추가 탭인지 — 재집계 버튼이 있는 화면
+    const anchor = main.querySelector('#rbbtn');
+    if (!anchor) return;
+
+    const box = document.createElement('div');
+    box.id = 'mes-undo';
+    box.style.cssText = 'display:inline-flex;align-items:center;gap:9px;margin-left:10px';
+    box.innerHTML = '<button type="button" class="act sec" id="mes-undo-btn">직전 집계본으로 되돌리기</button>'
+      + '<span id="mes-undo-msg" style="font-size:11.5px;color:#8c9ba5"></span>';
+    anchor.parentNode.insertBefore(box, anchor.nextSibling);
+
+    const msg = box.querySelector('#mes-undo-msg');
+    box.querySelector('#mes-undo-btn').addEventListener('click', async () => {
+      if (!window.confirm('지금 집계본을 버리고 직전 것으로 되돌립니다.\n계속할까요?')) return;
+      msg.textContent = '되돌리는 중…';
+      try {
+        const r = await fetch('/api/rebuild/undo', { method: 'POST' });
+        const j = await r.json();
+        if (!r.ok) { msg.textContent = (j.error || '실패') + (j.hint ? ' — ' + j.hint : ''); return; }
+        msg.textContent = `되돌렸습니다 — ${j.segments || ''} (집계 ${j.built || '-'})`;
+        if (typeof window.reload === 'function') window.reload();
+      } catch (e) { msg.textContent = '실패 — ' + e.message; }
+    });
   }
 
   /* 화면이 다시 그려질 때마다 손잡이를 다시 단다.
