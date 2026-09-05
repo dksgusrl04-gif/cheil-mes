@@ -141,7 +141,7 @@
     return new MES.Basis({
       seg: qs.get('seg'), life: qs.get('life'),
       week: qs.get('week'), anchor: qs.get('anchor'),
-      from: qs.get('from'),          // 조회 시작일 YYYY-MM-DD
+      from: qs.get('from'), to: qs.get('to'),   // 조회 기간 YYYY-MM-DD
     });
   }
 

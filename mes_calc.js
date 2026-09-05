@@ -89,20 +89,22 @@
 
      byday 가 없는 예전 집계본이면 자를 수 없다. 그때는 원래 구간을 그대로
      돌려주고 sliced=false 로 알린다. 화면이 그 사실을 표시한다. */
-  function sliceSeg(seg, from) {
+  function sliceSeg(seg, from, to) {
     const days = seg.days || [];
-    if (!from || !days.length) return seg;
-    if (from <= days[0].date) return seg;               // 전체와 같다
+    if ((!from && !to) || !days.length) return seg;
+    const lo = from || days[0].date;
+    const hi = to || days[days.length - 1].date;
+    if (lo <= days[0].date && hi >= days[days.length - 1].date) return seg;   // 전체와 같다
     const hasByday = (seg.tools || []).some(t => Array.isArray(t.byday) && t.byday.length);
     if (!hasByday) return Object.assign({}, seg, { _noByday: true });
 
-    const keep = d => d >= from;
+    const keep = d => d >= lo && d <= hi;
     const D = days.filter(x => keep(x.date));
     if (!D.length) {
       // 마지막 날보다 뒤를 고르면 빈 결과가 된다 — 빈 채로 정직하게 보여준다
       return Object.assign({}, seg, {
         days: [], tools: [], events: [], rows: 0, cut_h: 0, raw_total: 0, parts: 0,
-        _from: from, _sliced: true, _empty: true,
+        _from: lo, _to: hi, _sliced: true, _empty: true,
       });
     }
 
@@ -132,9 +134,9 @@
       days: D, tools: tools, rows: D.reduce((s, x) => s + (x.rows || 0), 0),
       cut_h: cutH, raw_total: tot,
       parts: D.reduce((s, x) => s + (x.parts || 0), 0),
-      events: (seg.events || []).filter(e => String(e.time).slice(0, 10) >= from),
-      period: `${from} ~ ${D[D.length - 1].date}`,
-      _from: from, _sliced: true,
+      events: (seg.events || []).filter(e => keep(String(e.time).slice(0, 10))),
+      period: (D.length === 1) ? D[0].date : `${D[0].date} ~ ${D[D.length - 1].date}`,
+      _from: lo, _to: hi, _sliced: true,
     });
 
     if (seg.oee) {
@@ -164,8 +166,11 @@
       this.fullSeg = segs[this.segKey] || {};
 
       /* 조회 시작일 — 'YYYY-MM-DD'. 비어 있으면 구간 전체다. */
-      this.from = /^\d{4}-\d{2}-\d{2}$/.test(String(q.from || '')) ? String(q.from) : '';
-      this.seg = this.from ? sliceSeg(this.fullSeg, this.from) : this.fullSeg;
+      const ymd = v => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+      this.from = ymd(q.from);
+      this.to = ymd(q.to);
+      this.seg = (this.from || this.to)
+        ? sliceSeg(this.fullSeg, this.from, this.to) : this.fullSeg;
 
       const f = (v, dflt) => {
         const n = parseFloat(v);
@@ -229,6 +234,8 @@
 
         /* 조회 시작일 관련 */
         from: this.from,
+        to: this.to,
+        one_day: !!(this.from && this.to && this.from === this.to),
         sliced: !!this.seg._sliced,
         empty: !!this.seg._empty,
         /* 날짜를 고르기 전에도 알 수 있어야 한다. 골라 보고 나서야 '안 된다' 고
@@ -244,7 +251,9 @@
           .some(t => Array.isArray(t.byday) && t.byday.length)
           ? '이 집계본에는 날짜별 자료가 없어 기간을 자를 수 없습니다.'
           : (this.seg._sliced
-            ? '마모율은 선택한 날짜 이후에 쌓인 양입니다. 전체 누적이 아닙니다.'
+            ? (this.from && this.to && this.from === this.to
+              ? `마모율은 ${this.from} 하루 동안 닳은 양입니다. 전체 누적이 아닙니다.`
+              : '마모율은 선택한 기간에 쌓인 양입니다. 전체 누적이 아닙니다.')
             : ''),
         life_days: this.lifeDays,
         week_hours: this.weekHours,

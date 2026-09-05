@@ -183,13 +183,16 @@
   } else start();
 
   /* ═══════════════════════════════════════════════════════════════
-   * 조회 시작일 — 기준 막대에 달력을 붙인다
+   * 조회 기간 — 기준 막대에 달력을 붙인다
    * ═══════════════════════════════════════════════════════════════
+   * 달력에서 날짜 하나를 고르면 그 날 하루의 자료만 본다.
+   * «최근 7일» 같은 버튼은 구간으로 본다.
+   *
    * 화면은 qs() 로 조회 조건을 만들어 /api/* 에 붙인다. 그 함수가
-   * seg·life·week·anchor 넷만 담으므로, 감싸서 from 을 하나 더 넣는다.
+   * seg·life·week·anchor 넷만 담으므로, 감싸서 from·to 를 더 넣는다.
    * mes.html 은 여전히 안 고친다.
    */
-  let FROM = '';
+  let FROM = '', TO = '';
 
   const DATE_CSS = `
   #basis .mes-date{ display:flex; align-items:center; gap:6px; }
@@ -216,15 +219,16 @@
     (document.head || document.documentElement).appendChild(s);
   }
 
-  /* 화면의 qs() 를 감싸 from 을 얹는다 */
+  /* 화면의 qs() 를 감싸 조회 기간을 얹는다 */
   let hooked = false;
   function hookQs() {
     if (hooked || typeof window.qs !== 'function') return;
     const orig = window.qs;
     window.qs = function () {
-      const s = orig.apply(this, arguments);
-      if (!FROM) return s;
-      return s + (s ? '&' : '') + 'from=' + encodeURIComponent(FROM);
+      let s = orig.apply(this, arguments);
+      if (FROM) s += (s ? '&' : '') + 'from=' + encodeURIComponent(FROM);
+      if (TO) s += (s ? '&' : '') + 'to=' + encodeURIComponent(TO);
+      return s;
     };
     hooked = true;
   }
@@ -237,13 +241,17 @@
     return ymd(d);
   }
 
-  function applyFrom(v) {
-    FROM = v || '';
+  /* 기간을 정한다. 달력으로 하루를 고르면 from 과 to 가 같은 날이 된다 —
+     그 날 하루만 보고 싶다는 뜻이다. 빠른 버튼은 '최근 N일' 구간을 만든다. */
+  function applyRange(from, to) {
+    FROM = from || '';
+    TO = to || '';
     const inp = document.getElementById('mes-from');
     if (inp) inp.value = FROM;
     syncQuick();
     if (typeof window.reload === 'function') window.reload();
   }
+  const applyFrom = v => applyRange(v, v);      // 달력 = 하루
 
   function syncQuick() {
     const box = document.querySelector('#basis .mes-date');
@@ -259,7 +267,8 @@
       b.style.cursor = b.disabled ? 'not-allowed' : 'pointer';
       if (b.disabled) { b.removeAttribute('data-on'); return; }
       const want = all ? '' : minus(R.max, parseInt(b.dataset.days, 10) - 1);
-      if (want === FROM) b.setAttribute('data-on', '1');
+      const on = all ? (!FROM && !TO) : (want === FROM && TO === R.max);
+      if (on) b.setAttribute('data-on', '1');
       else b.removeAttribute('data-on');
     });
   }
@@ -272,8 +281,8 @@
 
     const wrap = document.createElement('div');
     wrap.className = 'bset mes-date';
-    wrap.innerHTML = '<span>조회 시작일</span>' +
-      '<input type="date" id="mes-from" title="이 날짜부터의 자료만 봅니다">' +
+    wrap.innerHTML = '<span>조회 날짜</span>' +
+      '<input type="date" id="mes-from" title="고른 날 하루의 자료만 봅니다">' +
       '<button type="button" data-days="all">전체</button>' +
       '<button type="button" data-days="7">최근 7일</button>' +
       '<button type="button" data-days="3">최근 3일</button>';
@@ -286,9 +295,9 @@
     wrap.querySelectorAll('button[data-days]').forEach(b => {
       b.addEventListener('click', () => {
         const R = (window.BASIS && window.BASIS.date_range) || {};
-        if (b.dataset.days === 'all') return applyFrom('');
+        if (b.dataset.days === 'all') return applyRange('', '');
         if (!R.max) return;
-        applyFrom(minus(R.max, parseInt(b.dataset.days, 10) - 1));
+        applyRange(minus(R.max, parseInt(b.dataset.days, 10) - 1), R.max);
       });
     });
     updateDateBox();
@@ -310,16 +319,18 @@
     /* 날짜로 자를 수 없는 집계본이면 고르게 두면 안 된다.
        골라도 값이 안 바뀌는데 이유를 모르는 게 가장 답답하다. */
     const blocked = !!B.no_byday;
-    if (blocked && FROM) { FROM = ''; inp.value = ''; }   // 고른 것을 정직하게 되돌린다
+    if (blocked && (FROM || TO)) { FROM = ''; TO = ''; inp.value = ''; }
     inp.disabled = blocked;
     inp.style.opacity = blocked ? '.45' : '';
     inp.style.cursor = blocked ? 'not-allowed' : 'pointer';
 
     let note = document.getElementById('mes-from-note');
     const msg = blocked
-      ? '이 집계본에는 날짜별 자료가 없어 기간을 자를 수 없습니다. '
+      ? '이 집계본에는 날짜별 자료가 없어 날짜로 볼 수 없습니다. '
         + '«데이터 추가» 탭에서 CSV 를 올려 다시 집계하면 켜집니다.'
-      : (B.sliced ? B.from_note : '');
+      : (B.empty
+        ? '고른 날짜에는 자료가 없습니다. 달력에서 다른 날을 골라 보세요.'
+        : (B.sliced ? B.from_note : ''));
     if (msg) {
       if (!note) {
         note = document.createElement('div');
@@ -356,6 +367,6 @@
 
   window.MES_UI = {
     filter: k => { FILTER = k; apply(); }, current: () => FILTER,
-    from: () => FROM, setFrom: applyFrom,
+    from: () => FROM, to: () => TO, setFrom: applyFrom, setRange: applyRange,
   };
 })();
