@@ -476,10 +476,12 @@
       const progs = {};
       Array.from(t.progs.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8)
         .forEach(([k, v]) => { progs[k] = v; });
-      /* 날짜순으로. 조회 시작일 이후만 더하면 그 기간 마모량이 나온다. */
+      /* 날짜순으로. 조회 시작일 이후만 더하면 그 기간 마모량이 나온다.
+         hours 는 6자리로 남긴다 — 하루 몇십 초짜리도 있어 3자리면 크게 어긋난다. */
       const byDay = Array.from(t.days.keys()).sort().map(d => {
         const v = t.days.get(d);
-        return { date: d, raw: v.raw.val(), hours: r3(v.sec.val() / 3600), rows: v.rows };
+        return { date: d, raw: v.raw.val(),
+          hours: pyround(v.sec.val() / 3600, 6), rows: v.rows };
       });
       tools.push({
         tool: tno, name: t.name || ('T' + tno), cls: toolClass(t.name),
@@ -589,12 +591,62 @@
     };
   }
 
+  /* 전체(혼합) 구간 — 두 구간을 합친 것. 경계를 넘는 적산이라 참고용이지만,
+     화면의 기본 목록에 있으므로 여기서도 만들어야 한다. 안 만들면 웹에서
+     재집계했을 때 그 구간만 조용히 사라진다. */
+  function mixAll(A, B) {
+    const out = mergeSeg(A, B);
+    out.rows = A.rows + B.rows;
+    out.cut_h = r3(A.cut_h + B.cut_h);
+    out.parts = A.parts + B.parts;
+    out.parts_note = (A.parts_note || B.parts_note) ? (A.parts_note || B.parts_note) : '';
+
+    /* 프로그램·메인은 mergeSeg 가 다루지 않으므로 여기서 합친다 */
+    const P = new Map();
+    for (const p of A.progs.concat(B.progs)) {
+      const e = P.get(p.prog);
+      if (!e) { P.set(p.prog, Object.assign({}, p, { tools: p.tools.slice() })); continue; }
+      e.hours = r3(e.hours + p.hours); e.rows += p.rows; e.raw += p.raw;
+      const tm = new Map(e.tools.map(t => [t.tool, t.raw]));
+      for (const t of p.tools) tm.set(t.tool, (tm.get(t.tool) || 0) + t.raw);
+      e.tools = Array.from(tm.entries()).sort((a, b) => b[1] - a[1]).slice(0, 12)
+        .map(([tool, raw]) => ({ tool, raw }));
+    }
+    out.progs = Array.from(P.values()).sort((a, b) => b.raw - a.raw);
+
+    const M = new Map();
+    for (const m of A.mains.concat(B.mains)) {
+      const e = M.get(m.main);
+      if (!e) { M.set(m.main, Object.assign({}, m, { progs: m.progs.slice() })); continue; }
+      e.hours = r3(e.hours + m.hours); e.raw += m.raw;
+      e.progs = Array.from(new Set(e.progs.concat(m.progs))).sort();
+    }
+    out.mains = Array.from(M.values()).sort((a, b) => b.raw - a.raw);
+
+    /* 건전성·가공은 구간마다 표본이 달라 단순 합산이 안 된다.
+       섞으면 뜻이 흐려지므로 절삭시간이 긴 쪽을 그대로 쓰고 그렇다고 밝힌다. */
+    const big = (A.cut_h >= B.cut_h) ? A : B;
+    out.health = big.health;
+    out.machining = big.machining;
+    out.oee = Object.assign({}, big.oee, {
+      states: (A.oee.states || []).concat(B.oee.states || [])
+        .sort((x, y) => (x.day < y.day ? -1 : x.day > y.day ? 1 : 0)),
+    });
+    out.mixed_note = '건전성·가공 분석은 절삭시간이 긴 구간의 값입니다. '
+      + '두 구간은 공구 세트가 달라 합산이 성립하지 않습니다.';
+    return out;
+  }
+
   function finish(segs, meta) {
     const out = {};
     for (const k of ['fa', 'rear']) {
       if (segs[k].rows === 0) continue;
       out[k] = build(segs[k]);
       Object.assign(out[k], SEG_META[k]);
+    }
+    if (out.fa && out.rear) {
+      out.all = mixAll(out.fa, out.rear);
+      Object.assign(out.all, SEG_META.all);
     }
     const keys = Object.keys(out);
     if (keys.length === 0) throw new Error('집계할 행이 없습니다. 날짜·컬럼을 확인하세요.');
@@ -642,7 +694,7 @@
         const dm = new Map((e.byday || []).map(d => [d.date, d]));
         for (const d of (t.byday || [])) {
           const x = dm.get(d.date);
-          if (x) { x.raw += d.raw; x.hours = r3(x.hours + d.hours); x.rows += d.rows; }
+          if (x) { x.raw += d.raw; x.hours = pyround(x.hours + d.hours, 6); x.rows += d.rows; }
           else dm.set(d.date, Object.assign({}, d));
         }
         e.byday = Array.from(dm.values()).sort((x, y) => (x.date < y.date ? -1 : 1));
@@ -674,6 +726,52 @@
 
   const hasByday = seg => (seg && seg.tools || []).some(t => Array.isArray(t.byday) && t.byday.length);
 
+  /* 기존 집계본에서 '이 날짜들' 을 빼낸다.
+
+     같은 주차 파일을 다시 올리면 mergeSeg 가 같은 날짜를 더해 버린다. 그러면
+     그 주가 두 번 쌓여 마모율이 부풀려진다. 새로 올린 쪽이 맞다고 보고,
+     겹치는 날을 옛것에서 먼저 빼낸 다음 합친다. (다시 올리는 이유는 대개
+     '고쳐서 다시 넣는' 것이므로, 새 것이 이긴다.)
+
+     날짜별 자료(byday)가 있어야 뺄 수 있다. 없으면 호출하는 쪽에서 거른다. */
+  function dropDays(seg, drop) {
+    const keep = d => !drop.has(d);
+    const days = (seg.days || []).filter(x => keep(x.date));
+    const tools = [];
+    for (const t of (seg.tools || [])) {
+      const bd = (t.byday || []).filter(x => keep(x.date));
+      if (!bd.length) continue;
+      const raw = bd.reduce((s, x) => s + x.raw, 0);
+      if (!(raw > 0)) continue;
+      const ratio = raw / (t.raw || 1);
+      tools.push(Object.assign({}, t, {
+        raw: raw,
+        hours: r3(bd.reduce((s, x) => s + x.hours, 0)),
+        rows: bd.reduce((s, x) => s + x.rows, 0),
+        byday: bd.map(x => Object.assign({}, x)),
+        progs: (function () {
+          const o = {};
+          for (const k of Object.keys(t.progs || {})) o[k] = t.progs[k] * ratio;
+          return o;
+        })(),
+        /* 인자별은 날짜로 안 쪼개 뒀다. 남은 비율로 나눈 어림값이다. */
+        f_m: t.f_m * ratio, f_o: t.f_o * ratio,
+        f_s: t.f_s * ratio, f_c: t.f_c * ratio,
+      }));
+    }
+    tools.sort((a, b) => b.raw - a.raw);
+    const tot = tools.reduce((s, t) => s + t.raw, 0) || 1;
+    tools.forEach(t => { t.share = r3(100 * t.raw / tot); });
+    return Object.assign({}, seg, {
+      days: days, tools: tools,
+      rows: days.reduce((s, x) => s + (x.rows || 0), 0),
+      cut_h: r3(days.reduce((s, x) => s + (x.cut_h || 0), 0)),
+      raw_total: tot,
+      parts: days.reduce((s, x) => s + (x.parts || 0), 0),
+      events: (seg.events || []).filter(e => keep(String(e.time).slice(0, 10))),
+    });
+  }
+
   /* 옛 집계본과 새 집계본을 합친다.
 
      주의 — 옛 것에 날짜별 자료(byday)가 없으면 합치면 안 된다.
@@ -695,7 +793,20 @@
           + '이번 파일로 새로 만들었습니다.');
         continue;
       }
-      out.segments[k] = mergeSeg(prev, newSnap.segments[k]);
+      /* 같은 날짜가 양쪽에 있으면 그날이 두 번 쌓인다. 새로 올린 쪽을 남기고
+         옛것에서 그 날들을 빼낸다. 그냥 더하면 조용히 부풀려진다. */
+      const nxt = newSnap.segments[k];
+      const nd = new Set((nxt.days || []).map(x => x.date));
+      const lap = (prev.days || []).map(x => x.date).filter(d => nd.has(d));
+      if (lap.length) {
+        const trimmed = dropDays(prev, new Set(lap));
+        out.segments[k] = trimmed.days.length ? mergeSeg(trimmed, nxt) : nxt;
+        notes.push(`${prev.label || k} — 이미 있던 ${lap.length}일`
+          + `(${lap[0]}${lap.length > 1 ? ' ~ ' + lap[lap.length - 1] : ''})이 겹쳐,`
+          + ' 두 번 쌓이지 않도록 이번 파일 값으로 바꿨습니다.');
+        continue;
+      }
+      out.segments[k] = mergeSeg(prev, nxt);
     }
 
     out.defaults = oldSnap.defaults || newSnap.defaults;
@@ -704,7 +815,7 @@
     return out;
   }
 
-  const api = { run, merge, UNIT, Dist, Kahan, toolClass, splitLine, streamLines, _build: build };
+  const api = { run, merge, dropDays, UNIT, Dist, Kahan, toolClass, splitLine, streamLines, _build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.MESAGG = api;
 })(typeof self !== 'undefined' ? self : this);

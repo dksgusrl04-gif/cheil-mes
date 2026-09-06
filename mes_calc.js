@@ -10,11 +10,23 @@
  *   기준 수명 L일 · 주간 W시간 · 앵커 A 일 때
  *     하루 절삭시간  DAYH   = W / 7
  *     수명 절삭시간  LIFE_H = L × DAYH
- *     환산계수       k      = 100 × 관측절삭시간 / (LIFE_H × A의 원시마모)
+ *     환산계수       k      = 100 × 구간전체_절삭시간 / (LIFE_H × A의 원시마모)
  *     현재 마모율    wear_i = k × raw_i
  *     예상 수명      life_i = L × (A의 원시마모 / raw_i)
  *
  *   → 예상 수명은 기준일수 L 에 정비례하고 주간시간 W 와는 무관하다.
+ *
+ *   ── k 는 '구간 전체' 로 한 번 정하고 얼린다 ──────────────────────
+ *   k 의 재료(절삭시간·앵커 원시마모)는 모두 fullSeg 에서 온다. 화면에서
+ *   날짜를 좁혀도, 구간을 바꿔도 k 는 그대로다. 바뀌는 것은 raw_i 뿐이다.
+ *
+ *   그래서 이렇게 된다.
+ *     · 그 공구를 안 쓴 날에는 마모율이 안 움직인다
+ *     · 날짜별 마모율을 전부 더하면 정확히 전체 기간 마모율이 된다
+ *     · 「전체」를 눌러도 값이 튀지 않는다
+ *
+ *   예전에는 보고 있는 화면으로 k 를 매번 다시 잡았다. 그래서 남의 공구가
+ *   돌기만 해도 내 공구 마모율이 올라갔다. 마모계가 그러면 안 된다.
  *
  * 사용:
  *   <script src="mes_calc.js"></script>
@@ -182,22 +194,38 @@
 
       this.dayHours = this.weekHours / 7;
       this.lifeCutHours = this.lifeDays * this.dayHours;
-      this.totalH = this.seg.cut_h || 0;
+      this.totalH = this.seg.cut_h || 0;          // 이 화면이 보고 있는 기간의 절삭시간
 
-      const tools = this.seg.tools || [];
+      /* ── 환산계수 k 는 '구간 전체' 로 한 번 정하고 얼린다 ────────────
+         예전에는 보고 있는 화면(this.seg)으로 k 를 다시 계산했다. 그래서
+         날짜를 고르거나 구간을 바꾸면 남의 공구 사정 때문에 내 공구 마모율이
+         움직였다. 8/20 에 T33 을 안 썼는데도 그날 다른 공구가 돌면
+         raw_total 과 절삭시간이 늘어 T33 값이 올라갔다. 그건 마모계가 아니다.
+
+         이제 k 는 fullSeg 로만 정해진다. 마모율 = k × 그 공구 자기 raw 다.
+           · 안 쓴 날엔 안 움직인다
+           · 날짜별 마모율을 더하면 정확히 전체와 같다 (raw 가 가산이므로)
+           · 「전체」를 눌러도 튀지 않는다
+         기준(평균 공구가 L일에 100%)은 그대로다 — 잡는 시점만 고정했다. */
+      this.baseSeg = this.fullSeg;
+      this.baseH = this.baseSeg.cut_h || 0;
+      const baseTools = this.baseSeg.tools || [];
+      const baseTotal = this.baseSeg.raw_total || 0;
+      this.baseN = baseTools.length || 1;
+      this.baseMean = baseTotal / this.baseN;
+
       if (this.anchor === 'set') {
-        this.anchorRaw = this.seg.raw_total || 0;
+        this.anchorRaw = baseTotal;
         this.anchorLabel = '세트 전체';
       } else if (this.anchor === 'mean') {
-        const n = tools.length || 1;
-        this.anchorRaw = (this.seg.raw_total || 0) / n;
-        this.anchorLabel = `평균 공구 (${n}종 기준)`;
+        this.anchorRaw = this.baseMean;
+        this.anchorLabel = `평균 공구 (${this.baseN}종 기준)`;
       } else {
         const tno = parseInt(this.anchor, 10);
-        const t = tools.find(x => x.tool === tno);
+        const t = baseTools.find(x => x.tool === tno);
         if (!t) {                      // 이 구간에 없는 공구를 고르면 세트로 되돌린다
           this.anchor = 'set';
-          this.anchorRaw = this.seg.raw_total || 0;
+          this.anchorRaw = baseTotal;
           this.anchorLabel = '세트 전체';
         } else {
           this.anchorRaw = t.raw;
@@ -205,18 +233,29 @@
         }
       }
 
+      /* 구간 전체의 절삭시간으로 잡는다. 조회 기간을 좁혀도 자가 안 바뀐다. */
       this.k = (this.anchorRaw > 0 && this.lifeCutHours > 0)
-        ? 100.0 * this.totalH / (this.lifeCutHours * this.anchorRaw) : 0.0;
+        ? 100.0 * this.baseH / (this.lifeCutHours * this.anchorRaw) : 0.0;
+
+      /* 예상 수명·사용강도는 '그 공구의 전 기간 누적' 으로 봐야 뜻이 통한다.
+         하루치 raw 로 수명을 내면 수천 일이 나온다. */
+      this.fullRawMap = Object.create(null);
+      baseTools.forEach(t => { this.fullRawMap[t.tool] = t.raw; });
     }
 
     wear(r) { return this.k * r; }
 
-    /* 평균 공구 대비 사용강도 배수. 앵커·기준일수와 무관하게 구간만으로 정해진다. */
+    /* 평균 공구 대비 사용강도 배수. 분모는 구간 전체의 평균 공구로 고정한다.
+       그래야 마모율 = (기준 대비 진행) × 사용강도 가 조회 기간과 무관하게 성립한다. */
     intensity(r) {
-      const n = (this.seg.tools || []).length || 1;
-      const mean = (this.seg.raw_total || 0) / n;
-      if (mean <= 0) return null;
-      return r / mean;
+      if (this.baseMean <= 0) return null;
+      return r / this.baseMean;
+    }
+
+    /* 그 공구의 전 기간 누적 raw. 날짜를 좁혀 봐도 수명·강도는 이걸 쓴다. */
+    fullRaw(tno, dflt) {
+      const v = this.fullRawMap[tno];
+      return (typeof v === 'number' && v > 0) ? v : dflt;
     }
 
     /* 예상 수명(일). 예측이 아니라 환산값이라 상세 화면에서만 근거와 함께 쓴다. */
@@ -252,9 +291,12 @@
           ? '이 집계본에는 날짜별 자료가 없어 기간을 자를 수 없습니다.'
           : (this.seg._sliced
             ? (this.from && this.to && this.from === this.to
-              ? `마모율은 ${this.from} 하루 동안 닳은 양입니다. 전체 누적이 아닙니다.`
-              : '마모율은 선택한 기간에 쌓인 양입니다. 전체 누적이 아닙니다.')
+              ? `마모율은 ${this.from} 하루 동안 닳은 양입니다. 하루씩 더하면 전체와 같습니다.`
+              : '마모율은 선택한 기간에 쌓인 양입니다. 기간을 더하면 전체와 같습니다.')
             : ''),
+        /* 환산계수를 잡은 기준. 조회 기간을 좁혀도 이 값은 안 바뀐다. */
+        base_hours: round(this.baseH, 2),
+        base_tools: this.baseN,
         life_days: this.lifeDays,
         week_hours: this.weekHours,
         day_hours: round(this.dayHours, 4),
@@ -331,7 +373,11 @@
     const t = (b.seg.tools || []).find(x => x.tool === tno);
     if (!t) return null;
     const row = toolRow(b, t);
-    const lf = b.life(t.raw);
+    /* 수명·수명근거는 '그 공구의 전 기간 누적' 으로 낸다. 하루만 골라 보고 있을 때
+       그날 raw 로 수명을 내면 수천 일이 나와 뜻이 없다. */
+    const fr = b.fullRaw(tno, t.raw);
+    const lf = b.life(fr);
+    const fi = b.intensity(fr);
     const progs = {};
     Object.keys(t.progs || {}).forEach(k => { progs[k] = round(b.wear(t.progs[k]), 5); });
     Object.assign(row, {
@@ -341,7 +387,8 @@
       cond_change: round(b.wear(t.f_c), 5),
       progs: progs,
       life: lf ? round(lf, 1) : null,
-      life_basis: lf ? `${b.lifeDays.toFixed(0)}일 × (${b.anchorLabel} 기준) ÷ 사용강도 ${row.intensity}배` : null,
+      life_basis: lf ? `${b.lifeDays.toFixed(0)}일 × (${b.anchorLabel} 기준) ÷ 사용강도 `
+        + `${fi ? round(fi, 2) : '-'}배 (전 기간 누적 기준)` : null,
     });
     const ev = (b.seg.events || []).filter(e => e.tool === tno).slice(0, 30).map(e => ({
       time: e.time, tool: e.tool, name: e.name, prog: e.prog,
