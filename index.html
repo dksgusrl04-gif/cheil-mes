@@ -31,6 +31,10 @@
     --chart-axis:#94A3B8;  /* 축 숫자 */
     --chart-label:#64748B; /* 축 이름 */
     --warn:#D97706;   --warn-soft:#FFFBEB;   --warn-line:#FDE9C8;
+    --warn-ink:#92610C;  /* 주의 배경 위의 글자 — 밝은 주황은 흰 배경에서 안 읽힌다 */
+    /* 재집계 진행창 — 여기만 일부러 어둡게 둔다 (터미널 출력이라) */
+    --term-bg:#0F172A; --term-ink:#CBD5E1;
+    --term-ok:#4ADE80; --term-warn:#FBBF24; --term-err:#FCA5A5;
     --ok:#059669;     --ok-soft:#ECFDF5;     --ok-line:#C7F0DF;
     --r:10px;          /* 카드 모서리 */
     --r-sm:7px;        /* 입력·버튼 모서리 */
@@ -566,7 +570,7 @@ async function renderDash(){
         <div class="row"><span>경보 단계</span><span>${det.level}</span></div>
         <div class="row"><span>사용강도 (평균 대비)</span><span class="mono">${inten(det.tool.intensity)}</span></div>
         <div class="row"><span>예상 수명 <span class="tag w">참고</span></span><span class="mono">${days(det.tool.life)}</span></div>
-        <div style="font-size:11px;color:#a4b0b9;line-height:1.6;margin-top:7px">${det.tool.life_basis||''}<br>앵커를 고르면 정해지는 환산값입니다. 공구별 내구성이 같다는 전제가 있어 교체 이력이 쌓이면 보정이 필요합니다.</div>
+        <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:7px">${det.tool.life_basis||''}<br>앵커를 고르면 정해지는 환산값입니다. 공구별 내구성이 같다는 전제가 있어 교체 이력이 쌓이면 보정이 필요합니다.</div>
         <div class="row"><span>누적 절삭</span><span class="mono">${f2(det.tool.hours)} h</span></div>
         <div class="row"><span>세트 내 기여도</span><span class="mono">${f2(det.tool.share)} %</span></div>
       </div>
@@ -602,18 +606,29 @@ async function renderDash(){
   drawDays(ov.days);
 }
 
+/* 그림 색은 위 :root 에서 읽는다. 코드에 박아 두면 화면 색을 바꿔도
+   이 그래프만 옛 색으로 남는다. mes_dash.js 도 같은 방식이다. */
+function cssVar(name, dflt){
+  try{ const v=getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+       return v||dflt; }catch(e){ return dflt; }
+}
 function drawDays(days){
   const cv=$('cv'); if(!cv) return;
   const ctx=cv.getContext('2d'), w=cv.width=cv.clientWidth*2, h=cv.height=300;
   ctx.clearRect(0,0,w,h);
+  const cBar=cssVar('--accent','#1B365D'), cNone=cssVar('--line','#E7EAEE'),
+        cLab=cssVar('--chart-label','#64748B'), cVal=cssVar('--ink','#0F172A');
   const mx=Math.max(...days.map(d=>d.cut_h),1), n=days.length, bw=w/n*0.6;
   days.forEach((d,i)=>{
     const x=(i+0.5)*w/n, bh=d.cut_h/mx*(h-50);
-    ctx.fillStyle= d.cut_h>0?'#2d6cdf':'#dfe4e7';
-    ctx.fillRect(x-bw/2,h-30-bh,bw,bh);
-    if(n<=25){ ctx.fillStyle='#8c9ba5'; ctx.font='18px sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle= d.cut_h>0?cBar:cNone;
+    /* 모서리를 살짝 굴린다. 옛 브라우저에는 roundRect 가 없으니 그때는 각지게. */
+    if(ctx.roundRect){ ctx.beginPath();
+      ctx.roundRect(x-bw/2,h-30-bh,bw,Math.max(bh,2),Math.min(6,bw/3)); ctx.fill(); }
+    else ctx.fillRect(x-bw/2,h-30-bh,bw,bh);
+    if(n<=25){ ctx.fillStyle=cLab; ctx.font='18px sans-serif'; ctx.textAlign='center';
       ctx.fillText(d.date.slice(5),x,h-8);
-      if(d.cut_h>0){ ctx.fillStyle='#1f2a33'; ctx.fillText(d.cut_h.toFixed(1),x,h-36-bh); } }
+      if(d.cut_h>0){ ctx.fillStyle=cVal; ctx.fillText(d.cut_h.toFixed(1),x,h-36-bh); } }
   });
 }
 
@@ -732,8 +747,8 @@ async function renderOrder(){
       ${cardHtml('평균 초과 사용', o.over_count,'종')}
       ${cardHtml('발주 이력', o.orders.length,'건')}
     </div>
-    <div class="panel" style="background:#f7f9fb">
-      <div style="font-size:11.5px;color:#6b7a86;line-height:1.7">
+    <div class="panel" style="background:var(--raise)">
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7">
         <b>잔여 일수와 발주 시점을 표시하지 않습니다.</b>
         공구 교체 이력이 아직 수집되지 않아 "며칠 남았다"를 말할 근거가 없습니다.
         대신 지금 얼마나 닳았는지(마모율)와 평균보다 몇 배 빨리 닳는지(사용강도)로 우선순위를 정합니다.
@@ -815,7 +830,7 @@ function openOrder(){
       </div>
       <div class="mbody">
         ${items.map(c=>`<div class="qrow" data-tool="${c.tool}">
-          <div class="nm"><b style="display:inline;font-size:12.5px;color:#1f2a33;font-weight:600">T${c.tool}</b>
+          <div class="nm"><b style="display:inline;font-size:12.5px;color:var(--ink);font-weight:600">T${c.tool}</b>
             ${c.name}
             <b>마모율 ${f2(c.wear)}% · 사용강도 ${inten(c.intensity)} ·
                ${c.cls==='breakage'?'파손형':'마모형'}${c.recommend?' · 과다':''}</b></div>
@@ -902,7 +917,7 @@ async function renderAlert(){
         <input id="s_title" placeholder="제목 — 예: T33 교체 요망">
       </div>
       <input id="s_body" placeholder="내용 (선택)" style="width:100%;padding:8px 10px;
-        border:1px solid #d5dde3;border-radius:6px;font-size:12.5px;margin-bottom:9px">
+        border:1px solid var(--line);border-radius:6px;font-size:12.5px;margin-bottom:9px">
       <button class="act" onclick="sendAlert()">전송</button>
     </div>`:''}
 
@@ -948,8 +963,8 @@ async function renderAsk(){
   $('main').innerHTML = `
     <h2>질의</h2>
     <div class="desc">집계된 값과 MES 활동 로그로 답합니다 — 원본 데이터는 전송하지 않습니다</div>
-    ${info.agent.online?'':`<div class="panel" style="background:#fff8e6;border-color:#f0dfae">
-      <div style="font-size:12px;color:#8a6d1f;line-height:1.7">
+    ${info.agent.online?'':`<div class="panel" style="background:var(--warn-soft);border-color:var(--warn-line)">
+      <div style="font-size:12px;color:var(--warn-ink);line-height:1.7">
         <b>규칙 기반 모드</b> — <code>supabase functions deploy mes-ask</code> 를
         실행하면 Claude 가 자유로운 질문에 답합니다. 지금은 정해진 형태만 답할 수 있습니다.
       </div></div>`}
@@ -1107,8 +1122,8 @@ async function renderOee(){
       ${cardHtml('일평균 절삭', f2(s.daily_cut),'h','hl')}
       ${cardHtml('절삭률', f2(s.cut_rate),'%')}
     </div>
-    ${p.counter_stuck? `<div class="panel" style="background:#fffdf5;border-color:#d5b26a">
-      <div style="font-size:12px;color:#8a6d1f;line-height:1.7">
+    ${p.counter_stuck? `<div class="panel" style="background:var(--warn-soft);border-color:var(--warn-line)">
+      <div style="font-size:12px;color:var(--warn-ink);line-height:1.7">
         <b>이 구간의 생산량은 알 수 없습니다.</b>
         PartCount 누적 카운터가 ${num(p.counter_max)} 에서 한 번도 움직이지 않았습니다.
         설비에서 카운터를 세지 않았거나 수집이 끊긴 것으로 보입니다.
@@ -1203,7 +1218,7 @@ async function renderData(){
   $('side').innerHTML = `<h3>올린 파일</h3>` +
     (d.files.length? d.files.map(f=>`<div class="item">${f.name}
       <span class="m">${f.size_kb}KB · ${f.at}<br>${f.mapped!=null?`매칭 ${f.mapped}/${f.total}`:'미매칭'}
-      ${f.confirmed?` · <b style="color:#2e7d4f">확정</b>`:''}</span></div>`).join('')
+      ${f.confirmed?` · <b style="color:var(--ok)">확정</b>`:''}</span></div>`).join('')
      : '<div class="item muted">없음</div>') +
     `<h3>매칭 단계</h3>
      <div class="item">1 별칭 사전<span class="m">제일PMC 대응표 — 확실</span></div>
@@ -1241,7 +1256,7 @@ async function renderData(){
             표준 라이브러리만으로는 200만 행을 처리할 수 없습니다.</div>
           <div class="i">터미널에서 <code>pip install pandas numpy</code> 후
             <code>python mes_rebuild.py</code> 를 실행하세요</div></div>`}
-      <div id="rblog" class="hide" style="margin-top:11px;background:#1f2a33;color:#c9d6e2;
+      <div id="rblog" class="hide" style="margin-top:11px;background:var(--term-bg);color:var(--term-ink);
         border-radius:7px;padding:12px 14px;font-size:11.5px;line-height:1.75;
         max-height:260px;overflow-y:auto;font-family:Consolas,monospace"></div>
     </div>
@@ -1256,7 +1271,7 @@ function showRebuild(r){
   el.classList.remove('hide');
   const head = r.running ? '집계 중...' :
     (r.code===0 ? '완료' : (r.code==null?'':'실패 (코드 '+r.code+')'));
-  el.innerHTML = (head?`<div style="color:${r.code===0?'#7ddc9a':(r.running?'#e8c04a':'#ff9d9d')}">
+  el.innerHTML = (head?`<div style="color:${r.code===0?'var(--term-ok)':(r.running?'var(--term-warn)':'var(--term-err)')}">
     ■ ${head}${r.started?' · 시작 '+r.started:''}${r.ended?' · 종료 '+r.ended:''}</div>`:'')
     + (r.lines||[]).map(l=>`<div>${l.replace(/</g,'&lt;')}</div>`).join('');
   el.scrollTop = el.scrollHeight;
@@ -1295,7 +1310,7 @@ const UPLOAD_MAX = 80*1024*1024;      // 사내 단독 서버라 넉넉히 둔�
 async function doUpload(el){
   const f = el.files[0]; if(!f) return;
   if(f.size > UPLOAD_MAX){
-    $('upstat').innerHTML = `<b style="color:#c0392b">파일이 큽니다 (${(f.size/1048576).toFixed(1)}MB).</b>
+    $('upstat').innerHTML = `<b style="color:var(--danger)">파일이 큽니다 (${(f.size/1048576).toFixed(1)}MB).</b>
       화면 업로드는 ${UPLOAD_MAX/1048576}MB 까지입니다.
       큰 파일은 폴더에 직접 넣고 <code>python mes_rebuild.py</code> 를 실행하세요.`;
     return;
@@ -1307,7 +1322,7 @@ async function doUpload(el){
   const r = await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({name:f.name, text})});
   const j = await r.json();
-  if(!r.ok){ $('upstat').innerHTML=`<b style="color:#c0392b">${j.error}</b>`; return; }
+  if(!r.ok){ $('upstat').innerHTML=`<b style="color:var(--danger)">${j.error}</b>`; return; }
   MATCH = j;
   $('upstat').innerHTML = `<b>${j.file}</b> · ${j.rows_sampled}행 표본 · ${j.size_kb}KB`;
   drawMatch();
@@ -1327,11 +1342,11 @@ function drawMatch(){
       ${cardHtml('유사도', j.by_sim,'개')}
       ${cardHtml('Agent', j.by_llm,'개', j.by_llm?'hl':'')}
     </div>
-    ${j.missing_required.length? `<div class="panel" style="background:#fdecea;border-color:#f0b8b0">
-      <b style="color:#c0392b">필수 컬럼 누락</b> — ${j.missing_required.join(', ')}<br>
+    ${j.missing_required.length? `<div class="panel" style="background:var(--danger-soft);border-color:var(--danger-line)">
+      <b style="color:var(--danger)">필수 컬럼 누락</b> — ${j.missing_required.join(', ')}<br>
       <span class="muted" style="font-size:11.5px">이 컬럼들이 없으면 마모 계산을 할 수 없습니다.</span></div>`:''}
-    ${!j.llm_used? `<div class="panel" style="background:#fffdf5;border-color:#d5b26a">
-      <span style="font-size:12px;color:#8a6d1f">Agent(Claude API) 없이 사전과 유사도만으로 매칭한 결과입니다.
+    ${!j.llm_used? `<div class="panel" style="background:var(--warn-soft);border-color:var(--warn-line)">
+      <span style="font-size:12px;color:var(--warn-ink)">Agent(Claude API) 없이 사전과 유사도만으로 매칭한 결과입니다.
       미매칭 컬럼은 아래에서 직접 지정하세요. API 키를 넣으면 값의 형태를 보고 Agent 가 제안합니다.</span></div>`:''}
     <div class="panel">
       <h4>컬럼 매칭 — 확인 후 확정</h4>
@@ -1343,7 +1358,7 @@ function drawMatch(){
           <option value="">— 대응 없음 —</option>${opts}</select></td>
         <td><span class="how ${cls(r.how)}">${r.how}</span>
           ${r.score<1&&r.score>0?`<span class="muted" style="font-size:10.5px"> ${(r.score*100).toFixed(0)}%</span>`:''}</td>
-        <td style="font-size:11.5px;color:#6b7a86">${r.why}</td>
+        <td style="font-size:11.5px;color:var(--muted)">${r.why}</td>
         <td class="muted" style="font-size:11px">${(r.profile.sample||[]).slice(0,4).join(', ')}</td>
       </tr>`).join('')}
       </tbody></table>
@@ -1387,7 +1402,7 @@ function reportBar(dataKind, extra){
                                   (!t.role || t.role === ME.role));
   if(!list.length) return '';
   return `<div class="panel" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
-    <b style="font-size:12.5px;color:#1b365d">서류 출력</b>
+    <b style="font-size:12.5px;color:var(--accent)">서류 출력</b>
     ${list.map(t=>`<button class="act" onclick="openReport('${t.key}'${extra?",'"+extra+"'":''})">
       ${t.title}</button>`).join('')}
     <span class="muted" style="font-size:11.5px;margin-left:auto">
