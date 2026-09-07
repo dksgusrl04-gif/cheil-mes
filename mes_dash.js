@@ -130,6 +130,35 @@
     return out.reverse();                          // 최근 것을 위로
   }
 
+  /* ── 색 ──────────────────────────────────────────────────────
+     그림 색을 코드에 박아 두면 화면 색을 바꿀 때마다 여기가 남는다.
+     mes.html 의 :root 변수를 읽어 쓰고, 없으면 기본값으로 떨어진다.
+     그래서 «마모율 게이지와 그래프가 다른 파랑» 같은 일이 안 생긴다. */
+  const FALLBACK = {
+    '--accent': '#1B365D', '--chart-bar': '#7E9CC0', '--chart-area': '#E8EFF7',
+    '--chart-grid': '#F1F4F7', '--chart-axis': '#94A3B8', '--chart-label': '#64748B',
+    '--danger': '#DC2626', '--danger-soft': '#F3C7C7', '--warn': '#D97706',
+    '--surface': '#FFFFFF',
+  };
+  let _pal = null;
+  function pal() {
+    if (_pal) return _pal;
+    _pal = {};
+    let cs = null;
+    try {
+      if (typeof getComputedStyle === 'function' && document.documentElement) {
+        cs = getComputedStyle(document.documentElement);
+      }
+    } catch (e) { cs = null; }
+    for (const k of Object.keys(FALLBACK)) {
+      const v = cs ? String(cs.getPropertyValue(k) || '').trim() : '';
+      _pal[k] = v || FALLBACK[k];
+    }
+    return _pal;
+  }
+  /* 화면 색이 바뀌면(테마 교체 등) 다시 읽는다 */
+  function resetPal() { _pal = null; }
+
   /* ── 막대 + 꺾은선 그림 ──────────────────────────────────────
      주차별 마모량(막대)과 절삭시간(선)을 겹쳐 본다.
      마모가 늘었을 때 '많이 돌려서' 인지 '빨리 닳아서' 인지 갈라 보려는 것이다. */
@@ -140,9 +169,10 @@
     const iw = W - P.l - P.r, ih = H - P.t - P.b;
     if (!rows.length) {
       return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img">
-        <text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="#98a6b2"
+        <text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="${pal()['--chart-axis']}"
           font-size="13">표시할 자료가 없습니다</text></svg>`;
     }
+    const C = pal();
     const maxRaw = Math.max(...rows.map(r => r.raw), 1e-12);
     const maxH = Math.max(...rows.map(r => r.cut_h), 1e-12);
     const n = rows.length;
@@ -156,7 +186,9 @@
       const hot = opt.hot && opt.hot.has(r.week);
       return `<rect x="${(cx(i) - bw / 2).toFixed(1)}" y="${(P.t + ih - h).toFixed(1)}"
         width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3"
-        fill="${hot ? '#e8b4b8' : '#c7d7ea'}" stroke="${hot ? '#c0392b' : '#9fb6cf'}"
+        fill="${hot ? C['--danger-soft'] : C['--chart-bar']}"
+        fill-opacity="${hot ? 1 : .85}"
+        stroke="${hot ? C['--danger'] : C['--accent']}"
         stroke-width="${hot ? 1.4 : 0.8}"><title>${esc(r.label)}
 마모량 ${r.raw.toFixed(6)}
 절삭 ${f2(r.cut_h)}h
@@ -166,26 +198,27 @@
     const pts = rows.map((r, i) => `${cx(i).toFixed(1)},${ly(r.cut_h).toFixed(1)}`).join(' ');
     const dots = rows.map((r, i) =>
       `<circle cx="${cx(i).toFixed(1)}" cy="${ly(r.cut_h).toFixed(1)}" r="3.2"
-        fill="#fff" stroke="#1b365d" stroke-width="1.6"/>`).join('');
+        fill="${C['--surface']}" stroke="${C['--accent']}" stroke-width="1.6"/>`).join('');
 
     const grid = [0, 0.5, 1].map(f => {
       const y = P.t + ih - ih * f;
       return `<line x1="${P.l}" y1="${y}" x2="${P.l + iw}" y2="${y}"
-        stroke="#eef2f6" stroke-width="1"/>
+        stroke="${C['--chart-grid']}" stroke-width="1"/>
         <text x="${P.l - 7}" y="${y + 3.5}" text-anchor="end" font-size="9.5"
-          fill="#98a6b2">${(maxRaw * f).toFixed(3)}</text>
+          fill="${C['--chart-axis']}">${(maxRaw * f).toFixed(3)}</text>
         <text x="${P.l + iw + 7}" y="${y + 3.5}" font-size="9.5"
-          fill="#7f96ad">${(maxH * f).toFixed(1)}h</text>`;
+          fill="${C['--accent']}" opacity=".7">${(maxH * f).toFixed(1)}h</text>`;
     }).join('');
 
     const labels = rows.map((r, i) =>
       `<text x="${cx(i).toFixed(1)}" y="${H - 12}" text-anchor="middle" font-size="9.5"
-        fill="#6b7d8c">${esc(r.label)}</text>`).join('');
+        fill="${C['--chart-label']}">${esc(r.label)}</text>`).join('');
 
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img"
       aria-label="주차별 마모량과 절삭시간">
       ${grid}${bars}
-      <polyline points="${pts}" fill="none" stroke="#1b365d" stroke-width="1.8"/>
+      <polyline points="${pts}" fill="none" stroke="${C['--accent']}" stroke-width="1.8"
+        stroke-linejoin="round" stroke-linecap="round"/>
       ${dots}${labels}
     </svg>`;
   }
@@ -202,8 +235,9 @@
     const D = (days || []).slice().sort((a, b) => (a.date < b.date ? -1 : 1));
     if (D.length < 2) {
       return `<svg viewBox="0 0 ${W} ${H}" width="100%"><text x="${W / 2}" y="${H / 2}"
-        text-anchor="middle" fill="#98a6b2" font-size="13">일자가 부족합니다</text></svg>`;
+        text-anchor="middle" fill="${pal()['--chart-axis']}" font-size="13">일자가 부족합니다</text></svg>`;
     }
+    const C = pal();
     const per = D.map(d => (d.cut_h > 0 ? val(d) / d.cut_h : 0));
     const mx = Math.max(...per, 1e-12);
     const x = i => P.l + iw * i / (D.length - 1);
@@ -215,56 +249,66 @@
     const dots = D.map((d, i) => {
       const m = M.get(d.date);
       if (!m) return '';
-      const col = m.level === 'danger' ? '#c0392b' : m.level === 'warn' ? '#d68910' : '#5a7fa6';
+      const col = m.level === 'danger' ? C['--danger']
+        : m.level === 'warn' ? C['--warn'] : C['--accent'];
       return `<circle cx="${x(i).toFixed(1)}" cy="${y(per[i]).toFixed(1)}" r="4.5"
-        fill="${col}" stroke="#fff" stroke-width="1.6"><title>${esc(d.date)} · ${esc(m.title)}
+        fill="${col}" stroke="${C['--surface']}" stroke-width="1.8"><title>${esc(d.date)} · ${esc(m.title)}
 ${esc(m.why)}</title></circle>`;
     }).join('');
 
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="일자별 시간당 마모량">
-      <polygon points="${area}" fill="#eaf1f8"/>
-      <polyline points="${line}" fill="none" stroke="#5a7fa6" stroke-width="1.6"/>
+      <polygon points="${area}" fill="${C['--chart-area']}"/>
+      <polyline points="${line}" fill="none" stroke="${C['--accent']}" stroke-width="1.7"
+        stroke-linejoin="round" stroke-linecap="round"/>
       ${dots}
       <text x="${P.l - 7}" y="${P.t + 4}" text-anchor="end" font-size="9.5"
-        fill="#98a6b2">${mx.toFixed(4)}</text>
-      <text x="${P.l - 7}" y="${P.t + ih + 3}" text-anchor="end" font-size="9.5" fill="#98a6b2">0</text>
-      <text x="${P.l}" y="${H - 7}" font-size="9.5" fill="#6b7d8c">${esc(D[0].date)}</text>
+        fill="${C['--chart-axis']}">${mx.toFixed(4)}</text>
+      <text x="${P.l - 7}" y="${P.t + ih + 3}" text-anchor="end" font-size="9.5"
+        fill="${C['--chart-axis']}">0</text>
+      <text x="${P.l}" y="${H - 7}" font-size="9.5"
+        fill="${C['--chart-label']}">${esc(D[0].date)}</text>
       <text x="${P.l + iw}" y="${H - 7}" text-anchor="end" font-size="9.5"
-        fill="#6b7d8c">${esc(D[D.length - 1].date)}</text>
+        fill="${C['--chart-label']}">${esc(D[D.length - 1].date)}</text>
     </svg>`;
   }
 
   /* ═══════════════════════════════════════════════════════════════
    * 화면 — 상단 메뉴에 «종합» 을 붙이고 눌리면 여기서 그린다
    * ═══════════════════════════════════════════════════════════════ */
+  /* 색·모서리는 mes.html 의 :root 를 따라간다. 그 변수가 없으면 괄호 안 기본값. */
   const CSS = `
   #mesdash .row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
-  #mesdash .box{background:#fff;border:1px solid #e2e8ee;border-radius:8px;padding:14px 16px}
+  #mesdash .box{background:var(--surface,#fff);border:1px solid var(--line,#e2e8ee);
+    border-radius:var(--r,10px);padding:16px 18px;
+    box-shadow:var(--sh,0 1px 2px rgba(15,23,42,.04))}
   #mesdash .box.grow{flex:1 1 340px;min-width:0}
   /* 그래프 두 개를 한 줄에. 화면이 좁으면 알아서 위아래로 내려간다. */
   #mesdash .row.two > .box{display:flex;flex-direction:column}
   #mesdash .row.two > .box .hint{margin-top:auto}
   @media (max-width:860px){ #mesdash .row.two > .box{flex:1 1 100%} }
-  #mesdash h4 .sub{font-weight:400;color:#8c9ba5;margin-left:6px}
-  #mesdash h4{font-size:12.5px;color:#41525f;margin:0 0 10px;font-weight:600}
-  #mesdash .hint{font-size:11px;color:#8c9ba5;margin-top:8px;line-height:1.65}
+  #mesdash h4 .sub{font-weight:400;color:var(--faint,#94A3B8);margin-left:6px}
+  #mesdash h4{font-size:12.5px;color:var(--ink,#0F172A);margin:0 0 12px;font-weight:650}
+  #mesdash .hint{font-size:11.5px;color:var(--faint,#94A3B8);margin-top:10px;line-height:1.65}
   #mesdash .an{display:flex;gap:10px;align-items:flex-start;padding:9px 0;
-    border-bottom:1px solid #f0f3f6}
+    border-bottom:1px solid var(--line-2,#f0f3f6)}
   #mesdash .an:last-child{border-bottom:0}
-  #mesdash .an .d{font-size:11.5px;color:#41525f;font-weight:600;min-width:78px}
+  #mesdash .an .d{font-size:11.5px;color:var(--ink-2,#334155);font-weight:600;min-width:80px;
+    font-variant-numeric:tabular-nums}
   #mesdash .an .t{font-size:12px;font-weight:600;min-width:70px}
-  #mesdash .an .w{font-size:11.5px;color:#6b7d8c;line-height:1.6;flex:1}
-  #mesdash .an.danger .t{color:#c0392b}
-  #mesdash .an.warn .t{color:#b9770e}
-  #mesdash .an.info .t{color:#5a7fa6}
+  #mesdash .an .w{font-size:11.5px;color:var(--muted,#64748B);line-height:1.6;flex:1}
+  #mesdash .an.danger .t{color:var(--danger,#DC2626)}
+  #mesdash .an.warn .t{color:var(--warn,#D97706)}
+  #mesdash .an.info .t{color:var(--accent,#1B365D)}
   #mesdash .segbtns{display:flex;gap:7px;flex-wrap:wrap}
   #mesdash .segbtns button, #basis .segbtns button{
-    font:inherit;font-size:12px;padding:6px 13px;border:1px solid #c3ced8;border-radius:6px;
-    background:#fff;color:#41525f;cursor:pointer;transition:all .12s}
+    font:inherit;font-size:12px;padding:6px 13px;border:1px solid var(--line,#c3ced8);
+    border-radius:999px;background:var(--surface,#fff);color:var(--ink-2,#41525f);
+    cursor:pointer;transition:background .12s,border-color .12s}
   #mesdash .segbtns button:hover, #basis .segbtns button:hover{
-    background:#eef3fa;border-color:#9fb6cf}
+    background:var(--accent-soft,#eef3fa);border-color:var(--accent-line,#9fb6cf)}
   #mesdash .segbtns button[data-on], #basis .segbtns button[data-on]{
-    background:#1b365d;border-color:#1b365d;color:#fff;font-weight:600}
+    background:var(--accent,#1b365d);border-color:var(--accent,#1b365d);color:#fff;
+    font-weight:650}
   #basis .segbtns{display:flex;gap:6px;align-items:center}
   `;
   function addCss() {
@@ -468,7 +512,7 @@ ${esc(m.why)}</title></circle>`;
   }
 
   const api = {
-    weeks, anomalies, chartSVG, sparkSVG, weekKey, median, RULES,
+    weeks, anomalies, chartSVG, sparkSVG, weekKey, median, RULES, pal, resetPal,
     draw, active: () => ACTIVE,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -23,6 +23,13 @@
     --accent-soft:#EEF3FA;
     --accent-line:#C9D9EC;
     --danger:#DC2626; --danger-soft:#FEF2F2; --danger-line:#FBD5D5;
+    /* 그래프 — mes_dash.js 가 이 값을 읽어 쓴다.
+       여기만 바꾸면 종합 탭 그래프 색이 같이 따라온다. */
+    --chart-bar:#7E9CC0;   /* 막대 (강조색을 옅게) */
+    --chart-area:#E8EFF7;  /* 잔선 아래 면 */
+    --chart-grid:#F1F4F7;  /* 눈금선 */
+    --chart-axis:#94A3B8;  /* 축 숫자 */
+    --chart-label:#64748B; /* 축 이름 */
     --warn:#D97706;   --warn-soft:#FFFBEB;   --warn-line:#FDE9C8;
     --ok:#059669;     --ok-soft:#ECFDF5;     --ok-line:#C7F0DF;
     --r:10px;          /* 카드 모서리 */
@@ -379,7 +386,7 @@
 <script src="mes_ask.js?v=a570547e"></script>
 <script src="mes_supa.js?v=9c39930d"></script>
 <script src="mes_ui.js?v=0410ea6a"></script>
-<script src="mes_dash.js?v=6dc9e193"></script>
+<script src="mes_dash.js?v=20d95967"></script>
 <script>
 const $ = id => document.getElementById(id);
 let ME=null, TAB='dash', TOOLS=[], PROGS=null, BASIS=null;
