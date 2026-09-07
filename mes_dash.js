@@ -194,7 +194,10 @@
   function sparkSVG(days, marks, opt) {
     opt = opt || {};
     const W = opt.width || 720, H = opt.height || 116;
-    const P = { t: 12, r: 12, b: 22, l: 48 };
+    /* 높이를 넉넉히 주면 위아래 여백도 같이 키운다. 안 그러면 선만 늘어나
+       옆 그래프와 나란히 뒀을 때 눈금이 붕 떠 보인다. */
+    const pad = H > 160 ? 22 : 12;
+    const P = { t: pad, r: 12, b: pad + 10, l: 48 };
     const iw = W - P.l - P.r, ih = H - P.t - P.b;
     const D = (days || []).slice().sort((a, b) => (a.date < b.date ? -1 : 1));
     if (D.length < 2) {
@@ -237,7 +240,12 @@ ${esc(m.why)}</title></circle>`;
   const CSS = `
   #mesdash .row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
   #mesdash .box{background:#fff;border:1px solid #e2e8ee;border-radius:8px;padding:14px 16px}
-  #mesdash .box.grow{flex:1;min-width:340px}
+  #mesdash .box.grow{flex:1 1 340px;min-width:0}
+  /* 그래프 두 개를 한 줄에. 화면이 좁으면 알아서 위아래로 내려간다. */
+  #mesdash .row.two > .box{display:flex;flex-direction:column}
+  #mesdash .row.two > .box .hint{margin-top:auto}
+  @media (max-width:860px){ #mesdash .row.two > .box{flex:1 1 100%} }
+  #mesdash h4 .sub{font-weight:400;color:#8c9ba5;margin-left:6px}
   #mesdash h4{font-size:12.5px;color:#41525f;margin:0 0 10px;font-weight:600}
   #mesdash .hint{font-size:11px;color:#8c9ba5;margin-top:8px;line-height:1.65}
   #mesdash .an{display:flex;gap:10px;align-items:flex-start;padding:9px 0;
@@ -369,21 +377,18 @@ ${esc(m.why)}</title></circle>`;
         ${card('공구', tools.length, '종')}
       </div>
 
-      <div class="row">
+      <div class="row two">
         <div class="box grow">
-          <h4>주차별 추이 — 막대는 마모량, 선은 절삭시간</h4>
-          ${chartSVG(W, { hot })}
-          <div class="hint">막대만 높으면 <b>많이 돌려서</b> 닳은 것이고,
-            선은 그대로인데 막대가 솟으면 <b>같은 시간에 더 빨리</b> 닳은 것입니다.
-            후자가 공구 상태를 의심할 자리입니다. 붉은 막대는 그 주에 이상 징후가 있던 주입니다.</div>
+          <h4>주차별 추이 <span class="sub">막대 = 마모량 · 선 = 절삭시간</span></h4>
+          ${chartSVG(W, { hot, width: 520, height: 236 })}
+          <div class="hint">막대만 높으면 <b>많이 돌려서</b>, 선은 그대로인데 막대가 솟으면
+            <b>같은 시간에 더 빨리</b> 닳은 것입니다. 후자가 의심할 자리입니다.
+            붉은 막대는 이상 징후가 있던 주입니다.</div>
         </div>
-      </div>
-
-      <div class="row">
         <div class="box grow">
-          <h4>일자별 시간당 마모량 — 점이 찍힌 날이 이상 징후</h4>
-          ${sparkSVG(days, A)}
-          <div class="hint">시간당으로 보는 이유는, 오래 돌린 날이 무조건 커 보이는 것을
+          <h4>일자별 시간당 마모량 <span class="sub">점 = 이상 징후</span></h4>
+          ${sparkSVG(days, A, { width: 520, height: 236 })}
+          <div class="hint">시간당으로 보는 이유는 오래 돌린 날이 무조건 커 보이는 것을
             걷어내기 위해서입니다. 점에 마우스를 올리면 판정 근거가 나옵니다.</div>
         </div>
       </div>
