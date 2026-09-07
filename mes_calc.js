@@ -214,7 +214,18 @@
       this.baseN = baseTools.length || 1;
       this.baseMean = baseTotal / this.baseN;
 
-      if (this.anchor === 'set') {
+      /* ── 보정본이 있으면 그것이 자다 ─────────────────────────────
+         집계본에 calib 가 있으면 자는 «그때 한 번 정해진 것» 이다. 구간을
+         바꿔도, 날짜를 좁혀도, 새 주차를 더해도 이 자는 안 바뀐다.
+         그래서 어떤 공구든 자기 가공이 없으면 값이 움직이지 않는다.
+         기준일수·주간시간을 화면에서 바꾸면 그만큼만 비례해 바뀐다. */
+      this.calib = DATA.calib || null;
+      const C = this.calib;
+      if (this.anchor === 'calib' && C && C.anchor_raw > 0 && C.cut_h > 0) {
+        this.anchorRaw = C.anchor_raw;
+        this.baseH = C.cut_h;
+        this.anchorLabel = `T${C.tool} 보정 (${C.period || C.made_at || '기준'})`;
+      } else if (this.anchor === 'set') {
         this.anchorRaw = baseTotal;
         this.anchorLabel = '세트 전체';
       } else if (this.anchor === 'mean') {
@@ -303,16 +314,27 @@
         life_cut_hours: round(this.lifeCutHours, 1),
         anchor: this.anchor,
         anchor_label: this.anchorLabel,
+        /* 자를 언제 무엇으로 만들었는지 — 화면이 밝힐 수 있어야 한다 */
+        calib: this.calib ? {
+          tool: this.calib.tool, period: this.calib.period || '',
+          cut_h: this.calib.cut_h, days: this.calib.days || 0,
+          made_at: this.calib.made_at || '',
+          fixed: this.anchor === 'calib',
+        } : null,
         observed_hours: round(this.totalH, 2),
         hour_wear: this.totalH
           ? round(this.k * (this.seg.raw_total || 0) / this.totalH, 5) : 0,
         set_wear: round(this.k * (this.seg.raw_total || 0), 4),
         life_options: LIFE_OPTIONS,
         week_options: WEEK_OPTIONS.map(w => ({ v: w, note: WEEK_NOTE[w] || '' })),
-        anchor_options: [
+        anchor_options: (this.calib ? [{
+          v: 'calib',
+          label: `T${this.calib.tool} 보정값 (고정)`,
+          note: `${this.calib.period || this.calib.made_at} 자료로 한 번 맞춘 자 — 새 주차를 더해도 안 바뀝니다`,
+        }] : []).concat([
           { v: 'mean', label: '평균 공구 = 기준일수', note: '많이 쓴 공구는 빨리, 적게 쓴 공구는 천천히 도달' },
           { v: 'set', label: '세트 전체 = 기준일수', note: '세트 단위 일괄 교체 정책 그대로' },
-        ].concat((this.seg.tools || []).slice(0, 8).map(t => ({
+        ]).concat((this.seg.tools || []).slice(0, 8).map(t => ({
           v: String(t.tool), label: `T${t.tool} ${t.name} = 기준일수`, note: `기여도 ${t.share}%`,
         }))),
         segments: Object.keys(segs).map(k => ({
