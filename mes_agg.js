@@ -861,6 +861,11 @@
     }
 
     out.defaults = oldSnap.defaults || newSnap.defaults;
+    /* 자(보정값)는 옛 집계본에 있던 것을 그대로 가져온다. 웹에서 재집계했다고
+       자가 사라지면, 화면이 «세트 전체» 로 물러나 숫자가 통째로 달라진다.
+       자는 mes_rebuild.py --재보정 으로만 바뀌어야 한다. */
+    if (oldSnap.calib) out.calib = oldSnap.calib;
+    else if (newSnap.calib) out.calib = newSnap.calib;
     if (oldSnap.quality) out.quality = oldSnap.quality;
     if (notes.length) out.merge_notes = notes;
     return out;

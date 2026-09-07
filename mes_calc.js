@@ -221,6 +221,10 @@
          기준일수·주간시간을 화면에서 바꾸면 그만큼만 비례해 바뀐다. */
       this.calib = DATA.calib || null;
       const C = this.calib;
+      /* 보정값을 쓰라고 했는데 집계본에 없다 — 조용히 다른 기준으로 넘어가면
+         «왜 숫자가 이러지» 가 된다. 넘어가되 그 사실을 화면에 남긴다. */
+      this.calibMissing = (this.anchor === 'calib'
+        && !(C && C.anchor_raw > 0 && C.cut_h > 0));
       if (this.anchor === 'calib' && C && C.anchor_raw > 0 && C.cut_h > 0) {
         this.anchorRaw = C.anchor_raw;
         this.baseH = C.cut_h;
@@ -315,6 +319,12 @@
         anchor: this.anchor,
         anchor_label: this.anchorLabel,
         /* 자를 언제 무엇으로 만들었는지 — 화면이 밝힐 수 있어야 한다 */
+        calib_missing: this.calibMissing,
+        calib_note: this.calibMissing
+          ? '이 집계본에는 고정된 자(보정값)가 없습니다 — 예전 집계본입니다. '
+            + '지금은 «세트 전체» 기준으로 보고 있어 숫자가 다릅니다. '
+            + 'python mes_rebuild.py 로 다시 집계해 올리세요.'
+          : '',
         calib: this.calib ? {
           tool: this.calib.tool, period: this.calib.period || '',
           cut_h: this.calib.cut_h, days: this.calib.days || 0,
