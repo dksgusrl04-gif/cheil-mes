@@ -594,8 +594,58 @@
   /* 전체(혼합) 구간 — 두 구간을 합친 것. 경계를 넘는 적산이라 참고용이지만,
      화면의 기본 목록에 있으므로 여기서도 만들어야 한다. 안 만들면 웹에서
      재집계했을 때 그 구간만 조용히 사라진다. */
+  /* 공구 이름을 비교용으로 다듬는다. 공백 차이로 다른 공구가 되면 안 된다. */
+  const normName = v => String(v || '').trim().replace(/\s+/g, ' ').toUpperCase();
+
+  /* 8/24 16시 부품 전환에서 무엇을 이어 붙일지 정한다.
+     판단 기준은 **공구 이름**이다 — 같으면 그대로 꽂혀 있던 것, 다르면 갈아 낀 것.
+     갈린 공구를 그냥 더하면 새 공구가 이미 닳은 것처럼 보인다.
+     mes_rebuild.py 의 merge_all 과 같은 규칙이어야 한다. */
+  function carryPlan(A, B) {
+    const fa = new Map((A.tools || []).map(t => [t.tool, t]));
+    const rr = new Map((B.tools || []).map(t => [t.tool, t]));
+    const carried = [], replaced = {};
+    for (const [k, t] of fa) {
+      const u = rr.get(k);
+      if (!u) continue;
+      const n1 = normName(t.name), n2 = normName(u.name);
+      if (n1 && n2 && n1 !== n2) replaced[k] = { before: t.name, after: u.name };
+      else carried.push(k);
+    }
+    return {
+      carried: carried.sort((a, b) => a - b),
+      replaced: replaced,
+      fa_only: Array.from(fa.keys()).filter(k => !rr.has(k)).sort((a, b) => a - b),
+      rear_only: Array.from(rr.keys()).filter(k => !fa.has(k)).sort((a, b) => a - b),
+    };
+  }
+
   function mixAll(A, B) {
-    const out = mergeSeg(A, B);
+    /* 갈아 낀 공구는 앞 구간 몫을 버리고 전환 이후만 센다 */
+    const plan = carryPlan(A, B);
+    const gone = new Set(Object.keys(plan.replaced).map(Number));
+    const A2 = gone.size
+      ? Object.assign({}, A, { tools: (A.tools || []).filter(t => !gone.has(t.tool)) })
+      : A;
+    const out = mergeSeg(A2, B);
+    out.carry = plan;
+    /* 일자별 마모에서도 버린 몫을 뺀다. 안 그러면 «날짜별 합» 과 «공구별 합» 이
+       어긋난다. 절삭시간은 그대로 둔다 — 설비는 실제로 돌았다. */
+    if (gone.size) {
+      const drop = new Map();
+      for (const t of (A.tools || [])) {
+        if (!gone.has(t.tool)) continue;
+        for (const d of (t.byday || [])) drop.set(d.date, (drop.get(d.date) || 0) + d.raw);
+      }
+      out.days = out.days.map(d => (drop.has(d.date)
+        ? Object.assign({}, d, { raw: d.raw - drop.get(d.date) }) : d));
+    }
+    /* 이름은 지금 꽂힌 것(뒤 구간)이 맞다 */
+    const rr = new Map((B.tools || []).map(t => [t.tool, t]));
+    for (const t of out.tools) {
+      const u = rr.get(t.tool);
+      if (u && u.name) { t.name = u.name; t.cls = u.cls; }
+    }
     out.rows = A.rows + B.rows;
     out.cut_h = r3(A.cut_h + B.cut_h);
     out.parts = A.parts + B.parts;
@@ -632,8 +682,9 @@
       states: (A.oee.states || []).concat(B.oee.states || [])
         .sort((x, y) => (x.day < y.day ? -1 : x.day > y.day ? 1 : 0)),
     });
-    out.mixed_note = '건전성·가공 분석은 절삭시간이 긴 구간의 값입니다. '
-      + '두 구간은 공구 세트가 달라 합산이 성립하지 않습니다.';
+    out.mixed_note = `8/24 16시 부품 전환 때 이름이 같은 공구 ${plan.carried.length}종은 `
+      + `이어서 적산했고, 이름이 바뀐 ${Object.keys(plan.replaced).length}종은 전환 이후만 `
+      + '셉니다. 건전성·가공 분석은 절삭시간이 긴 구간의 값입니다.';
     return out;
   }
 
@@ -815,7 +866,7 @@
     return out;
   }
 
-  const api = { run, merge, dropDays, UNIT, Dist, Kahan, toolClass, splitLine, streamLines, _build: build };
+  const api = { run, merge, dropDays, carryPlan, UNIT, Dist, Kahan, toolClass, splitLine, streamLines, _build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.MESAGG = api;
 })(typeof self !== 'undefined' ? self : this);
