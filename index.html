@@ -377,10 +377,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="d0c14615fb">
+<meta name="mes-build" content="d6696e0a44">
 <script>
 (function(){
-  var mine = "d0c14615fb";
+  var mine = "d6696e0a44";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -423,12 +423,12 @@
      ?v= 뒤는 파일 내용의 지문이다. 내용이 바뀌면 저절로 달라져
      브라우저가 새로 받는다. 사용자가 새로고침을 안 해도 된다. -->
 <script src="config.js?v=1e0fdbf6"></script>
-<script src="mes_calc.js?v=5817c181"></script>
+<script src="mes_calc.js?v=235e1eb0"></script>
 <script src="mes_agg.js?v=0be31f63"></script>
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=9c39930d"></script>
+<script src="mes_supa.js?v=3e622562"></script>
 <script src="mes_ui.js?v=0410ea6a"></script>
 <script src="mes_dash.js?v=20d95967"></script>
 <script>
@@ -570,6 +570,7 @@ async function renderDash(){
 
   const t = TOOLS.find(x=>x.tool===SEL.tool) || TOOLS[0];
   const det = t ? await api('/api/tool/'+t.tool) : null;
+  DASH_TOOL = det ? det.tool : null;     // 「교체 처리」가 이 값을 쓴다
   const s = ov.summary;
 
   $('main').innerHTML = `
@@ -613,6 +614,15 @@ async function renderDash(){
         <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:7px">${det.tool.life_basis||''}<br>앵커를 고르면 정해지는 환산값입니다. 공구별 내구성이 같다는 전제가 있어 교체 이력이 쌓이면 보정이 필요합니다.</div>
         <div class="row"><span>누적 절삭</span><span class="mono">${f2(det.tool.hours)} h</span></div>
         <div class="row"><span>세트 내 기여도</span><span class="mono">${f2(det.tool.share)} %</span></div>
+        ${det.tool.replaced_at?`<div class="row"><span>교체 기록</span>
+          <span class="mono">${det.tool.replaced_at} 부터</span></div>
+          <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:5px">
+            위 숫자는 모두 ${det.tool.replaced_at} 교체 이후로만 센 값입니다.
+            ${det.tool.replace_note?`<br><span style="color:var(--warn-ink)">${det.tool.replace_note}</span>`:''}
+          </div>`:''}
+        ${ME.role==='manager'?`<div style="margin-top:11px">
+          <button class="act sec" title="이 공구를 갈았다고 기록합니다 — 그날부터 다시 셉니다"
+            onclick="openReplace(${det.tool.tool})">교체 처리</button></div>`:''}
       </div>
       <div class="panel">
         <h4>인자별 마모 기여</h4>
@@ -767,13 +777,18 @@ async function renderSales(){
 async function renderOrder(){
   const o = await api('/api/orders');
   const b = o.basis;
+  /* 교체 이력 표가 아직 없어도 화면은 떠야 한다 */
+  let rep = {rows:[],applied:[],applied_count:0,note:'',table_missing:false,hint:'',can_edit:false};
+  try{ rep = await api('/api/replacements'); }catch(e){ /* 없으면 없는 대로 */ }
+  REP_LAST = rep;
   $('side').innerHTML = `<h3>기준</h3>
     <div class="item">교체 주기<span class="m">${b.life_days}일 · 앵커 ${b.anchor_label}</span></div>
     <div class="item">과다 판정<span class="m">마모율 ${o.order_level}% 이상</span></div>
     <h3>현황</h3>
     <div class="item">과다<span class="m">${o.recommend_count}종 / ${o.candidates.length}종</span></div>
     <div class="item">평균 초과<span class="m">${o.over_count}종</span></div>
-    <div class="item">발주 이력<span class="m">${o.orders.length}건</span></div>`;
+    <div class="item">발주 이력<span class="m">${o.orders.length}건</span></div>
+    <div class="item">교체 이력<span class="m">${rep.rows.length}건 · 반영 ${rep.applied_count}종</span></div>`;
   const canManage = ME.role==='manager';
   const top = o.candidates.slice(0,20);
   ORDER_CAND = Object.fromEntries(o.candidates.map(c=>[c.tool,c]));
@@ -790,11 +805,16 @@ async function renderOrder(){
     <div class="panel" style="background:var(--raise)">
       <div style="font-size:11.5px;color:var(--muted);line-height:1.7">
         <b>잔여 일수와 발주 시점을 표시하지 않습니다.</b>
-        공구 교체 이력이 아직 수집되지 않아 "며칠 남았다"를 말할 근거가 없습니다.
-        대신 지금 얼마나 닳았는지(마모율)와 평균보다 몇 배 빨리 닳는지(사용강도)로 우선순위를 정합니다.
-        교체 이력이 확보되면 잔여 일수를 되살립니다.
+        "며칠 남았다"를 말하려면 «이 공구가 몇 일 만에 수명을 다했는가» 가 쌓여야 합니다.
+        아래 교체 이력이 공구마다 두세 번씩 쌓이면 그때 되살립니다.
+        지금은 얼마나 닳았는지(마모율)와 평균보다 몇 배 빨리 닳는지(사용강도)로 우선순위를 정합니다.
       </div>
     </div>
+    ${rep.table_missing?`<div class="panel" style="border-color:var(--warn)">
+      <div style="font-size:11.5px;color:var(--warn-ink);line-height:1.7">
+        <b>교체 이력을 저장할 곳이 아직 없습니다.</b><br>${rep.hint}
+        그 전까지 「교체 처리」를 눌러도 저장되지 않습니다.
+      </div></div>`:''}
     ${reportBar('order','open=1')}
     <div class="panel">
       <h4>소모 많은 순 — 상위 20종</h4>
@@ -809,18 +829,49 @@ async function renderOrder(){
         <th class="chk"><input type="checkbox" id="allchk" onclick="toggleAll(this.checked)"></th>
         <th>공구</th><th>이름</th><th>부류</th><th class="n">마모율</th>
         <th class="n">사용강도</th><th class="n">기여도</th><th class="n">절삭(h)</th>
-        <th>단계</th></tr></thead><tbody>
+        <th>단계</th><th style="width:86px">교체</th></tr></thead><tbody>
       ${top.map(c=>`<tr class="${c.recommend?'hot':''}">
         <td class="chk"><input type="checkbox" data-tool="${c.tool}" ${ORDER_SEL.has(c.tool)?'checked':''}
           onclick="toggleTool(${c.tool},this.checked)"></td>
         <td><b>T${c.tool}</b></td><td>${c.name}</td>
         <td><span class="tag ${c.cls==='breakage'?'b':'w'}">${c.cls==='breakage'?'파손형':'마모형'}</span></td>
-        <td class="n">${f2(c.wear)}%${c.recommend?' <span class="tag b">과다</span>':''}</td>
+        <td class="n">${f2(c.wear)}%${c.recommend?' <span class="tag b">과다</span>':''}
+          ${c.replaced_at?`<div class="muted" style="font-size:10.5px">${c.replaced_at} 교체 후</div>`:''}</td>
         <td class="n">${inten(c.intensity)}</td>
         <td class="n">${f2(c.share)}%</td>
         <td class="n">${f2(c.hours)}</td>
         <td>${c.level==='정상'?'<span class="muted">정상</span>':`<span class="tag b">${c.level}</span>`}</td>
+        <td><button class="act sec" ${canManage?'':'disabled'}
+          title="이 공구를 갈았다고 기록합니다 — 그날부터 다시 셉니다"
+          onclick="openReplace(${c.tool})">교체 처리</button></td>
         </tr>`).join('')}
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h4>공구 교체 이력</h4>
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7;margin-bottom:10px">
+        공구를 갈면 여기에 적습니다. 적는 순간부터 그 공구의 마모율은
+        <b>교체일부터 다시</b> 셉니다. 교체일은 그날을 포함합니다 (그날 아침에 갈았다고 봅니다).
+        같은 공구를 여러 번 갈았으면 가장 마지막 날짜만 계산에 씁니다 — 예전 줄은 이력으로 남습니다.
+        ${rep.note?`<br><span style="color:var(--warn-ink)">${rep.note}</span>`:''}
+      </div>
+      <table><thead><tr><th>교체일</th><th>공구</th><th>사유</th><th>기록</th>
+        <th class="n">현재 반영</th><th style="width:64px"></th></tr></thead><tbody>
+      ${rep.rows.length? rep.rows.map(r=>{
+        const on = (rep.applied||[]).find(a=>a.tool===r.tool && a.at===r.at);
+        return `<tr><td class="mono">${r.at}</td>
+        <td>T${r.tool} ${r.name||''}</td>
+        <td class="muted">${r.note||'-'}</td>
+        <td class="muted">${r.by||''} · ${(r.created_at||'').slice(0,10)}</td>
+        <td class="n">${on? (on.applied?'<span class="tag g">반영</span>'
+              :'<span class="tag w" title="이 집계본에는 날짜별 자료가 없습니다">못 자름</span>')
+            :'<span class="muted" title="이 공구의 더 최근 교체 기록이 있습니다">지난 이력</span>'}</td>
+        <td>${canManage?`<button class="act gray"
+          title="잘못 적었을 때만 지웁니다 — 지우면 그 전 마모가 되살아납니다"
+          onclick="delReplace('${r.id}')">지움</button>`:''}</td></tr>`;
+      }).join('')
+        : '<tr><td colspan=6 class="muted">아직 교체 기록이 없습니다 — 위 표에서 「교체 처리」를 누르세요</td></tr>'}
       </tbody></table>
     </div>
     <div class="panel">
@@ -831,7 +882,10 @@ async function renderOrder(){
         <td>T${x.tool} ${x.name}</td><td class="n">${x.qty}</td><td>${x.by}</td>
         <td><span class="tag ${x.status==='입고'?'g':'w'}">${x.status}</span>
           ${canManage&&x.status!=='입고'?`<button class="act sec" style="margin-left:6px"
-            onclick="setStatus('${x.id}','입고')">입고 처리</button>`:''}</td>
+            onclick="setStatus('${x.id}','입고')">입고 처리</button>`:''}
+          ${canManage&&x.status==='입고'?`<button class="act sec" style="margin-left:6px"
+            title="이 공구를 실제로 물렸다면 눌러 주세요 — 그날부터 다시 셉니다"
+            onclick="openReplace(${x.tool})">교체 처리</button>`:''}</td>
         <td class="muted">${x.note||''}</td>
         <td><button class="act sec" title="이 건의 발주서를 새 창에서 엽니다"
           onclick="openReport('order','${x.batch?('batch='+x.batch):('ids='+x.id)}')">발주서</button></td>
@@ -911,6 +965,75 @@ async function submitOrder(){
 async function setStatus(id,status){
   await fetch(`/api/order/${id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({status})});
+  renderOrder();
+}
+
+// ── 공구 교체 처리
+/* 「갈았다」를 적는 곳. 적는 순간부터 그 공구는 교체일부터 다시 센다.
+   그래서 확인 없이 그냥 저장하지 않는다 — 무엇이 사라지는지 먼저 보여준다. */
+let REP_LAST = {rows:[],applied:[]};
+let DASH_TOOL = null;          // 대시보드가 지금 보고 있는 공구 상세
+const today10 = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000)
+  .toISOString().slice(0,10);
+
+function openReplace(tno){
+  if(ME.role!=='manager'){ alert('관리자만 교체를 기록할 수 있습니다'); return; }
+  /* 주문 탭이 아니라 대시보드에서 눌렀을 수도 있다. 그때는 상세 화면이
+     들고 있는 값을 쓴다. 없는 값을 0 으로 보여주면 안 된다. */
+  const c = ORDER_CAND[tno]
+    || ((DASH_TOOL && DASH_TOOL.tool===tno) ? DASH_TOOL : null)
+    || {tool:tno,name:'',wear:null};
+  const prev = (REP_LAST.rows||[]).filter(r=>r.tool===tno).sort((a,b)=>b.at<a.at?-1:1);
+  $('modal').classList.remove('hide');
+  $('modal').innerHTML = `
+    <div class="mbox">
+      <div class="mhead">
+        <h3>공구 교체 — T${c.tool} ${c.name||''}</h3>
+        <div class="s">이 공구를 갈았다고 기록합니다. 교체일부터 마모율을 다시 셉니다.</div>
+      </div>
+      <div class="mbody">
+        <div class="row"><span>지금 마모율</span><span class="mono">${
+          c.wear===null||c.wear===undefined?'-':f2(c.wear)+' %'}</span></div>
+        <div class="row"><span>기록 후</span><span class="mono">교체일 이후만 다시 셉니다</span></div>
+        ${prev.length?`<div class="row"><span>이전 교체</span>
+          <span class="mono">${prev[0].at}</span></div>`:''}
+        <div style="margin-top:12px">
+          <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px">
+            교체일 — 그날을 포함해서 셉니다. 미래 날짜는 넣을 수 없습니다.</label>
+          <input type="date" id="rat" value="${today10()}" max="${today10()}">
+        </div>
+        <input id="rnote" style="margin-top:9px" placeholder="사유 (선택) — 마모 / 파손 / 정기교체 등">
+        <div style="font-size:11.5px;color:var(--warn-ink);line-height:1.7;margin-top:11px">
+          교체일 이전에 이 공구가 닳은 몫은 계산에서 빠집니다.
+          날짜를 실제보다 앞당겨 적으면 마모가 사라지고 경보가 늦게 뜹니다.
+          잘못 적었으면 교체 이력에서 지우면 되돌아옵니다.
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="act gray" onclick="closeOrder()">취소</button>
+        <button class="act" onclick="submitReplace(${c.tool})">교체 기록</button>
+      </div>
+    </div>`;
+}
+
+async function submitReplace(tno){
+  const at = ($('rat')||{}).value || '';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(at)){ alert('교체일을 골라 주세요'); return; }
+  const c = ORDER_CAND[tno] || {};
+  const r = await fetch('/api/replacement',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({tool:tno, name:c.name||'', at, note:($('rnote')||{}).value||''})});
+  const j = await r.json();
+  if(!r.ok){ alert((j.error||'교체 기록 실패') + (j.hint?('\n\n'+j.hint):'')); return; }
+  closeOrder(); render();       // 대시보드에서 눌렀으면 대시보드가 다시 그려진다
+}
+
+async function delReplace(id){
+  if(!confirm('이 교체 기록을 지웁니다.\n지우면 교체일 이전의 마모가 다시 살아납니다.')) return;
+  const r = await fetch(`/api/replacement/${id}/delete`,{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:'{}'});
+  const j = await r.json();
+  if(!r.ok){ alert(j.error||'지우기 실패'); return; }
   renderOrder();
 }
 

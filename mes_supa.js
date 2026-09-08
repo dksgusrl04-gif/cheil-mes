@@ -126,6 +126,25 @@
   });
 
   /* ── 집계본 ─────────────────────────────────────────────── */
+
+  /* 공구 교체 이력. 집계본과 따로 산다 — 집계본은 CSV 에서 나오지만 교체는
+     사람이 손으로 적는 것이라 재집계할 때마다 날아가면 안 된다. */
+  let REPS = [];
+
+  async function loadReps() {
+    try {
+      REPS = await db('GET', '/mes_replacements?select=*&order=at.desc,tool.asc&limit=1000');
+    } catch (e) {
+      /* 표가 아직 없으면(교체이력_테이블.sql 미실행) 교체 없이 그냥 돈다.
+         기능 하나 때문에 화면 전체가 안 뜨면 안 된다. */
+      REPS = [];
+      if (!/does not exist|relation|schema cache/i.test(e.message || '')) throw e;
+      REPS_MISSING = true;
+    }
+    return REPS;
+  }
+  let REPS_MISSING = false;
+
   async function ensureSnapshot() {
     if (LOADED) return;
     const rows = await db('GET', `/mes_docs?name=eq.${encodeURIComponent(SNAP)}&select=data&limit=1`);
@@ -133,7 +152,8 @@
       throw new Error('집계본이 없습니다. 현장 PC 에서 upload_snapshot.py 를 실행하세요.');
     }
     SNAPSHOT = rows[0].data;
-    MES.load(SNAPSHOT);
+    await loadReps();
+    MES.load(SNAPSHOT, REPS);
     LOADED = true;
   }
 
@@ -438,7 +458,7 @@
     }
 
     SNAPSHOT = merged;
-    MES.load(merged);
+    MES.load(merged, REPS);          // 교체 이력은 재집계해도 그대로 살아 있어야 한다
     LOADED = true;
     await log('재집계', `${file.name} · ${snap.source.rows.toLocaleString()}행`);
 
@@ -511,6 +531,25 @@
       case path === '/api/orders': {
         const rows = await db('GET', '/mes_orders?select=*&order=at.desc&limit=500');
         return ok(MES.orders(b, rows));
+      }
+      /* ── 공구 교체 이력 ──────────────────────────────────────
+         목록과 함께 «지금 화면에 뭐가 반영돼 있나» 도 같이 준다.
+         적어 놓기만 하고 계산에 안 들어가는 일이 없도록. */
+      case path === '/api/replacements': {
+        const names = {};
+        Object.keys(MES.raw().segments || {}).forEach(k => {
+          (MES.raw().segments[k].tools || []).forEach(t => { names[t.tool] = t.name; });
+        });
+        return ok({
+          rows: REPS.map(r => Object.assign({}, r, { name: r.name || names[r.tool] || `T${r.tool}` })),
+          applied: b.info().replaced,
+          applied_count: b.info().replaced_count,
+          note: b.info().replaced_note,
+          table_missing: REPS_MISSING,
+          hint: REPS_MISSING
+            ? 'Supabase → SQL Editor 에서 «교체이력_테이블.sql» 을 한 번 실행하세요.' : '',
+          can_edit: u.role === 'manager',
+        });
       }
       case path === '/api/alerts': {
         const rows = await db('GET', '/mes_alerts?select=*&order=at.desc&limit=500');
@@ -710,7 +749,7 @@
         await db('POST', '/mes_docs?on_conflict=name', [{
           name: SNAP, data: prev, updated_at: now(),
         }], 'resolution=merge-duplicates,return=minimal');
-        SNAPSHOT = prev; MES.load(prev); LOADED = true;
+        SNAPSHOT = prev; MES.load(prev, REPS); LOADED = true;
         await log('집계본 되돌리기', `${rows[0].updated_at} 시점으로`);
         const segs = Object.keys(prev.segments || {})
           .map(k => `${prev.segments[k].label} ${prev.segments[k].tools.length}종`).join(' · ');
@@ -735,6 +774,64 @@
         await log('알림 전송', `${item.to} · ${item.title}`);
         return ok({ ok: true, alert: item });
       } catch (e) { return err({ error: '알림 저장 실패 — ' + e.message }, 500); }
+    }
+
+    /* ── 공구 교체 처리 ────────────────────────────────────────
+       «갈았다» 를 적는 곳. 적는 순간부터 그 공구는 교체일부터 다시 센다.
+       날짜는 교체일 포함이다 (그날 아침에 갈았다고 본다).
+
+       미래 날짜는 막는다. 아직 안 간 걸 갈았다고 적으면 그날까지의 마모가
+       통째로 사라진다. 실수 한 번이 조용히 숫자를 지우게 둘 수 없다. */
+    if (path === '/api/replacement') {
+      const tno = parseInt(body.tool, 10);
+      const at = String(body.at || '').slice(0, 10);
+      if (!(tno > 0)) return err({ error: '공구 번호가 없습니다' }, 400);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(at)) {
+        return err({ error: '교체일을 YYYY-MM-DD 로 적어 주세요' }, 400);
+      }
+      const today = now().slice(0, 10);
+      if (at > today) {
+        return err({
+          error: `교체일이 오늘(${today})보다 뒤입니다`,
+          hint: '아직 갈지 않은 날짜를 적으면 그때까지의 마모가 사라집니다.',
+        }, 400);
+      }
+      await ensureSnapshot();
+      const seg = (MES.raw().segments || {})[(MES.raw().defaults || {}).segment || 'fa'] || {};
+      const t = (seg.tools || []).find(x => x.tool === tno);
+      const item = {
+        id: hex(4), tool: tno, name: String(body.name || (t && t.name) || ''),
+        at: at, note: String(body.note || ''),
+        by: u.name, by_id: u.id, created_at: now(),
+      };
+      try {
+        await db('POST', '/mes_replacements', [item], 'return=minimal');
+        REPS = [item].concat(REPS);
+        MES.setReplacements(REPS);            // 바로 반영 — 새로고침 없이 숫자가 바뀐다
+        REPS_MISSING = false;
+        await log('공구 교체', `T${tno} ${item.name} · ${at}`);
+        const b2 = basisFrom(qs);
+        return ok({ ok: true, item, applied: b2.info().replaced });
+      } catch (e) {
+        if (/does not exist|relation|schema cache/i.test(e.message || '')) {
+          return err({
+            error: '교체 이력 표가 아직 없습니다',
+            hint: 'Supabase → SQL Editor 에서 «교체이력_테이블.sql» 을 한 번 실행하세요.',
+          }, 400);
+        }
+        return err({ error: '교체 기록 실패 — ' + e.message }, 500);
+      }
+    }
+
+    if (path.startsWith('/api/replacement/') && path.endsWith('/delete')) {
+      const rid = path.split('/')[3];
+      try {
+        await db('DELETE', `/mes_replacements?id=eq.${encodeURIComponent(rid)}`, undefined, 'return=minimal');
+        REPS = REPS.filter(r => String(r.id) !== String(rid));
+        MES.setReplacements(REPS);
+        await log('공구 교체 취소', rid);
+        return ok({ ok: true });
+      } catch (e) { return err({ error: e.message }, 500); }
     }
 
     if (path === '/api/order') {

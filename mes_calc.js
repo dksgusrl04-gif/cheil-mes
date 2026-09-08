@@ -80,12 +80,164 @@
     return neg ? -out : out;
   }
 
-  function load(data) {
+  function load(data, reps) {
     DATA = data || {};
     if (!DATA.segments) throw new Error('집계본에 segments 가 없습니다 (예전 형식)');
+    delete DATA._segs0;                       // 다시 불러오면 교체 반영도 처음부터
+    setReplacements(reps !== undefined ? reps : DATA.replacements);
     return DATA;
   }
   function raw() { return DATA; }
+
+  /* ═══════════════════════════ 공구 교체 ═══════════════════════════
+     공구를 갈면 그 순간부터 «다른 공구» 다. 그 전에 쌓인 마모는 지금 물려
+     있는 공구의 것이 아니다. 그래서 교체일 이후의 자료만 남겨 처음부터 다시
+     센다. 이게 없으면 한 번 교체되는 순간부터 화면의 모든 숫자가 거짓이 된다.
+
+     날짜 규칙 — 교체일을 «포함» 한다. 그날 아침에 갈았다고 보고 그날치를 새
+     공구에 붙인다. 실제로 오후에 갈았다면 새 공구가 조금 더 닳은 것으로
+     나오는데, 그 방향이 안전하다. 경보는 늦게 뜨는 것보다 일찍 뜨는 게 낫다.
+
+     같은 공구를 여러 번 갈았으면 «가장 마지막» 교체일만 쓴다.
+
+     자(k)는 건드리지 않는다. 자는 mes_calib.json 에 얼려 둔 값이고, 교체는
+     «어디서부터 세는가» 의 문제지 «얼마나 닳는가» 의 문제가 아니다. */
+
+  const YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+  /* 이력 목록 → { 공구번호: 마지막 교체일 }. 형식이 어긋난 줄은 조용히 버린다. */
+  function cutMap(list) {
+    const m = Object.create(null);
+    (list || []).forEach(r => {
+      const t = parseInt(r && r.tool, 10);
+      const at = String((r && r.at) || '').slice(0, 10);
+      if (!isFinite(t) || !YMD.test(at)) return;
+      if (!m[t] || at > m[t]) m[t] = at;
+    });
+    return m;
+  }
+
+  /* 교체일 이전을 잘라 낸 구간을 새로 만든다. 원본은 건드리지 않는다. */
+  function cutSeg(seg, cuts) {
+    const tools0 = seg.tools || [];
+    if (!tools0.some(t => cuts[t.tool])) return seg;
+
+    const dropDay = Object.create(null);      // 날짜 → 이 날 버린 마모량
+    const ratioOf = Object.create(null);      // 공구 → 남은 비율
+    const cutList = [];
+    const tools = [];
+
+    for (const t of tools0) {
+      const R = cuts[t.tool];
+      if (!R) { tools.push(t); continue; }
+      const bdAll = t.byday || [];
+      if (!bdAll.length) {
+        /* 날짜별 자료가 없는 예전 집계본은 자를 수가 없다. 자른 척하지 않고
+           «못 잘랐다» 고 남긴다. 화면이 그 사실을 보여 준다. */
+        tools.push(Object.assign({}, t, {
+          replaced_at: R,
+          replace_note: '이 집계본에는 날짜별 자료가 없어 교체일 이후만 셀 수 없습니다',
+        }));
+        cutList.push({ tool: t.tool, name: t.name, at: R, applied: false });
+        continue;
+      }
+      const bd = [], keepRaw = { r: 0, h: 0, n: 0 };
+      for (const x of bdAll) {
+        if (x.date >= R) {
+          bd.push(x);
+          keepRaw.r += x.raw; keepRaw.h += x.hours; keepRaw.n += x.rows;
+        } else {
+          dropDay[x.date] = (dropDay[x.date] || 0) + x.raw;
+        }
+      }
+      const ratio = (t.raw > 0) ? keepRaw.r / t.raw : 0;
+      ratioOf[t.tool] = ratio;
+      const progs = {};
+      Object.keys(t.progs || {}).forEach(k => { progs[k] = t.progs[k] * ratio; });
+      tools.push(Object.assign({}, t, {
+        raw: keepRaw.r, hours: round(keepRaw.h, 3), rows: keepRaw.n, byday: bd, progs: progs,
+        /* 인자별(f_m/f_o/f_s/f_c)과 프로그램별은 날짜로 안 쪼개 뒀다.
+           남은 비율로 나눈 어림값이다 — sliceSeg 가 쓰는 방식과 같다. */
+        f_m: t.f_m * ratio, f_o: t.f_o * ratio,
+        f_s: t.f_s * ratio, f_c: t.f_c * ratio,
+        replaced_at: R, before_raw: t.raw,
+      }));
+      cutList.push({
+        tool: t.tool, name: t.name, at: R, applied: true,
+        dropped_raw: t.raw - keepRaw.r, kept_raw: keepRaw.r,
+      });
+    }
+
+    tools.sort((a, b) => b.raw - a.raw);
+    const tot = tools.reduce((s, t) => s + t.raw, 0);
+    tools.forEach(t => { t.share = tot > 0 ? round(100 * t.raw / tot, 3) : 0; });
+
+    /* 날짜별에서도 같은 양을 뺀다. 이걸 빼지 않으면
+       «날짜별 마모율의 합 = 공구별 마모율의 합» 이 깨진다. */
+    const days = (seg.days || []).map(d => {
+      const c = dropDay[d.date] || 0;
+      return c ? Object.assign({}, d, { raw: Math.max(d.raw - c, 0) }) : d;
+    });
+
+    /* 프로그램별은 날짜로 안 쪼개 뒀다. 공구별 남은 비율로 깎는다 (어림값). */
+    const progs0 = seg.progs || [];
+    const mdrop = Object.create(null);
+    const progs = progs0.map(p => {
+      const ts = p.tools || [];
+      if (!ts.some(x => ratioOf[x.tool] !== undefined)) return p;
+      let dropped = 0;
+      const nt = ts.map(x => {
+        const r = ratioOf[x.tool];
+        if (r === undefined) return x;
+        dropped += x.raw * (1 - r);
+        return Object.assign({}, x, { raw: x.raw * r });
+      });
+      nt.sort((a, b) => b.raw - a.raw);
+      mdrop[p.main] = (mdrop[p.main] || 0) + dropped;
+      return Object.assign({}, p, { raw: Math.max(p.raw - dropped, 0), tools: nt });
+    });
+    const mains = (seg.mains || []).map(m => (mdrop[m.main]
+      ? Object.assign({}, m, { raw: Math.max(m.raw - mdrop[m.main], 0) }) : m));
+
+    /* 교체 전에 난 이벤트는 지금 공구의 것이 아니다. */
+    const events = (seg.events || []).filter(e => {
+      const R = cuts[e.tool];
+      return !R || String(e.time || '').slice(0, 10) >= R;
+    });
+
+    /* 절삭시간(cut_h)·행수는 «설비가 실제로 돈 시간» 이다. 공구를 갈았다고
+       설비가 덜 돈 게 아니므로 그대로 둔다. 그래서 교체 뒤에는
+       시간당 마모율(hour_wear)이 낮게 나온다 — 분모에 교체 전 가공시간이
+       남아 있기 때문이다. info().replaced 로 그 사실을 화면에 알린다. */
+    return Object.assign({}, seg, {
+      tools: tools, days: days, progs: progs, mains: mains, events: events,
+      raw_total: tot, _cut: cutList,
+    });
+  }
+
+  /* 이력을 갈아 끼운다. 원본 구간은 _segs0 에 남겨 두므로 몇 번을 불러도
+     두 번 깎이지 않는다. */
+  function setReplacements(list) {
+    const reps = (list || []).filter(r => r && YMD.test(String(r.at || '').slice(0, 10)))
+      .map(r => Object.assign({}, r, {
+        tool: parseInt(r.tool, 10), at: String(r.at).slice(0, 10),
+      }))
+      .filter(r => isFinite(r.tool))
+      .sort((a, b) => (b.at < a.at ? -1 : b.at > a.at ? 1 : a.tool - b.tool));
+    DATA.replacements = reps;
+    if (!DATA.segments) return reps;
+    if (!DATA._segs0) DATA._segs0 = DATA.segments;
+    const base = DATA._segs0;
+    const cuts = cutMap(reps);
+    const out = {};
+    Object.keys(base).forEach(k => {
+      out[k] = Object.keys(cuts).length ? cutSeg(base[k], cuts) : base[k];
+    });
+    DATA.segments = out;
+    return reps;
+  }
+
+  function replacements() { return DATA.replacements || []; }
 
   function levelOf(w) {
     const names = Object.keys(ALERTS).sort((a, b) => ALERTS[b] - ALERTS[a]);
@@ -351,6 +503,14 @@
           key: k, label: segs[k].label, period: segs[k].period,
           tools: segs[k].tools.length, hours: segs[k].cut_h,
         })),
+        /* 교체 반영 — 이 구간에서 어떤 공구를 언제부터 다시 세고 있는가.
+           applied=false 면 «날짜별 자료가 없어 못 잘랐다» 는 뜻이다. */
+        replaced: (this.fullSeg._cut || []).slice(),
+        replaced_count: (this.fullSeg._cut || []).filter(x => x.applied).length,
+        replaced_note: (this.fullSeg._cut || []).some(x => x.applied)
+          ? '교체한 공구는 교체일부터 다시 셉니다. 절삭시간은 설비 기준이라 그대로여서, '
+            + '시간당 마모율은 교체 전 가공시간이 분모에 남아 낮게 나옵니다.'
+          : '',
         switch: DATA.switch || '',
         built: DATA.built || '',
         weights: DATA.weights || {},
@@ -367,6 +527,10 @@
       wear: round(b.wear(t.raw), 4),
       intensity: iv ? round(iv, 2) : null,
       share: t.share, hours: t.hours, rows: t.rows,
+      /* 교체한 공구면 «언제부터 센 값인지» 를 값과 함께 들고 다닌다.
+         숫자만 보고 «왜 갑자기 낮아졌지» 하지 않도록. */
+      replaced_at: t.replaced_at || null,
+      replace_note: t.replace_note || '',
     };
   }
 
@@ -420,7 +584,12 @@
       progs: progs,
       life: lf ? round(lf, 1) : null,
       life_basis: lf ? `${b.lifeDays.toFixed(0)}일 × (${b.anchorLabel} 기준) ÷ 사용강도 `
-        + `${fi ? round(fi, 2) : '-'}배 (전 기간 누적 기준)` : null,
+        + `${fi ? round(fi, 2) : '-'}배 (전 기간 누적 기준)`
+        /* 교체 직후에는 쌓인 양이 적어 수명이 실제보다 길게 나온다.
+           숫자를 손대지 않고 그 사실만 옆에 적는다. */
+        + (t.replaced_at
+          ? ` — ${t.replaced_at} 교체 후 자료만 반영. 쌓인 기간이 짧아 길게 나옵니다`
+          : '') : null,
     });
     const ev = (b.seg.events || []).filter(e => e.tool === tno).slice(0, 30).map(e => ({
       time: e.time, tool: e.tool, name: e.name, prog: e.prog,
@@ -602,6 +771,7 @@
 
   const MES = {
     load, raw, Basis, levelOf, round,
+    setReplacements, replacements, cutMap, cutSeg,
     toolRow, toolList, overview, toolDetail,
     programs, programDetail, sales, orders,
     health, oee, machining,
