@@ -587,6 +587,105 @@
     }
   }
 
+  /* ═══════════════════════════ 공구 종류 ═══════════════════════════
+     이름에서 종류를 뽑는다. 「6.8 D/R 드릴」과 「8.5 D/R 드릴」은 지름만 다른
+     같은 종류다. 종류로 묶어 보면 «드릴이 세트 마모의 절반» 같은 게 한눈에
+     보이고, 발주도 종류 단위로 하는 편이 현장 실무에 가깝다.
+
+     판정은 이름의 «약호» 로 한다. 앞의 치수(6.8 · 23.0x24.0)와 뒤의 괄호
+     (D/R(L) · E/M(F))는 같은 종류 안의 변형이므로 무시한다.
+
+     순서가 중요하다 — 위에서부터 먼저 걸리는 것을 쓴다. PORT 를 TAP 보다
+     앞에 둔 이유는 「PF1/4 PORT」가 TAP 이 아니기 때문이다.
+     (이름에 PF1/4 가 들어가도 PORT 는 구멍 가공이지 나사 내기가 아니다)
+
+     mes_core.py 의 TOOL_KINDS 와 한 글자도 달라선 안 된다. */
+  const TOOL_KINDS = [
+    ['PORT', /\bPORT\b/i, '포트'],
+    ['TAP', /\bTAP\b/i, '탭'],
+    ['DR', /\d\s*D\s*\/?\s*R\b/i, '드릴 (D/R)'],
+    ['UR', /\d\s*U\s*\/?\s*R\b/i, '리머 (U/R)'],
+    ['EM', /\bE\s*\/?\s*M\b/i, '엔드밀 (E/M)'],
+    ['FC', /\bF\s*\/?\s*C\b/i, '페이스커터 (F/C)'],
+    ['TC', /\bT\s*\/?\s*C\b/i, 'T/C'],
+    ['CR', /\bC\s*\/?\s*R\b/i, '챔퍼 (C/R)'],
+    ['BT', /\bB\s*\/?\s*T\b/i, '보링 (B/T)'],
+  ];
+  const KIND_ETC = ['ETC', null, '기타'];
+
+  function toolKind(name) {
+    const n = String(name || '');
+    if (n) {
+      for (const [key, re, label] of TOOL_KINDS) {
+        if (re.test(n)) return { key: key, label: label };
+      }
+    }
+    return { key: KIND_ETC[0], label: KIND_ETC[2] };
+  }
+
+  /* 종류별로 묶어 합계를 낸다. 각 종류 안에서는 마모율 순으로 세운다.
+     종류별 마모율의 합 = 전체 공구 마모율의 합 이어야 한다 (그냥 더한 것이므로). */
+  function toolKinds(b) {
+    const rows = toolList(b);
+    const g = new Map();
+    for (const t of rows) {
+      const k = toolKind(t.name);
+      let e = g.get(k.key);
+      if (!e) {
+        e = { key: k.key, label: k.label, tools: [], wear: 0, wear_h: 0,
+          hours: 0, rows: 0, share: 0, breakage: 0, order: TOOL_KINDS.length };
+        const i = TOOL_KINDS.findIndex(x => x[0] === k.key);
+        e.order = (i < 0) ? TOOL_KINDS.length : i;
+        g.set(k.key, e);
+      }
+      e.tools.push(t);
+      e.wear += t.wear;
+      e.wear_h += (t.wear_h || 0);
+      e.hours += (t.hours || 0);
+      e.rows += (t.rows || 0);
+      e.share += (t.share || 0);
+      if (t.cls === 'breakage') e.breakage += 1;
+    }
+    const out = Array.from(g.values());
+    out.forEach(e => {
+      e.tools.sort((x, y) => y.wear - x.wear);
+      e.count = e.tools.length;
+      e.top = e.tools[0] || null;
+      /* 종류 안에서 가장 많이 닳은 공구가 그 종류의 «대표 위험» 이다.
+         합계만 보면 종수가 많은 종류가 무조건 위로 오므로 최대값도 같이 낸다. */
+      e.max_wear = e.top ? e.top.wear : 0;
+      e.wear = round(e.wear, 4);
+      e.wear_h = round(e.wear_h, 4);
+      e.hours = round(e.hours, 3);
+      e.share = round(e.share, 3);
+      e.avg_wear = round(e.count ? e.wear / e.count : 0, 4);
+    });
+    /* 마모율이 큰 종류부터. 같으면 정해 둔 순서대로 — 화면이 매번 안 흔들리게. */
+    out.sort((a, c) => (c.wear - a.wear) || (a.order - c.order));
+    return {
+      basis: b.info(), kinds: out,
+      total_wear: round(out.reduce((s, e) => s + e.wear, 0), 4),
+      total_tools: out.reduce((s, e) => s + e.count, 0),
+      note: '공구 이름의 약호로 묶었습니다. 치수(6.8 · 23.0x24.0)와 '
+        + '괄호 표기(D/R(L) · E/M(F))는 같은 종류의 변형으로 봅니다.',
+    };
+  }
+
+  /* ═══════════════════════════ 프로그램 이름 ═══════════════════════
+     O0702 같은 NC 번호는 기계가 붙인 것이라 사람이 못 읽는다. 현장이 붙인
+     한국어 이름을 옆에 달아 준다.
+
+     이름은 집계본에 안 넣는다. 집계본은 CSV 에서 다시 만들어지는 것이고,
+     이름은 사람이 적는 것이라 재집계할 때마다 날아가면 안 된다.
+     Supabase 에 따로 두고 여기서 갖다 붙인다 (mes_supa.js 가 실어 준다). */
+  function progNames() { return DATA.prog_names || {}; }
+
+  /* 「O0702 · 리어커버 황삭」. 이름이 없으면 번호만. */
+  function progLabel(prog) {
+    const n = (DATA.prog_names || {})[String(prog)];
+    return n ? `${prog} · ${n}` : String(prog);
+  }
+
   /* ═══════════════════════════ 조회 응답 */
   function toolRow(b, t) {
     const iv = b.intensity(t.raw);
@@ -677,14 +776,21 @@
   }
 
   function programs(b) {
+    /* 현장이 붙인 한국어 이름을 같이 실어 준다. 없으면 빈 문자열이고,
+       화면은 그때 번호만 보여 준다 — 「(이름 없음)」 같은 자리채움은 안 쓴다. */
+    const PN = DATA.prog_names || {};
     return {
       mains: (b.seg.mains || []).map(m => ({
         main: m.main, hours: m.hours, wear: round(b.wear(m.raw), 4), progs: m.progs,
+        name: PN[String(m.main)] || PN['O' + m.main] || '',
       })),
       progs: (b.seg.progs || []).map(p => ({
         prog: p.prog, main: p.main, hours: p.hours, rows: p.rows,
         wear: round(b.wear(p.raw), 4),
+        name: PN[String(p.prog)] || '',
+        main_name: PN[String(p.main)] || PN['O' + p.main] || '',
       })),
+      names: PN,
     };
   }
 
@@ -851,6 +957,7 @@
     load, raw, Basis, levelOf, round,
     setReplacements, replacements, cutMap, cutSeg,
     toolRow, toolList, overview, toolDetail,
+    toolKind, toolKinds, TOOL_KINDS, progNames, progLabel,
     programs, programDetail, sales, orders,
     health, oee, machining,
     ALERTS, ORDER_LEVEL, LIFE_OPTIONS, WEEK_OPTIONS, GAP_REASON,

@@ -377,10 +377,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="bae3919ade">
+<meta name="mes-build" content="3641e4efb8">
 <script>
 (function(){
-  var mine = "bae3919ade";
+  var mine = "3641e4efb8";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -423,16 +423,22 @@
      ?v= 뒤는 파일 내용의 지문이다. 내용이 바뀌면 저절로 달라져
      브라우저가 새로 받는다. 사용자가 새로고침을 안 해도 된다. -->
 <script src="config.js?v=1e0fdbf6"></script>
-<script src="mes_calc.js?v=6b894e2a"></script>
+<script src="mes_calc.js?v=ff5bc367"></script>
 <script src="mes_agg.js?v=a2d043b0"></script>
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=71f1549e"></script>
+<script src="mes_supa.js?v=4750ba86"></script>
 <script src="mes_ui.js?v=0410ea6a"></script>
 <script src="mes_dash.js?v=20d95967"></script>
 <script>
 const $ = id => document.getElementById(id);
+/* 사람이 적은 글을 화면에 넣을 때 반드시 거친다. 프로그램 이름처럼
+   사용자가 직접 치는 값에 <  >  " 가 들어가면 화면이 깨지거나
+   남의 태그가 실행된다. 숫자는 우리가 만든 것이라 안 거쳐도 된다. */
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 let ME=null, TAB='dash', TOOLS=[], PROGS=null, BASIS=null;
 let SEL={tool:null, prog:null, main:null};
 let B={seg:null, life:null, week:null, anchor:null};
@@ -697,14 +703,19 @@ function drawDays(days){
 
 // ═════ 제조관리
 async function renderMfg(){
+  /* 이름이 있으면 이름을 앞세우고 번호는 작게. 없으면 번호만 —
+     «(이름 없음)» 같은 자리채움은 화면만 지저분해진다. */
+  const pn = (p) => p.name ? `${esc(p.name)}<span class="muted" style="font-weight:400"> ${p.prog}</span>` : p.prog;
+  const mn = (m) => m.name ? `${esc(m.name)}<span class="muted" style="font-weight:400"> O${m.main}</span>` : `O${m.main}`;
+
   $('side').innerHTML = `<h3>메인 프로그램</h3>` +
     `<div class="item ${!SEL.main?'on':''}" onclick="SEL.main=null;SEL.prog=null;render()">전체</div>` +
     PROGS.mains.map(m=>`<div class="item ${SEL.main===m.main?'on':''}" onclick="SEL.main='${m.main}';SEL.prog=null;render()">
-      O${m.main}<span class="m">${f2(m.hours)}h</span></div>`).join('') +
+      ${mn(m)}<span class="m">${f2(m.hours)}h</span></div>`).join('') +
     `<h3>세부 프로그램</h3>` +
     PROGS.progs.filter(p=>!SEL.main||p.main===SEL.main).map(p=>
       `<div class="item ${SEL.prog===p.prog?'on':''}" onclick="SEL.prog='${p.prog}';render()">
-        ${p.prog}<span class="m">${f2(p.hours)}h · 마모 ${f3(p.wear)}%</span></div>`).join('');
+        ${pn(p)}<span class="m">${f2(p.hours)}h · 마모 ${f3(p.wear)}%</span></div>`).join('');
 
   const list = PROGS.progs.filter(p=>!SEL.main||p.main===SEL.main);
   let detail='';
@@ -712,7 +723,12 @@ async function renderMfg(){
     const d = await api('/api/program/'+SEL.prog);
     if(!d.error) detail = `
       <div class="panel">
-        <h4>${d.prog.prog} 상세 (메인 O${d.prog.main})</h4>
+        <h4>${(()=>{const p=(PROGS.progs||[]).find(x=>x.prog===d.prog.prog)||{};
+          return (p.name?esc(p.name)+' · ':'')+d.prog.prog;})()} 상세
+          (메인 ${(()=>{const m=(PROGS.mains||[]).find(x=>x.main===d.prog.main)||{};
+            return m.name?esc(m.name):'O'+d.prog.main;})()})
+          ${ME.role==='manager'?`<button class="act sec" style="margin-left:8px"
+            onclick="openProgName('${d.prog.prog}')">이름</button>`:''}</h4>
         <div class="cards" style="margin-bottom:12px">
           ${cardHtml('절삭 시간', f2(d.prog.hours),'h')}
           ${cardHtml('수집 행수', num(d.prog.rows),'행')}
@@ -727,20 +743,123 @@ async function renderMfg(){
       </div>`;
   }
   const tot = list.reduce((a,b)=>a+b.wear,0)||1;
+  const canName = ME.role==='manager';
+
+  /* 공구 종류별 묶음 — D/R 은 D/R 끼리, U/R 은 U/R 끼리 */
+  /* 옛 가로채기 층이면 이 주소가 없다. 없으면 이 칸만 비우고 나머지는 그대로
+     보여 준다 — 새 기능 하나 때문에 화면 전체가 안 뜨면 안 된다. */
+  let kinds = null;
+  try{ kinds = await api('/api/toolkinds'); }catch(e){ /* 아래에서 기본값 */ }
+  if(!kinds || !Array.isArray(kinds.kinds))
+    kinds = {kinds:[], total_wear:0, total_tools:0,
+             note:'이 화면은 새 가로채기 층이 있어야 나옵니다.'};
+  const kmax = Math.max(...kinds.kinds.map(k=>k.wear), 0.0001);
+
   $('main').innerHTML = `
     <h2>제조관리 — ${BASIS.segment_label}</h2>
     <div class="desc">프로그램(제품)별 가동 현황과 공구 소모 — 좌측에서 선택</div>
     ${detail}
     <div class="panel">
       <h4>프로그램 목록 ${SEL.main?`— 메인 O${SEL.main}`:''}</h4>
-      <table><thead><tr><th>프로그램</th><th>메인</th><th class="n">절삭(h)</th><th class="n">행수</th>
-        <th class="n">마모 기여</th><th style="width:170px">비중</th></tr></thead><tbody>
-      ${list.map(p=>`<tr style="cursor:pointer" onclick="SEL.prog='${p.prog}';render()">
-        <td><b>${p.prog}</b></td><td>O${p.main}</td><td class="n">${f2(p.hours)}</td>
+      ${canName?`<div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">
+        「이름」을 눌러 한국어 이름을 붙이세요. 계산에는 안 들어가고 표시만 바뀝니다 —
+        재집계도 재배포도 필요 없습니다.</div>`:''}
+      <table><thead><tr><th>프로그램</th><th>이름</th><th>메인</th><th class="n">절삭(h)</th><th class="n">행수</th>
+        <th class="n">마모 기여</th><th style="width:150px">비중</th>
+        ${canName?'<th style="width:62px"></th>':''}</tr></thead><tbody>
+      ${list.map(p=>`<tr>
+        <td style="cursor:pointer" onclick="SEL.prog='${p.prog}';render()"><b>${p.prog}</b></td>
+        <td style="cursor:pointer" onclick="SEL.prog='${p.prog}';render()">${
+          p.name?esc(p.name):'<span class="muted">-</span>'}</td>
+        <td>${p.main_name?esc(p.main_name):'O'+p.main}</td>
+        <td class="n">${f2(p.hours)}</td>
         <td class="n">${num(p.rows)}</td><td class="n">${f3(p.wear)}%</td>
-        <td>${bar(100*p.wear/tot)}</td></tr>`).join('')}
+        <td>${bar(100*p.wear/tot)}</td>
+        ${canName?`<td><button class="act sec"
+          onclick="openProgName('${p.prog}')">이름</button></td>`:''}
+        </tr>`).join('')}
       </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h4>공구 종류별 — ${kinds.total_tools}종을 ${kinds.kinds.length}가지로</h4>
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7;margin-bottom:11px">
+        ${kinds.note||''}
+        종류별 마모율을 전부 더하면 공구별 합(${f2(kinds.total_wear)}%)과 같습니다 — 그냥 묶어서 더한 값입니다.
+      </div>
+      <table><thead><tr><th>종류</th><th class="n">공구</th><th class="n">마모율 합</th>
+        <th class="n">평균</th><th class="n">최대</th><th class="n">절삭(h)</th>
+        <th style="width:150px">비중</th><th>가장 많이 닳은 공구</th></tr></thead><tbody>
+      ${kinds.kinds.map(k=>`<tr style="cursor:pointer" onclick="toggleKind('${k.key}')">
+        <td><b>${k.label}</b>${k.breakage?` <span class="tag b">파손형 ${k.breakage}</span>`:''}</td>
+        <td class="n">${k.count}종</td>
+        <td class="n"><b>${f3(k.wear)}%</b></td>
+        <td class="n">${f3(k.avg_wear)}%</td>
+        <td class="n">${f3(k.max_wear)}%</td>
+        <td class="n">${f2(k.hours)}</td>
+        <td>${bar(100*k.wear/kmax)}</td>
+        <td class="muted">${k.top?`T${k.top.tool} ${esc(k.top.name)}`:'-'}</td>
+        </tr>
+        <tr id="kd-${k.key}" class="hide"><td colspan="8" style="background:var(--raise)">
+          <table style="margin:0"><thead><tr><th>공구</th><th>이름</th><th>부류</th>
+            <th class="n">마모율</th><th class="n">${(BASIS.horizon&&BASIS.horizon.label)||'예상'}</th>
+            <th class="n">절삭(h)</th><th class="n">종류 내 비중</th></tr></thead><tbody>
+          ${k.tools.map(t=>`<tr><td><b>T${t.tool}</b></td><td>${esc(t.name)}</td>
+            <td><span class="tag ${t.cls==='breakage'?'b':'w'}">${t.cls==='breakage'?'파손형':'마모형'}</span></td>
+            <td class="n">${f3(t.wear)}%</td>
+            <td class="n" style="color:var(--muted)">${t.wear_h==null?'-':f2(t.wear_h)+'%'}</td>
+            <td class="n">${f2(t.hours)}</td>
+            <td class="n">${f2(k.wear?100*t.wear/k.wear:0)}%</td></tr>`).join('')}
+          </tbody></table>
+        </td></tr>`).join('')}
+      </tbody></table>
+      <div class="muted" style="font-size:11.5px;margin-top:9px">줄을 누르면 그 종류 안의 공구가 펼쳐집니다.</div>
     </div>`;
+}
+
+function toggleKind(k){
+  const el=$('kd-'+k); if(el) el.classList.toggle('hide');
+}
+
+// ── 프로그램 이름 붙이기
+function openProgName(prog){
+  if(ME.role!=='manager'){ alert('관리자만 이름을 붙일 수 있습니다'); return; }
+  const p = (PROGS.progs||[]).find(x=>x.prog===prog) || {prog:prog, name:''};
+  $('modal').classList.remove('hide');
+  $('modal').innerHTML = `
+    <div class="mbox">
+      <div class="mhead">
+        <h3>프로그램 이름 — ${esc(prog)}</h3>
+        <div class="s">현장에서 부르는 이름을 적으세요. 계산에는 들어가지 않습니다.</div>
+      </div>
+      <div class="mbody">
+        <div class="row"><span>절삭 시간</span><span class="mono">${f2(p.hours||0)} h</span></div>
+        <div class="row"><span>마모 기여</span><span class="mono">${f3(p.wear||0)} %</span></div>
+        <input id="pnm" maxlength="40" placeholder="예) 리어커버 황삭 · 밸브 탭 가공"
+          value="${esc(p.name||'')}" style="margin-top:12px">
+        <div style="font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:9px">
+          빈 칸으로 저장하면 이름을 지웁니다.
+          이름은 집계본과 따로 저장돼서 <b>재집계해도 안 날아갑니다.</b>
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="act gray" onclick="closeOrder()">취소</button>
+        <button class="act" onclick="saveProgName('${esc(prog)}')">저장</button>
+      </div>
+    </div>`;
+  setTimeout(()=>{ const i=$('pnm'); if(i){ i.focus(); i.select(); } }, 30);
+}
+
+async function saveProgName(prog){
+  const name = ($('pnm')||{}).value||'';
+  const r = await fetch('/api/progname',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({prog, name})});
+  const j = await r.json();
+  if(!r.ok){ alert((j.error||'저장 실패') + (j.hint?('\n\n'+j.hint):'')); return; }
+  closeOrder();
+  PROGS = await api('/api/programs');   // 이름만 다시 받아 온다
+  render();
 }
 
 // ═════ 영업관리
@@ -748,7 +867,11 @@ async function renderSales(){
   const s = await api('/api/sales');
   const b = s.basis;
   $('side').innerHTML = `<h3>제품 (메인 프로그램)</h3>` +
-    s.mains.map(m=>`<div class="item">O${m.main}<span class="m">${f2(m.hours)}h · 마모 ${f3(m.wear)}% (${m.share}%)</span></div>`).join('');
+    s.mains.map(m=>{
+      const nm=((PROGS&&PROGS.mains)||[]).find(x=>x.main===m.main);
+      return `<div class="item">${nm&&nm.name?esc(nm.name):'O'+m.main}<span class="m">${
+        f2(m.hours)}h · 마모 ${f3(m.wear)}% (${m.share}%)</span></div>`;
+    }).join('');
   $('main').innerHTML = `
     <h2>영업관리 — ${b.segment_label}</h2>
     <div class="desc">생산량 기준 공구 소모 — 수주량으로 교체 시점을 역산한다</div>

@@ -145,6 +145,26 @@
   }
   let REPS_MISSING = false;
 
+  /* 프로그램 한국어 이름. O0702 같은 NC 번호는 사람이 못 읽는다.
+     집계본과 따로 산다 — 집계본은 CSV 에서 다시 만들어지지만 이름은 사람이
+     적는 것이라 재집계할 때마다 날아가면 안 된다.
+
+     새 표를 안 만들고 mes_docs 를 쓴다. 거기 이미 «로그인한 사람 읽기 ·
+     관리자 쓰기» 정책이 걸려 있어서, SQL 을 한 줄도 더 안 돌려도 된다. */
+  const PNAME = 'prog_names';
+  let PNAMES = {};
+
+  async function loadProgNames() {
+    try {
+      const r = await db('GET',
+        `/mes_docs?name=eq.${encodeURIComponent(PNAME)}&select=data&limit=1`);
+      PNAMES = (r.length && r[0].data) ? r[0].data : {};
+    } catch (e) {
+      PNAMES = {};          // 없으면 없는 대로 — 이름 때문에 화면이 안 뜨면 안 된다
+    }
+    return PNAMES;
+  }
+
   async function ensureSnapshot() {
     if (LOADED) return;
     const rows = await db('GET', `/mes_docs?name=eq.${encodeURIComponent(SNAP)}&select=data&limit=1`);
@@ -153,6 +173,8 @@
     }
     SNAPSHOT = rows[0].data;
     await loadReps();
+    await loadProgNames();
+    SNAPSHOT.prog_names = PNAMES;
     MES.load(SNAPSHOT, REPS);
     LOADED = true;
   }
@@ -541,6 +563,7 @@
     }
 
     SNAPSHOT = merged;
+    merged.prog_names = PNAMES;      // 사람이 붙인 이름도 재집계에 안 날아간다
     MES.load(merged, REPS);          // 교체 이력은 재집계해도 그대로 살아 있어야 한다
     LOADED = true;
     await log('재집계', `${file.name} · ${snap.source.rows.toLocaleString()}행`);
@@ -599,6 +622,11 @@
       case path === '/api/overview':  return ok(MES.overview(b));
       case path === '/api/tools':     return ok(MES.toolList(b));
       case path === '/api/programs':  return ok(MES.programs(b));
+      /* 공구 종류별 묶음 — D/R 은 D/R 끼리, U/R 은 U/R 끼리 */
+      case path === '/api/toolkinds': return ok(MES.toolKinds(b));
+      case path === '/api/prognames': return ok({
+        names: MES.progNames(), can_edit: u.role === 'manager',
+      });
       case path === '/api/sales':     return ok(MES.sales(b));
       case path === '/api/health':    return ok(MES.health(b));
       case path === '/api/oee':       return ok(MES.oee(b));
@@ -841,7 +869,7 @@
         await db('POST', '/mes_docs?on_conflict=name', [{
           name: SNAP, data: prev, updated_at: now(),
         }], 'resolution=merge-duplicates,return=minimal');
-        SNAPSHOT = prev; MES.load(prev, REPS); LOADED = true;
+        SNAPSHOT = prev; prev.prog_names = PNAMES; MES.load(prev, REPS); LOADED = true;
         await log('집계본 되돌리기', `${rows[0].updated_at} 시점으로`);
         const segs = Object.keys(prev.segments || {})
           .map(k => `${prev.segments[k].label} ${prev.segments[k].tools.length}종`).join(' · ');
@@ -866,6 +894,40 @@
         await log('알림 전송', `${item.to} · ${item.title}`);
         return ok({ ok: true, alert: item });
       } catch (e) { return err({ error: '알림 저장 실패 — ' + e.message }, 500); }
+    }
+
+    /* ── 프로그램 이름 붙이기 ──────────────────────────────────
+       O0702 → «리어커버 황삭». 재집계도 재배포도 필요 없다 — 저장하는
+       즉시 화면이 바뀐다. 이름은 계산에 전혀 안 들어가므로 마모율은
+       한 자리도 안 움직인다. */
+    if (path === '/api/progname') {
+      const prog = String(body.prog || '').trim();
+      const name = String(body.name || '').trim().slice(0, 40);
+      if (!prog) return err({ error: '프로그램 번호가 없습니다' }, 400);
+      await ensureSnapshot();
+      const next = Object.assign({}, PNAMES);
+      if (name) next[prog] = name;
+      else delete next[prog];        // 빈 칸으로 저장하면 이름을 지운다
+      try {
+        await db('POST', '/mes_docs?on_conflict=name', [{
+          name: PNAME, data: next, updated_at: now(),
+        }], 'resolution=merge-duplicates,return=minimal');
+        PNAMES = next;
+        /* 계산기가 들고 있는 것이 바로 이 객체다. 이름만 갈아 끼우면 끝이고,
+           MES.load 를 다시 부르지 않는다 — 자·집계·교체 반영을 건드릴 이유가
+           없는 변경에 전체를 다시 세우면 사고만 는다. */
+        if (SNAPSHOT) SNAPSHOT.prog_names = next;
+        await log('프로그램 이름', `${prog} → ${name || '(지움)'}`);
+        return ok({ ok: true, names: next });
+      } catch (e) {
+        if (/row-level security|permission denied/i.test(e.message || '')) {
+          return err({
+            error: '이름을 저장할 권한이 없습니다',
+            hint: 'Supabase → SQL Editor 에서 «집계본_쓰기권한_추가.sql» 을 한 번 실행하세요.',
+          }, 403);
+        }
+        return err({ error: '이름 저장 실패 — ' + e.message }, 500);
+      }
     }
 
     /* ── 공구 교체 처리 ────────────────────────────────────────
