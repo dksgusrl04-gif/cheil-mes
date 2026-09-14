@@ -328,8 +328,11 @@
       q = q || {};
       const d = DATA.defaults || {};
       const segs = DATA.segments || {};
-      this.segKey = q.seg || d.segment || 'fa';
-      if (!(this.segKey in segs)) this.segKey = Object.keys(segs)[0] || 'fa';
+      /* 아무것도 안 고르면 «전체» 부터 본다. 부품 모델이 둘로 갈린 뒤로는
+         한쪽만 보면 설비의 절반만 보는 셈이고, 자도 전체로 맞춰져 있다. */
+      const pick = () => ('all' in segs) ? 'all' : (Object.keys(segs)[0] || 'fa');
+      this.segKey = q.seg || d.segment || pick();
+      if (!(this.segKey in segs)) this.segKey = pick();
       this.fullSeg = segs[this.segKey] || {};
 
       /* 조회 시작일 — 'YYYY-MM-DD'. 비어 있으면 구간 전체다. */

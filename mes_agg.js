@@ -750,7 +750,13 @@
         breakage_mix: { machining: 20, overload: 40, shock: 25, cond_change: 15 } },
       weights: { 마모형: '기존 가중치 그대로',
         파손형: '실가공 20 · 과부하 40 · 충격 25 · 조건급변 15' },
-      defaults: { life_days: 400, week_hours: 38.0, anchor: 'calib', segment: keys[0] },
+      /* mes_rebuild.py 의 DEF_LIFE · DEF_WEEK 와 같아야 한다. 주간시간이
+         38 로 남아 있으면 브라우저에서 재집계했을 때만 숫자가 1.45배로
+         튄다 — 같은 자료인데 어디서 집계했느냐로 갈리면 안 된다.
+         구간 기본은 «전체» — FA 밸브만 보면 8/24 전환 뒤로는 설비의 절반만
+         보는 셈이다. 자도 전체 구간으로 맞춰 두었다. */
+      defaults: { life_days: 400, week_hours: 26.14, anchor: 'calib',
+        segment: (keys.indexOf('all') >= 0 ? 'all' : keys[0]) },
       segments: out,
       source: {
         file: meta.name, rows: meta.rows, missing: meta.missing,
