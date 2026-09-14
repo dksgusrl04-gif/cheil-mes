@@ -377,10 +377,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="3d74f57271">
+<meta name="mes-build" content="a4e6697c9e">
 <script>
 (function(){
-  var mine = "3d74f57271";
+  var mine = "a4e6697c9e";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -439,6 +439,17 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+/* 프로그램 이름 표시 — 화면 여러 곳에서 같은 모양으로 나와야 한다.
+   이름이 있으면 이름을 앞세우고 번호는 작게, 없으면 번호만.
+   «(이름 없음)» 같은 자리채움은 화면만 지저분해진다.
+   한 곳에 모아 둔 이유 — 예전에 제조관리 목록만 고치고 대시보드 목록을
+   빠뜨려서, 같은 프로그램이 화면마다 다르게 보였다. */
+const pName = p => p && p.name
+  ? `${esc(p.name)}<span class="muted" style="font-weight:400"> ${p.prog}</span>`
+  : (p ? p.prog : '');
+const mName = m => m && m.name
+  ? `${esc(m.name)}<span class="muted" style="font-weight:400"> O${m.main}</span>`
+  : (m ? 'O' + m.main : '');
 let ME=null, TAB='dash', TOOLS=[], PROGS=null, BASIS=null;
 let SEL={tool:null, prog:null, main:null};
 let B={seg:null, life:null, week:null, anchor:null};
@@ -567,12 +578,12 @@ async function renderDash(){
   $('side').innerHTML = `<h3>메인 프로그램</h3>` +
     `<div class="item ${!SEL.main?'on':''}" onclick="SEL.main=null;render()">전체<span class="m">${PROGS.progs.length}개 프로그램</span></div>` +
     PROGS.mains.map(m=>`<div class="item ${SEL.main===m.main?'on':''}" onclick="SEL.main='${m.main}';render()">
-      O${m.main}<span class="m">${f2(m.hours)}h · 마모 ${f3(m.wear)}%</span></div>`).join('') +
+      ${mName(m)}<span class="m">${f2(m.hours)}h · 마모 ${f3(m.wear)}%</span></div>`).join('') +
     `<h3>세부 프로그램</h3>` +
     PROGS.progs.filter(p=>!SEL.main||p.main===SEL.main).slice(0,20).map(p=>
       `<div class="item ${SEL.prog===p.prog?'on':''}" onclick="SEL.prog='${p.prog}';TAB='mfg';
         document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='mfg'));render()">
-        ${p.prog}<span class="m">${f2(p.hours)}h · ${num(p.rows)}행</span></div>`).join('');
+        ${pName(p)}<span class="m">${f2(p.hours)}h · ${num(p.rows)}행</span></div>`).join('');
 
   const t = TOOLS.find(x=>x.tool===SEL.tool) || TOOLS[0];
   const det = t ? await api('/api/tool/'+t.tool) : null;
@@ -703,10 +714,7 @@ function drawDays(days){
 
 // ═════ 제조관리
 async function renderMfg(){
-  /* 이름이 있으면 이름을 앞세우고 번호는 작게. 없으면 번호만 —
-     «(이름 없음)» 같은 자리채움은 화면만 지저분해진다. */
-  const pn = (p) => p.name ? `${esc(p.name)}<span class="muted" style="font-weight:400"> ${p.prog}</span>` : p.prog;
-  const mn = (m) => m.name ? `${esc(m.name)}<span class="muted" style="font-weight:400"> O${m.main}</span>` : `O${m.main}`;
+  const pn = pName, mn = mName;      // 위쪽 공통 헬퍼를 쓴다
 
   $('side').innerHTML = `<h3>메인 프로그램</h3>` +
     `<div class="item ${!SEL.main?'on':''}" onclick="SEL.main=null;SEL.prog=null;render()">전체</div>` +
