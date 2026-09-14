@@ -377,10 +377,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="a4e6697c9e">
+<meta name="mes-build" content="1cc3b39bcd">
 <script>
 (function(){
-  var mine = "a4e6697c9e";
+  var mine = "1cc3b39bcd";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -668,7 +668,9 @@ async function renderDash(){
       <div class="panel">
         <h4>이 공구를 쓰는 프로그램</h4>
         <table><thead><tr><th>프로그램</th><th class="n">마모 기여</th><th class="n">비중</th></tr></thead><tbody>
-        ${Object.entries(det.tool.progs).map(([p,v])=>`<tr><td>${p}</td><td class="n">${f4(v)}%</td>
+        ${Object.entries(det.tool.progs).map(([p,v])=>`<tr>
+          <td>${pName(((PROGS&&PROGS.progs)||[]).find(x=>x.prog===p)||{prog:p})}</td>
+          <td class="n">${f4(v)}%</td>
           <td class="n">${f2(det.tool.wear?100*v/det.tool.wear:0)}%</td></tr>`).join('')||'<tr><td colspan=3 class="muted">-</td></tr>'}
         </tbody></table>
       </div>
