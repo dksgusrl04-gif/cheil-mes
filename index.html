@@ -377,10 +377,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="d6696e0a44">
+<meta name="mes-build" content="bae3919ade">
 <script>
 (function(){
-  var mine = "d6696e0a44";
+  var mine = "bae3919ade";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -423,12 +423,12 @@
      ?v= 뒤는 파일 내용의 지문이다. 내용이 바뀌면 저절로 달라져
      브라우저가 새로 받는다. 사용자가 새로고침을 안 해도 된다. -->
 <script src="config.js?v=1e0fdbf6"></script>
-<script src="mes_calc.js?v=235e1eb0"></script>
-<script src="mes_agg.js?v=0be31f63"></script>
+<script src="mes_calc.js?v=6b894e2a"></script>
+<script src="mes_agg.js?v=a2d043b0"></script>
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=3e622562"></script>
+<script src="mes_supa.js?v=71f1549e"></script>
 <script src="mes_ui.js?v=0410ea6a"></script>
 <script src="mes_dash.js?v=20d95967"></script>
 <script>
@@ -577,10 +577,18 @@ async function renderDash(){
     <h2>대시보드 — ${b.segment_label}</h2>
     <div class="desc">${b.segment_period} · 앵커 <b>${b.anchor_label}</b> = ${b.life_days}일 ·
       주간 ${b.week_hours}h · 데이터 ${b.built}</div>
+    ${s.anchor_live===false?`<div class="panel" style="border-color:var(--warn)">
+      <div style="font-size:11.5px;color:var(--warn-ink);line-height:1.7">
+        <b>기준 공구가 이 구간에서 안 돌았습니다.</b>
+        「기준 대비 진행」이 보정 시점 값에 멈춰 있습니다. 다른 공구 마모율은 정상입니다
+        (자는 얼려 두었으니 흔들리지 않습니다). 기준 공구가 계속 안 돌면
+        꾸준히 도는 공구로 기준을 옮기는 것을 검토하세요.
+      </div></div>`:''}
 
     <div class="cards">
       ${cardHtml('관측 절삭', f2(s.cut_hours), 'h')}
-      ${cardHtml('기준 대비 진행', f2(s.anchor_wear), '%', 'hl')}
+      ${cardHtml(s.anchor_live===false?'기준 대비 진행 (멈춤)':'기준 대비 진행',
+                 f2(s.anchor_wear), '%', s.anchor_live===false?'warn':'hl')}
       ${cardHtml('평균 공구 마모', f2(s.mean_wear), '%')}
       ${cardHtml('사용 공구', s.tools, '종')}
       ${cardHtml('생산 수량', num(s.parts), '개')}
@@ -609,6 +617,11 @@ async function renderDash(){
         <div class="gauge"><i class="${lvl(det.tool.wear)}" style="width:${Math.min(det.tool.wear,100)}%"></i>
           <span>${f3(det.tool.wear)} %</span></div>
         <div class="row"><span>경보 단계</span><span>${det.level}</span></div>
+        ${det.tool.wear_h!==null&&det.tool.wear_h!==undefined?`<div class="row">
+          <span>${(b.horizon&&b.horizon.label)||'예상'} <span class="tag w">예측</span></span>
+          <span class="mono">${f2(det.tool.wear_h)} %</span></div>
+          <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:5px">
+            ${(b.horizon&&b.horizon.note)||''}</div>`:''}
         <div class="row"><span>사용강도 (평균 대비)</span><span class="mono">${inten(det.tool.intensity)}</span></div>
         <div class="row"><span>예상 수명 <span class="tag w">참고</span></span><span class="mono">${days(det.tool.life)}</span></div>
         <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:7px">${det.tool.life_basis||''}<br>앵커를 고르면 정해지는 환산값입니다. 공구별 내구성이 같다는 전제가 있어 교체 이력이 쌓이면 보정이 필요합니다.</div>
@@ -828,6 +841,8 @@ async function renderOrder(){
       <table><thead><tr>
         <th class="chk"><input type="checkbox" id="allchk" onclick="toggleAll(this.checked)"></th>
         <th>공구</th><th>이름</th><th>부류</th><th class="n">마모율</th>
+        <th class="n" title="${(b.horizon&&b.horizon.note)||''}">${
+          (b.horizon&&b.horizon.label)||'예상'}</th>
         <th class="n">사용강도</th><th class="n">기여도</th><th class="n">절삭(h)</th>
         <th>단계</th><th style="width:86px">교체</th></tr></thead><tbody>
       ${top.map(c=>`<tr class="${c.recommend?'hot':''}">
@@ -837,6 +852,8 @@ async function renderOrder(){
         <td><span class="tag ${c.cls==='breakage'?'b':'w'}">${c.cls==='breakage'?'파손형':'마모형'}</span></td>
         <td class="n">${f2(c.wear)}%${c.recommend?' <span class="tag b">과다</span>':''}
           ${c.replaced_at?`<div class="muted" style="font-size:10.5px">${c.replaced_at} 교체 후</div>`:''}</td>
+        <td class="n ${c.wear_h>=100?'':''}" style="color:var(--muted)">${
+          c.wear_h===null||c.wear_h===undefined?'-':f2(c.wear_h)+'%'}</td>
         <td class="n">${inten(c.intensity)}</td>
         <td class="n">${f2(c.share)}%</td>
         <td class="n">${f2(c.hours)}</td>
@@ -1056,8 +1073,12 @@ async function renderAlert(){
   $('side').innerHTML = `<h3>경보 규칙</h3>` +
     a.rules.wear.map(r=>`<div class="item">마모율 ${r.threshold}%<span class="m">${r.name}</span></div>`).join('') +
     `<div class="item">사용강도 ${a.rules.intensity}배<span class="m">과다 소모 경고</span></div>
+     ${a.rules.breakage?`<h3>파손형 (TAP · 6mm 미만 드릴)</h3>
+     <div class="item">임계 초과 이벤트<span class="m">과부하·충격 발생 시 즉시</span></div>
+     <div class="item">하루 급증 ${a.rules.breakage.spike}배<span class="m">직전 ${a.rules.breakage.lookback}일 평균 대비</span></div>`:''}
      <h3>현황</h3>
      <div class="item">위험<span class="m">${a.counts.danger}건</span></div>
+     ${a.counts.breakage!==undefined?`<div class="item">그중 파손형 즉시<span class="m">${a.counts.breakage}건</span></div>`:''}
      <div class="item">주의<span class="m">${a.counts.warn}건</span></div>
      <div class="item">안 읽은 알림<span class="m">${a.counts.unread}건</span></div>`;
 
@@ -1066,6 +1087,7 @@ async function renderAlert(){
     <div class="desc">자동 경보는 선택한 기준으로 매번 다시 판정합니다 — 규칙 기반이라 근거를 그대로 보여줍니다</div>
     <div class="cards">
       ${cardHtml('위험', a.counts.danger,'건', a.counts.danger?'warn':'ok')}
+      ${a.counts.breakage!==undefined?cardHtml('파손형 즉시', a.counts.breakage,'건', a.counts.breakage?'warn':'ok'):''}
       ${cardHtml('주의', a.counts.warn,'건')}
       ${cardHtml('안 읽은 알림', a.counts.unread,'건', a.counts.unread?'hl':'')}
     </div>

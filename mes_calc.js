@@ -41,8 +41,11 @@
   const ORDER_LEVEL = 70.0;
 
   const LIFE_OPTIONS = [300, 350, 380, 400, 420, 450, 500];
-  const WEEK_OPTIONS = [27.4, 36.5, 38.0, 39.9, 40.0, 43.3];
+  const WEEK_OPTIONS = [26.14, 27.4, 36.5, 38.0, 39.9, 40.0, 43.3];
   const WEEK_NOTE = {
+    /* 주간 가동시간은 «100% 가 몇 절삭시간인가» 를 정한다. 실측보다 크게 잡으면
+       400일을 굴려도 100% 에 못 닿는다 — 38h 로는 68.78% 에서 멈춘다. */
+    26.14: '4주 실측 (08-06~09-03) · 400일에 100%',
     27.4: '비수기 실측 (08-24~26)',
     36.5: '7일 종합 실측',
     38.0: '팀 확정값',
@@ -377,9 +380,13 @@
          «왜 숫자가 이러지» 가 된다. 넘어가되 그 사실을 화면에 남긴다. */
       this.calibMissing = (this.anchor === 'calib'
         && !(C && C.anchor_raw > 0 && C.cut_h > 0));
+      /* 앵커가 «공구» 인 경우 그 번호. 보정값을 쓸 때도 그 뒤에는 공구가 있다.
+         화면이 «그 공구가 지금 얼마나 닳았나» 를 물을 수 있어야 한다. */
+      this.anchorTool = null;
       if (this.anchor === 'calib' && C && C.anchor_raw > 0 && C.cut_h > 0) {
         this.anchorRaw = C.anchor_raw;
         this.baseH = C.cut_h;
+        this.anchorTool = C.tool;
         this.anchorLabel = `T${C.tool} 보정 (${C.period || C.made_at || '기준'})`;
       } else if (this.anchor === 'set') {
         this.anchorRaw = baseTotal;
@@ -396,6 +403,7 @@
           this.anchorLabel = '세트 전체';
         } else {
           this.anchorRaw = t.raw;
+          this.anchorTool = t.tool;
           this.anchorLabel = `T${t.tool} ${t.name}`;
         }
       }
@@ -408,6 +416,49 @@
          하루치 raw 로 수명을 내면 수천 일이 나온다. */
       this.fullRawMap = Object.create(null);
       baseTools.forEach(t => { this.fullRawMap[t.tool] = t.raw; });
+
+      /* ── 「기준일수 예상」 ─────────────────────────────────────
+         마모율은 «기록된 것» 만 담는다. 그 원칙은 안 건드린다.
+         대신 «이 기간이 그대로 반복되면 기준일수에 몇 %가 되나» 를 옆에
+         따로 계산해 둔다. 기록과 예측을 한 칸에 섞지 않기 위해서다.
+
+         배수 = 기준일수 ÷ 관측한 달력일수
+           관측 달력일수는 첫날부터 마지막날까지, 양쪽 다 포함해서 센다.
+           (08-06 ~ 09-03 이면 29일. 28일로 세면 예측이 3.6% 부풀려진다)
+
+         이 배수는 주간 가동시간과 무관하다. 주간시간은 «100% 가 몇 시간인가»
+         를 정할 뿐, 이 기간에 실제로 얼마나 깎았는지를 바꾸지 않는다.
+
+         언제나 구간 전체(fullSeg)로 잡는다. 화면에서 날짜를 좁혀도
+         «앞으로 어떻게 될까» 의 근거는 전 기간이라야 한다. */
+      const fd = this.fullSeg.days || [];
+      this.spanDays = fd.length
+        ? Math.round((Date.parse(fd[fd.length - 1].date) - Date.parse(fd[0].date))
+          / 86400000) + 1 : 0;
+      this.horizonDays = this.lifeDays;
+      this.horizonMul = (this.spanDays > 0) ? this.horizonDays / this.spanDays : 0;
+    }
+
+    /* 기준 공구가 지금 보고 있는 구간에서 실제로 돌았는가.
+       앵커가 멈추면 「기준 대비 진행」이 굳는다 — 그 사실을 숨기지 않는다. */
+    anchorSeen() {
+      if (this.anchorTool === null) return true;      // 세트·평균 기준은 해당 없음
+      const t = (this.seg.tools || []).find(x => x.tool === this.anchorTool);
+      return !!(t && t.raw > 0);
+    }
+
+    /* 기준 공구의 «지금» 마모량. 안 돌았으면 얼린 보정값으로 물러선다. */
+    anchorNowRaw() {
+      if (this.anchorTool === null) return this.anchorRaw;
+      const t = (this.seg.tools || []).find(x => x.tool === this.anchorTool);
+      return (t && t.raw > 0) ? t.raw : this.anchorRaw;
+    }
+
+    /* 그 공구가 기준일수 시점에 몇 %일 것인가 — 전 기간 누적 × 배수.
+       예측이지 기록이 아니다. 화면은 반드시 그렇게 표시해야 한다. */
+    project(tno, dflt) {
+      if (!(this.horizonMul > 0)) return null;
+      return this.k * this.fullRaw(tno, dflt) * this.horizonMul;
     }
 
     wear(r) { return this.k * r; }
@@ -503,6 +554,20 @@
           key: k, label: segs[k].label, period: segs[k].period,
           tools: segs[k].tools.length, hours: segs[k].cut_h,
         })),
+        /* 「기준일수 예상」의 근거 — 화면이 그대로 밝힐 수 있어야 한다.
+           예측이라는 사실과, 무엇을 전제했는지를 숫자와 함께 들고 다닌다. */
+        horizon: {
+          days: this.horizonDays,
+          span_days: this.spanDays,
+          multiple: round(this.horizonMul, 4),
+          label: `${this.horizonDays.toFixed(0)}일 예상`,
+          note: this.spanDays > 0
+            /* 자릿수를 고정한다. round() 로 두면 20 과 20.0 처럼 파이썬과
+               표기가 갈려 대조 시험이 문자열에서 걸린다. */
+            ? `관측 ${this.spanDays}일치가 그대로 반복된다는 전제로 `
+              + `${this.horizonMul.toFixed(2)}배 한 값입니다. 예측이며, 마모율에는 섞지 않습니다.`
+            : '관측 기간을 알 수 없어 예상을 낼 수 없습니다.',
+        },
         /* 교체 반영 — 이 구간에서 어떤 공구를 언제부터 다시 세고 있는가.
            applied=false 면 «날짜별 자료가 없어 못 잘랐다» 는 뜻이다. */
         replaced: (this.fullSeg._cut || []).slice(),
@@ -514,6 +579,9 @@
         switch: DATA.switch || '',
         built: DATA.built || '',
         weights: DATA.weights || {},
+        /* 부류별 인자 가중치. 파손형은 다른 한 벌을 쓴다 — 화면이 그 사실을
+           밝힐 수 있어야 «왜 TAP 만 값이 다르지» 가 안 생긴다. */
+        units: DATA.units || null,
         thresholds: DATA.thresholds || {},
       };
     }
@@ -522,9 +590,12 @@
   /* ═══════════════════════════ 조회 응답 */
   function toolRow(b, t) {
     const iv = b.intensity(t.raw);
+    /* 예상은 «기록» 옆에 따로 선다. wear 는 손대지 않는다. */
+    const pj = b.project(t.tool, t.raw);
     return {
       tool: t.tool, name: t.name, cls: t.cls,
       wear: round(b.wear(t.raw), 4),
+      wear_h: (pj === null) ? null : round(pj, 4),
       intensity: iv ? round(iv, 2) : null,
       share: t.share, hours: t.hours, rows: t.rows,
       /* 교체한 공구면 «언제부터 센 값인지» 를 값과 함께 들고 다닌다.
@@ -545,7 +616,14 @@
       summary: {
         rows: s.rows, cut_hours: s.cut_h, tools: (s.tools || []).length,
         progs: (s.progs || []).length, days: (s.days || []).length, parts: s.parts,
-        anchor_wear: round(b.wear(b.anchorRaw), 4),
+        /* 기준 공구가 «지금» 얼마나 닳았나.
+           예전에는 얼린 보정값(b.anchorRaw)을 그대로 썼다. 그건 «보정하던
+           시점의 값» 이라 주차를 아무리 더해도 안 움직인다. 화면의
+           「기준 대비 진행」이 영원히 같은 숫자로 굳어 있게 된다.
+           기준 공구의 지금 마모량으로 낸다. 그 공구가 이 구간에 안 나오면
+           (안 돌았으면) 얼린 값으로 물러서고, anchor_live 로 알린다. */
+        anchor_wear: round(b.wear(b.anchorNowRaw()), 4),
+        anchor_live: b.anchorSeen(),
         mean_wear: round(b.wear((s.raw_total || 0) / Math.max((s.tools || []).length, 1)), 4),
         sum_wear: round(b.wear(s.raw_total || 0), 4),
       },

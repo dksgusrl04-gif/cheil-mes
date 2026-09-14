@@ -24,9 +24,26 @@
     machining: 0.0000656580, overload: 0.0058825832,
     shock: 0.0020956450, cond_change: 0.0000044341,
   };
+  /* ── 파손형은 다른 가중치를 쓴다 ─────────────────────────────
+     TAP 과 6mm 미만 드릴은 닳다 죽는 게 아니라 부러진다. 그런데 위 한 벌로
+     전부 계산했더니 파손형의 인자 기여가 마모형과 거의 같았다 — 관측 4주에서
+     실가공 47.2% · 과부하 32.1% · 충격 10.0% · 조건급변 10.7%. 부러지는
+     원인이 안 잡히고 있었다 (T5 PF1/4 TAP 은 충격 기여 0.0%).
+
+     그래서 파손형만 실가공 20 · 과부하 40 · 충격 25 · 조건급변 15 로 다시
+     배분했다. 파손형 전체의 마모량 «합» 은 그대로다 — 그 안에서 무엇이
+     원인인가만 바뀐다.
+
+     주의 — 측정값이 아니라 설계값이다. mes_rebuild.py 의 UNIT_BREAK 와
+            한 자리도 달라선 안 된다. */
+  const UNIT_BREAK = {
+    machining: 0.0000278310, overload: 0.0073389231,
+    shock: 0.0052333410, cond_change: 0.0000061910,
+  };
   const CUR_MED = 989.0, CUR_THR = 2246.0, VIB_THR = 8.44;
   const F_TH = 500.0, R_TH = 100.0, REF = 500.0;
   const VIB_AGE_MAX = 250;
+  const EV_KEEP = 1500;   // 임계 초과 이벤트를 몇 건까지 들고 갈 것인가 (최근 우선)
   const SWITCH_MS = Date.parse('2026-08-24T16:00:00');   // 부품 모델 전환 시각
 
   const SEG_META = {
@@ -233,6 +250,17 @@
     return 'wear';
   }
 
+  /* 이 공구 이름에 쓸 가중치 한 벌. 이름당 한 번만 판정하고 기억한다. */
+  const UCACHE = new Map();
+  function unitFor(n) {
+    let u = UCACHE.get(n);
+    if (u === undefined) {
+      u = (toolClass(n) === 'breakage') ? UNIT_BREAK : UNIT;
+      UCACHE.set(n, u);
+    }
+    return u;
+  }
+
   /* ═══════════════════════════ 본체 ═══════════════════════════ */
   async function run(file, opt) {
     opt = opt || {};
@@ -319,13 +347,16 @@
       D.cutsec.add(sec);
       S.cutSec.add(sec);
 
-      /* 인자별 마모 증분 */
-      const d_m = Math.max(row.cur / CUR_MED, 0.2) * sec * UNIT.machining;
-      const d_o = (row.cur > CUR_THR ? (row.cur - CUR_THR) / CUR_THR : 0) * sec * UNIT.overload;
+      /* 인자별 마모 증분 — 파손형이면 다른 가중치를 쓴다.
+         부류는 공구 이름으로 정해진다. 이름 종류는 몇십 개뿐이라 한 번 판정하고
+         기억해 둔다 — 행마다 정규식을 돌리면 수백만 행에서 느려진다. */
+      const U = unitFor(row.name);
+      const d_m = Math.max(row.cur / CUR_MED, 0.2) * sec * U.machining;
+      const d_o = (row.cur > CUR_THR ? (row.cur - CUR_THR) / CUR_THR : 0) * sec * U.overload;
       const d_s = ((row.vib > VIB_THR && row.fresh) ? (row.vib - VIB_THR) / VIB_THR : 0)
-        * sec * UNIT.shock;
+        * sec * U.shock;
       const d_c = ((row.dF > F_TH ? row.dF / REF : 0) + (row.dR > R_TH ? row.dR / REF : 0))
-        * UNIT.cond_change;
+        * U.cond_change;
       const raw = d_m + d_o + d_s + d_c;
       D.raw.add(raw);
 
@@ -378,7 +409,13 @@
       if (!S.POS) S.POS = posBox();
       S.POS.x.add(row.xm); S.POS.y.add(row.ym); S.POS.z.add(row.zm); S.POS.b.add(row.bax);
 
-      if ((d_o > 0 || d_s > 0) && S.EV.length < 1500) {
+      /* 임계 초과 이벤트.
+         예전에는 1500건이 차면 그 뒤로 안 담았다. 파일을 시간순으로 읽으므로
+         결과는 «가장 오래된 1500건» 이 되고, 최근 주차 이벤트가 통째로
+         사라졌다. 「즉시 교체」 경보가 2주 전 사건을 오늘 일처럼 알리게 된다.
+         그래서 계속 담되 넘치면 앞(오래된 것)을 버린다. */
+      if (d_o > 0 || d_s > 0) {
+        if (S.EV.length >= EV_KEEP * 2) S.EV.splice(0, EV_KEEP);
         const tags = [];
         if (d_o > 0) tags.push('과부하 전류 ' + row.cur.toFixed(0));
         if (d_s > 0) tags.push('충격 진동 ' + row.vib.toFixed(1) + 'mm/s');
@@ -707,8 +744,13 @@
       note: '마모량은 원시 단위. 기준 수명·주간 가동시간·앵커는 조회 시점에 적용한다.',
       switch: '2026-08-24 16:00 부품 모델 전환 (FA 밸브 → 3.5톤 RearCover)',
       thresholds: { cur_med: CUR_MED, cur_thr: CUR_THR, vib_thr: VIB_THR },
-      weights: { 실가공: 50, 과부하: 27, 충격: 8, 조건급변: 5, 알람: 10 },
-      defaults: { life_days: 400, week_hours: 38.0, anchor: 'mean', segment: keys[0] },
+      /* 실제로 쓰는 가중치를 그대로 싣는다. 예전에는 «알람 10» 같은, 계산에
+         없는 항목이 박혀 있어 화면이 사실과 다른 말을 하고 있었다. */
+      units: { wear: UNIT, breakage: UNIT_BREAK,
+        breakage_mix: { machining: 20, overload: 40, shock: 25, cond_change: 15 } },
+      weights: { 마모형: '기존 가중치 그대로',
+        파손형: '실가공 20 · 과부하 40 · 충격 25 · 조건급변 15' },
+      defaults: { life_days: 400, week_hours: 38.0, anchor: 'calib', segment: keys[0] },
       segments: out,
       source: {
         file: meta.name, rows: meta.rows, missing: meta.missing,
@@ -871,7 +913,8 @@
     return out;
   }
 
-  const api = { run, merge, dropDays, carryPlan, UNIT, Dist, Kahan, toolClass, splitLine, streamLines, _build: build };
+  const api = { run, merge, dropDays, carryPlan, UNIT, UNIT_BREAK, unitFor,
+    Dist, Kahan, toolClass, splitLine, streamLines, _build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.MESAGG = api;
 })(typeof self !== 'undefined' ? self : this);

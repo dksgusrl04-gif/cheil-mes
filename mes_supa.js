@@ -224,8 +224,87 @@
   };
   const WEAK_COL = { SpindleLoad: ['critical', '주축 부하 — 절반 이상이 0. 전류로 대체 중'] };
 
-  function autoAlerts(b) {
+  /* ── 파손형 공구는 다른 경보를 쓴다 ────────────────────────────
+     TAP 과 6mm 미만 드릴은 서서히 닳다 죽는 게 아니라 부러진다. 70/90/100%
+     게이지는 «언제쯤 갈까» 를 계획하는 물건이지, «지금 부러질 것 같다» 를
+     알리는 물건이 아니다. 게이지가 30% 여도 한 번의 충격에 부러진다.
+
+     그래서 파손형에는 즉시 경보를 따로 둔다.
+       1) 임계 초과 이벤트가 났다 — 과부하 전류나 충격 진동
+       2) 하루 마모가 직전 5일 평균의 1.8배를 넘었다
+
+     2) 가 파손 신호가 되는 이유 — 파손형은 가중치를 다시 잡아서 마모량의
+     80% 가 과부하·충격·조건급변에서 온다. 그러니 하루치가 튀었다는 건
+     그날 그 공구가 평소와 다른 것을 맞았다는 뜻이다.
+
+     두 경보 모두 «즉시» 다. 며칠 뒤 발주가 아니라 지금 확인할 일이다. */
+  const BREAK_SPIKE = 1.8;        // 직전 평균의 몇 배부터 볼 것인가
+  const BREAK_LOOKBACK = 5;       // «평소» 를 며칠로 볼 것인가
+  const BREAK_MIN_H = 0.05;       // 이보다 짧게 돈 날은 무시 (몇 초짜리 튐 방지)
+
+  function breakAlerts(b) {
     const out = [];
+    const seg = b.seg || {};
+    const brk = (seg.tools || []).filter(t => t.cls === 'breakage');
+    if (!brk.length) return out;
+    const nameOf = new Map(brk.map(t => [t.tool, t.name]));
+
+    /* 1) 임계 초과 이벤트 — 공구별로 가장 최근 것 하나만 올린다.
+          같은 공구로 스무 줄이 쌓이면 나머지 경보가 묻힌다. */
+    const ev = (seg.events || []).filter(e =>
+      nameOf.has(e.tool) && /과부하|충격/.test(e.type || ''));
+    const cnt = new Map();
+    ev.forEach(e => cnt.set(e.tool, (cnt.get(e.tool) || 0) + 1));
+    /* 자료의 마지막 날. 이벤트가 그로부터 며칠 전 것인지 밝힌다 —
+       2주 전 사건을 오늘 일처럼 내밀면 경보를 믿지 않게 된다. */
+    const days = seg.days || [];
+    const lastDay = days.length ? days[days.length - 1].date : '';
+    const ago = (t) => {
+      if (!lastDay) return '';
+      const d = Math.round((Date.parse(lastDay) - Date.parse(String(t).slice(0, 10))) / 86400000);
+      return (isFinite(d) && d > 0) ? ` · 자료 마지막 날 기준 ${d}일 전` : '';
+    };
+    const done = new Set();
+    for (const e of ev) {                       // events 는 최신순으로 들어온다
+      if (done.has(e.tool)) continue;
+      done.add(e.tool);
+      out.push({
+        kind: 'break', level: 'danger', tool: e.tool,
+        title: `T${e.tool} ${nameOf.get(e.tool)} — 즉시 교체 검토 (파손형)`,
+        body: `${e.type} · ${e.time}${ago(e.time)}` + (cnt.get(e.tool) > 1
+          ? ` · 이 구간에 같은 이벤트 ${cnt.get(e.tool)}건` : ''),
+        evidence: '파손형은 마모율과 무관하게 한 번의 충격·과부하로 부러질 수 있습니다',
+      });
+    }
+
+    /* 2) 하루 급증 — 그 공구 자신의 직전 며칠과 견준다.
+          남의 공구나 설비 전체와 비교하지 않는다. 그러면 설비가 바쁜 날
+          모든 공구가 한꺼번에 경보를 낸다. */
+    for (const t of brk) {
+      if (done.has(t.tool)) continue;           // 이미 이벤트로 올라간 공구는 건너뛴다
+      const bd = (t.byday || []).slice()
+        .sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
+      if (bd.length < 3) continue;
+      const last = bd[bd.length - 1];
+      if ((last.hours || 0) < BREAK_MIN_H) continue;
+      const prev = bd.slice(Math.max(0, bd.length - 1 - BREAK_LOOKBACK), bd.length - 1);
+      if (!prev.length) continue;
+      const avg = prev.reduce((s, x) => s + x.raw, 0) / prev.length;
+      if (!(avg > 0) || last.raw < avg * BREAK_SPIKE) continue;
+      out.push({
+        kind: 'break', level: 'danger', tool: t.tool,
+        title: `T${t.tool} ${t.name} — 하루 마모 급증 (파손형)`,
+        body: `${last.date} 마모 ${MES.round(b.wear(last.raw), 4)}% · `
+          + `직전 ${prev.length}일 평균의 ${(last.raw / avg).toFixed(1)}배`,
+        evidence: '파손형 마모량의 80% 는 과부하·충격·조건급변에서 옵니다 — '
+          + '평소와 다른 것을 맞았다는 뜻입니다',
+      });
+    }
+    return out;
+  }
+
+  function autoAlerts(b) {
+    const out = breakAlerts(b);       // 파손형 즉시 경보를 맨 위에 둔다
     const tools = MES.toolList(b);
     for (const t of tools) {
       for (const [thr, name, level] of WEAR_LEVELS) {
@@ -234,7 +313,11 @@
             kind: 'wear', level, tool: t.tool,
             title: `T${t.tool} ${t.name} — ${name}`,
             body: `마모율 ${t.wear.toFixed(2)}% (기준 ${thr}% 초과) · 기여도 ${t.share.toFixed(2)}%`,
-            evidence: `앵커 ${b.anchorLabel} = ${b.lifeDays.toFixed(0)}일`,
+            /* 파손형에게 마모율 임계는 «계획» 이지 «위험» 이 아니다.
+               게이지가 낮아도 부러질 수 있다는 걸 같은 줄에서 밝힌다. */
+            evidence: `앵커 ${b.anchorLabel} = ${b.lifeDays.toFixed(0)}일`
+              + (t.cls === 'breakage'
+                ? ' · 파손형이라 이 수치는 교체 계획용입니다 — 파손 위험은 별도 경보를 보세요' : ''),
           });
           break;
         }
@@ -564,10 +647,19 @@
             danger: auto.filter(a => a.level === 'danger').length,
             warn: auto.filter(a => a.level === 'warn').length,
             unread: inbox.filter(m => m.unread).length,
+            /* 파손형 즉시 경보는 따로 센다 — 「며칠 뒤 발주」와 성격이 다르다 */
+            breakage: auto.filter(a => a.kind === 'break').length,
           },
           rules: {
             wear: WEAR_LEVELS.map(([t, n]) => ({ threshold: t, name: n })),
             intensity: INTENSITY_WARN,
+            breakage: {
+              spike: BREAK_SPIKE, lookback: BREAK_LOOKBACK, min_hours: BREAK_MIN_H,
+              note: 'TAP·6mm 미만 드릴은 닳다 죽는 게 아니라 부러집니다. '
+                + '과부하·충격 이벤트가 나거나 하루 마모가 직전 '
+                + `${BREAK_LOOKBACK}일 평균의 ${BREAK_SPIKE}배를 넘으면 즉시 경보합니다. `
+                + '마모율 임계(70/90/100%)와는 별개입니다.',
+            },
           },
         });
       }
