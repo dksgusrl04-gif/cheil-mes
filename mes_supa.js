@@ -153,6 +153,19 @@
      관리자 쓰기» 정책이 걸려 있어서, SQL 을 한 줄도 더 안 돌려도 된다. */
   const PNAME = 'prog_names';
   let PNAMES = {};
+  /* 조건 정규화 추세 — 모델비교.py 가 올려 둔 관측값.
+     마모율 계산에는 안 들어간다. 없으면 없는 대로 화면이 그 칸만 비운다. */
+  const TNAME = 'tool_trend';
+  let TREND = null;
+
+  async function loadTrend() {
+    try {
+      const r = await db('GET',
+        `/mes_docs?name=eq.${encodeURIComponent(TNAME)}&select=data&limit=1`);
+      TREND = (r.length && r[0].data) ? r[0].data : null;
+    } catch (e) { TREND = null; }
+    return TREND;
+  }
 
   async function loadProgNames() {
     try {
@@ -174,7 +187,9 @@
     SNAPSHOT = rows[0].data;
     await loadReps();
     await loadProgNames();
+    await loadTrend();
     SNAPSHOT.prog_names = PNAMES;
+    SNAPSHOT.tool_trend = TREND;
     MES.load(SNAPSHOT, REPS);
     LOADED = true;
   }
@@ -564,6 +579,7 @@
 
     SNAPSHOT = merged;
     merged.prog_names = PNAMES;      // 사람이 붙인 이름도 재집계에 안 날아간다
+    merged.tool_trend = TREND;
     MES.load(merged, REPS);          // 교체 이력은 재집계해도 그대로 살아 있어야 한다
     LOADED = true;
     await log('재집계', `${file.name} · ${snap.source.rows.toLocaleString()}행`);
@@ -624,6 +640,13 @@
       case path === '/api/programs':  return ok(MES.programs(b));
       /* 공구 종류별 묶음 — D/R 은 D/R 끼리, U/R 은 U/R 끼리 */
       case path === '/api/toolkinds': return ok(MES.toolKinds(b));
+      /* 추세 목록 — 근거와 함께. 없으면 «아직 안 올렸다» 를 알린다 */
+      case path === '/api/trend': return ok({
+        basis: b.info().trend_basis,
+        tools: (MES.raw().tool_trend || {}).tools || {},
+        hint: MES.raw().tool_trend ? ''
+          : '현장 PC 에서 python 모델비교.py --적용 을 한 번 실행하세요.',
+      });
       case path === '/api/prognames': return ok({
         names: MES.progNames(), can_edit: u.role === 'manager',
       });
@@ -869,7 +892,8 @@
         await db('POST', '/mes_docs?on_conflict=name', [{
           name: SNAP, data: prev, updated_at: now(),
         }], 'resolution=merge-duplicates,return=minimal');
-        SNAPSHOT = prev; prev.prog_names = PNAMES; MES.load(prev, REPS); LOADED = true;
+        SNAPSHOT = prev; prev.prog_names = PNAMES; prev.tool_trend = TREND;
+        MES.load(prev, REPS); LOADED = true;
         await log('집계본 되돌리기', `${rows[0].updated_at} 시점으로`);
         const segs = Object.keys(prev.segments || {})
           .map(k => `${prev.segments[k].label} ${prev.segments[k].tools.length}종`).join(' · ');

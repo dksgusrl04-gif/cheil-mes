@@ -585,6 +585,13 @@
         /* 부류별 인자 가중치. 파손형은 다른 한 벌을 쓴다 — 화면이 그 사실을
            밝힐 수 있어야 «왜 TAP 만 값이 다르지» 가 안 생긴다. */
         units: DATA.units || null,
+        /* 조건 정규화 추세의 근거 — 화면이 «무엇을 잰 값인지» 밝힐 수 있어야 한다 */
+        trend_basis: (DATA.tool_trend ? {
+          made_at: DATA.tool_trend.made_at || '', span_days: DATA.tool_trend.span_days || 0,
+          weeks: DATA.tool_trend.weeks || 0, min_rows: DATA.tool_trend.min_rows || 0,
+          basis: DATA.tool_trend.basis || '', note: DATA.tool_trend.note || '',
+          count: Object.keys((DATA.tool_trend.tools) || {}).length,
+        } : null),
         thresholds: DATA.thresholds || {},
       };
     }
@@ -690,13 +697,27 @@
   }
 
   /* ═══════════════════════════ 조회 응답 */
+  /* 파손형은 «닳아서» 가 아니라 «부러져서» 죽는다. 그래서 같은 숫자라도
+     부르는 이름이 달라야 한다 — 마모형은 «마모율», 파손형은 «파손 위험도».
+     값을 바꾸는 게 아니라 무엇을 뜻하는지를 바로잡는 것이다.
+     70% 가 마모형에는 «수명의 70% 를 썼다» 지만, 파손형에는 «그만큼의
+     과부하·충격을 누적해 왔다» 이지 «70% 부러졌다» 가 아니다. */
+  function wearLabel(cls) { return cls === 'breakage' ? '파손 위험도' : '마모율'; }
+
   function toolRow(b, t) {
     const iv = b.intensity(t.raw);
     /* 예상은 «기록» 옆에 따로 선다. wear 는 손대지 않는다. */
     const pj = b.project(t.tool, t.raw);
+    /* 조건 정규화 추세 — 가중치 없이 관측한 값. 계산에는 안 들어가고
+       값 옆에 따로 선다 (mes_supa.js 가 Supabase 에서 실어 준다). */
+    const tr = ((DATA.tool_trend || {}).tools || {})[String(t.tool)] || null;
     return {
       tool: t.tool, name: t.name, cls: t.cls,
       wear: round(b.wear(t.raw), 4),
+      wear_label: wearLabel(t.cls),
+      trend: tr ? {
+        pct_per_week: tr.pct_per_week, cum_pct: tr.cum_pct, rows: tr.rows,
+      } : null,
       wear_h: (pj === null) ? null : round(pj, 4),
       intensity: iv ? round(iv, 2) : null,
       share: t.share, hours: t.hours, rows: t.rows,

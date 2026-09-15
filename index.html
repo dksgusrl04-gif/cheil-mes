@@ -377,10 +377,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="1cc3b39bcd">
+<meta name="mes-build" content="d4e00eaae1">
 <script>
 (function(){
-  var mine = "1cc3b39bcd";
+  var mine = "d4e00eaae1";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -423,12 +423,12 @@
      ?v= 뒤는 파일 내용의 지문이다. 내용이 바뀌면 저절로 달라져
      브라우저가 새로 받는다. 사용자가 새로고침을 안 해도 된다. -->
 <script src="config.js?v=1e0fdbf6"></script>
-<script src="mes_calc.js?v=9eceed29"></script>
+<script src="mes_calc.js?v=1b9818de"></script>
 <script src="mes_agg.js?v=19de8677"></script>
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=4750ba86"></script>
+<script src="mes_supa.js?v=610ec0de"></script>
 <script src="mes_ui.js?v=0410ea6a"></script>
 <script src="mes_dash.js?v=20d95967"></script>
 <script>
@@ -630,10 +630,23 @@ async function renderDash(){
     <div class="grid2">
       <div class="panel">
         <h4>T${det.tool.tool} · ${det.tool.name}
-          <span class="tag ${det.tool.cls==='breakage'?'b':'w'}">${det.tool.cls==='breakage'?'파손형':'마모형'}</span></h4>
+          <span class="tag ${det.tool.cls==='breakage'?'b':'w'}">${det.tool.cls==='breakage'?'파손형':'마모형'}</span>
+          <span class="muted" style="font-weight:400;font-size:12px"> — ${det.tool.wear_label||'마모율'}</span></h4>
         <div class="gauge"><i class="${lvl(det.tool.wear)}" style="width:${Math.min(det.tool.wear,100)}%"></i>
           <span>${f3(det.tool.wear)} %</span></div>
+        ${det.tool.cls==='breakage'?`<div style="font-size:11px;color:var(--warn-ink);line-height:1.6;margin:6px 0 2px">
+          파손형입니다. 이 값은 «닳은 정도» 가 아니라 <b>그동안 받은 과부하·충격의 누적</b>입니다.
+          낮아도 한 번에 부러질 수 있으니, 파손 위험은 알림 탭의 «파손형 즉시» 경보를 보세요.
+        </div>`:''}
         <div class="row"><span>경보 단계</span><span>${det.level}</span></div>
+        ${det.tool.trend?`<div class="row">
+          <span>소요 전류 추세 <span class="tag ${det.tool.trend.pct_per_week>1?'b':'w'}">관측</span></span>
+          <span class="mono">${det.tool.trend.pct_per_week>0?'+':''}${f2(det.tool.trend.pct_per_week)} %/주
+            · 누적 ${det.tool.trend.cum_pct>0?'+':''}${f2(det.tool.trend.cum_pct)} %</span></div>
+          <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:5px">
+            ${(b.trend_basis&&b.trend_basis.basis)||''}
+            표본 ${num(det.tool.trend.rows)}행. 가중치·기준일수를 쓰지 않은 관측값이라 마모율과 별개입니다.
+          </div>`:''}
         ${det.tool.wear_h!==null&&det.tool.wear_h!==undefined?`<div class="row">
           <span>${(b.horizon&&b.horizon.label)||'예상'} <span class="tag w">예측</span></span>
           <span class="mono">${f2(det.tool.wear_h)} %</span></div>
@@ -973,7 +986,8 @@ async function renderOrder(){
       </div>
       <table><thead><tr>
         <th class="chk"><input type="checkbox" id="allchk" onclick="toggleAll(this.checked)"></th>
-        <th>공구</th><th>이름</th><th>부류</th><th class="n">마모율</th>
+        <th>공구</th><th>이름</th><th>부류</th><th class="n">마모율 / 파손 위험도</th>
+        <th class="n" title="같은 조건에서 소요 전류가 주당 몇 % 변했는가 — 가중치 없는 관측값">추세</th>
         <th class="n" title="${(b.horizon&&b.horizon.note)||''}">${
           (b.horizon&&b.horizon.label)||'예상'}</th>
         <th class="n">사용강도</th><th class="n">기여도</th><th class="n">절삭(h)</th>
@@ -984,7 +998,12 @@ async function renderOrder(){
         <td><b>T${c.tool}</b></td><td>${c.name}</td>
         <td><span class="tag ${c.cls==='breakage'?'b':'w'}">${c.cls==='breakage'?'파손형':'마모형'}</span></td>
         <td class="n">${f2(c.wear)}%${c.recommend?' <span class="tag b">과다</span>':''}
+          ${c.cls==='breakage'?'<div class="muted" style="font-size:10.5px">파손 위험도</div>':''}
           ${c.replaced_at?`<div class="muted" style="font-size:10.5px">${c.replaced_at} 교체 후</div>`:''}</td>
+        <td class="n">${c.trend
+          ? `<span style="color:${c.trend.pct_per_week>1?'var(--danger)':'var(--muted)'}">${
+              c.trend.pct_per_week>0?'+':''}${f2(c.trend.pct_per_week)}%</span>`
+          : '<span class="muted">-</span>'}</td>
         <td class="n ${c.wear_h>=100?'':''}" style="color:var(--muted)">${
           c.wear_h===null||c.wear_h===undefined?'-':f2(c.wear_h)+'%'}</td>
         <td class="n">${inten(c.intensity)}</td>
