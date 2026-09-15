@@ -377,10 +377,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="d4e00eaae1">
+<meta name="mes-build" content="973a589e46">
 <script>
 (function(){
-  var mine = "d4e00eaae1";
+  var mine = "973a589e46";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -423,8 +423,8 @@
      ?v= 뒤는 파일 내용의 지문이다. 내용이 바뀌면 저절로 달라져
      브라우저가 새로 받는다. 사용자가 새로고침을 안 해도 된다. -->
 <script src="config.js?v=1e0fdbf6"></script>
-<script src="mes_calc.js?v=1b9818de"></script>
-<script src="mes_agg.js?v=19de8677"></script>
+<script src="mes_calc.js?v=aa6b6354"></script>
+<script src="mes_agg.js?v=b6e283b3"></script>
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
@@ -668,12 +668,22 @@ async function renderDash(){
             onclick="openReplace(${det.tool.tool})">교체 처리</button></div>`:''}
       </div>
       <div class="panel">
-        <h4>인자별 마모 기여</h4>
+        <h4>인자별 ${det.tool.cls==='breakage'?'파손 위험':'마모'} 기여</h4>
         ${[['실가공','machining'],['과부하','overload'],['충격','shock'],['조건급변','cond_change']].map(([k,f])=>{
           const v=det.tool[f], p=det.tool.wear?100*v/det.tool.wear:0;
+          const off=(v===0);
           return `<div style="margin-bottom:9px"><div class="row" style="border:0;padding:3px 0">
-            <span>${k}</span><span class="mono">${f4(v)}% (${f2(p)}%)</span></div>${bar(p)}</div>`;
+            <span>${k}${off?' <span class="tag w">미반영</span>':''}</span>
+            <span class="mono">${f4(v)}% (${f2(p)}%)</span></div>${bar(p)}</div>`;
         }).join('')}
+        <div style="margin-bottom:9px"><div class="row" style="border:0;padding:3px 0">
+          <span>알림 <span class="tag w">미수집</span></span>
+          <span class="mono">0.0000% (0.00%)</span></div>${bar(0)}</div>
+        ${(BASIS.units&&BASIS.units.wear_note)?`<div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:8px">
+          ${det.tool.cls==='breakage'
+            ? '파손형은 별도 배분입니다 — 실가공 20 · 과부하 40 · 충격 25 · 조건급변 15.'
+            : esc(BASIS.units.wear_note)}
+        </div>`:''}
       </div>
     </div>
 

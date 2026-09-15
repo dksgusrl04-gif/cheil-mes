@@ -551,7 +551,9 @@
           { v: 'mean', label: '평균 공구 = 기준일수', note: '많이 쓴 공구는 빨리, 적게 쓴 공구는 천천히 도달' },
           { v: 'set', label: '세트 전체 = 기준일수', note: '세트 단위 일괄 교체 정책 그대로' },
         ]).concat((this.seg.tools || []).slice(0, 8).map(t => ({
-          v: String(t.tool), label: `T${t.tool} ${t.name} = 기준일수`, note: `기여도 ${t.share}%`,
+          /* 자릿수를 고정한다. 그냥 두면 5 와 5.0 처럼 파이썬과 갈린다. */
+          v: String(t.tool), label: `T${t.tool} ${t.name} = 기준일수`,
+          note: `기여도 ${Number(t.share).toFixed(2)}%`,
         }))),
         segments: Object.keys(segs).map(k => ({
           key: k, label: segs[k].label, period: segs[k].period,
