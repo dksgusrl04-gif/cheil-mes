@@ -150,6 +150,9 @@
   .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
     padding:13px 16px;min-width:140px;box-shadow:var(--sh);transition:border-color .12s}
   .card:hover{border-color:#D5DBE3}
+  /* 누를 수 있는 카드. 커서와 테두리로만 알린다 — 값이 흔들리면 안 된다 */
+  .card.click{cursor:pointer}
+  .card.click:hover{border-color:var(--accent);background:var(--accent-soft)}
   .card .k{font-size:11.5px;color:var(--muted);margin-bottom:5px;font-weight:500}
   .card .v{font-size:23px;font-weight:650;letter-spacing:-.02em;line-height:1.2}
   .card .u{font-size:12px;color:var(--faint);font-weight:500;margin-left:3px}
@@ -377,10 +380,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="973a589e46">
+<meta name="mes-build" content="a127b0f790">
 <script>
 (function(){
-  var mine = "973a589e46";
+  var mine = "a127b0f790";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -423,7 +426,7 @@
      ?v= 뒤는 파일 내용의 지문이다. 내용이 바뀌면 저절로 달라져
      브라우저가 새로 받는다. 사용자가 새로고침을 안 해도 된다. -->
 <script src="config.js?v=1e0fdbf6"></script>
-<script src="mes_calc.js?v=aa6b6354"></script>
+<script src="mes_calc.js?v=ca02f63c"></script>
 <script src="mes_agg.js?v=b6e283b3"></script>
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
@@ -543,10 +546,17 @@ async function reload(){
   render();
 }
 
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on'); TAB=b.dataset.tab; render();
-});
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>goTab(b.dataset.tab));
+
+/* 화면 안에서 다른 탭으로 건너뛸 때 쓴다. 위쪽 탭 버튼의 선택 표시도 같이
+   옮겨 준다 — 이걸 빠뜨리면 내용은 바뀌었는데 탭은 그대로라 길을 잃는다. */
+function goTab(name){
+  TAB = name;
+  document.querySelectorAll('nav button').forEach(x=>
+    x.classList.toggle('on', x.dataset.tab===name));
+  window.scrollTo(0,0);
+  render();
+}
 
 // ───────── 유틸
 const f2=v=>(v??0).toFixed(2), f3=v=>(v??0).toFixed(3), f4=v=>(v??0).toFixed(4);
@@ -556,6 +566,10 @@ const inten=v=> v==null?'-': v.toFixed(2)+'배';
 const days=v=> v==null?'-': v>=10000? (v/365).toFixed(0)+'년' : num(Math.round(v))+'일';
 const bar=(p,c)=>`<div class="bar"><i class="${c||''}" style="width:${Math.min(Math.max(p,0),100)}%"></i></div>`;
 const cardHtml=(k,v,u,c)=>`<div class="card ${c||''}"><div class="k">${k}</div><div class="v">${v}<span class="u">${u||''}</span></div></div>`;
+/* 카드를 눌러 그 항목만 보게 한다. .cards 가 flex 라 래퍼 div 로 감싸면
+   카드가 안 늘어난다 — 그래서 카드 자체에 onclick 을 심는다. */
+const clickCard=(html,call)=>html.replace('<div class="card',
+  `<div onclick="${call.replace(/"/g,'&quot;')}" class="card click`);
 
 async function render(){
   if(TAB==='dash') return renderDash();
@@ -896,18 +910,33 @@ async function saveProgName(prog){
 }
 
 // ═════ 영업관리
+/* 선택한 제품(메인 프로그램). null 이면 전체 화면이다. */
+let SALES_SEL = null;
+function pickProduct(main){ SALES_SEL = (SALES_SEL===main? null : main); renderSales(); }
+
 async function renderSales(){
   const s = await api('/api/sales');
   const b = s.basis;
+  const nameOf = m => {
+    const nm=((PROGS&&PROGS.mains)||[]).find(x=>x.main===m.main);
+    return nm&&nm.name ? esc(nm.name) : 'O'+m.main;
+  };
+  /* 선택한 제품이 지금 구간에 없으면(구간을 바꾼 경우) 조용히 전체로 돌린다 */
+  if(SALES_SEL && !s.mains.some(m=>m.main===SALES_SEL)) SALES_SEL = null;
+
   $('side').innerHTML = `<h3>제품 (메인 프로그램)</h3>` +
-    s.mains.map(m=>{
-      const nm=((PROGS&&PROGS.mains)||[]).find(x=>x.main===m.main);
-      return `<div class="item">${nm&&nm.name?esc(nm.name):'O'+m.main}<span class="m">${
-        f2(m.hours)}h · 마모 ${f3(m.wear)}% (${m.share}%)</span></div>`;
-    }).join('');
+    `<div class="item ${SALES_SEL?'':'on'}" onclick="SALES_SEL=null;renderSales()">전체
+      <span class="m">${s.mains.length}개 제품 · 마모 ${f3(s.wear)}%</span></div>` +
+    s.mains.map(m=>
+      `<div class="item ${SALES_SEL===m.main?'on':''}" onclick="pickProduct('${m.main}')">
+        ${nameOf(m)}<span class="m">${f2(m.hours)}h · 마모 ${f3(m.wear)}% (${m.share}%)</span></div>`
+    ).join('');
+
+  if(SALES_SEL){ $('main').innerHTML = productView(s, s.mains.find(m=>m.main===SALES_SEL), nameOf); return; }
+
   $('main').innerHTML = `
     <h2>영업관리 — ${b.segment_label}</h2>
-    <div class="desc">생산량 기준 공구 소모 — 수주량으로 교체 시점을 역산한다</div>
+    <div class="desc">생산량 기준 공구 소모 — 좌측에서 제품을 고르면 그 제품만 봅니다</div>
     <div class="cards">
       ${cardHtml('누적 생산', num(s.parts),'개')}
       ${cardHtml('누적 마모', f3(s.wear),'%')}
@@ -925,8 +954,11 @@ async function renderSales(){
       </div>
       <div class="panel">
         <h4>제품별 공구 소모 비중</h4>
-        <table><thead><tr><th>메인 프로그램</th><th class="n">절삭(h)</th><th class="n">마모</th><th style="width:140px">비중</th></tr></thead><tbody>
-        ${s.mains.map(m=>`<tr><td><b>O${m.main}</b><span class="muted"> · 하위 ${m.progs}개</span></td>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">
+          줄을 누르면 그 제품만 봅니다.</div>
+        <table><thead><tr><th>제품</th><th class="n">절삭(h)</th><th class="n">마모</th><th style="width:140px">비중</th></tr></thead><tbody>
+        ${s.mains.map(m=>`<tr style="cursor:pointer" onclick="pickProduct('${m.main}')">
+          <td><b>${nameOf(m)}</b><span class="muted"> · 하위 ${m.progs}개 · 공구 ${m.tools.length}종</span></td>
           <td class="n">${f2(m.hours)}</td><td class="n">${f3(m.wear)}%</td><td>${bar(m.share)}</td></tr>`).join('')}
         </tbody></table>
       </div>
@@ -942,7 +974,89 @@ async function renderSales(){
     </div>`;
 }
 
+/* ── 제품 하나만 보는 화면 ─────────────────────────────────────
+   새로 계산하는 값은 없다. 그 제품에 딸린 프로그램의 공구별 마모량을 더한
+   것이고, 합은 제품 마모량과 정확히 맞는다.
+
+   일별·생산량 표는 여기 없다. 집계본의 일별 자료는 설비 전체 기준이라
+   제품별로 쪼갤 근거가 없다. 대신 그 제품만 담긴 구간이 있으면 그리로
+   건너갈 수 있게 해 둔다 — 그건 실제로 나뉘어 있는 자료다. */
+function productView(s, m, nameOf){
+  if(!m) return '<div class="panel muted">그 제품이 이 구간에 없습니다</div>';
+  const b = s.basis;
+  const pn = p => {
+    const x=((PROGS&&PROGS.progs)||[]).find(y=>y.prog===p.prog);
+    return x&&x.name ? `${esc(x.name)} <span class="muted">${p.prog}</span>` : p.prog;
+  };
+  /* 이 제품 하나만 담긴 구간이 있으면 알려 준다 (없으면 안 보여 준다) */
+  const only = (b.segments||[]).find(g => g.key!==b.segment && g.key!=='all'
+    && g.mains && g.mains.length===1 && g.mains[0]===m.main);
+  const tmax = Math.max(...m.tools.map(t=>t.share), 0.0001);
+  const brk = m.tools.filter(t=>t.cls==='breakage').length;
+  return `
+    <h2>${nameOf(m)} — ${b.segment_label}</h2>
+    <div class="desc">
+      <button class="act gray" onclick="SALES_SEL=null;renderSales()">← 전체 제품</button>
+      <span style="margin-left:10px">하위 프로그램 ${m.prog_rows.length}개 · 사용 공구 ${m.tools.length}종</span>
+    </div>
+    <div class="cards">
+      ${cardHtml('절삭 시간', f2(m.hours),'h')}
+      ${cardHtml('마모 기여', f3(m.wear),'%')}
+      ${cardHtml('설비 전체 대비', m.share,'%')}
+      ${cardHtml('사용 공구', m.tools.length,`종${brk?` · 파손형 ${brk}`:''}`)}
+    </div>
+
+    <div class="panel">
+      <h4>이 제품에 가장 많이 닳는 공구</h4>
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7;margin-bottom:11px">
+        이 제품을 만들 때 어느 공구가 닳는가입니다. 아래 비중을 다 더하면 100% 이고,
+        마모 기여를 다 더하면 위의 <b>${f3(m.wear)}%</b> 와 같습니다.
+        공구는 제품끼리 공유하므로, 이 표의 공구가 이 제품 전용이라는 뜻은 아닙니다.
+      </div>
+      <table><thead><tr><th>공구</th><th>이름</th><th>부류</th>
+        <th class="n">마모 기여</th><th class="n">이 제품 내 비중</th><th style="width:150px"></th>
+        </tr></thead><tbody>
+      ${m.tools.map(t=>`<tr style="cursor:pointer" onclick="SEL.tool=${t.tool};goTab('dash')">
+        <td><b>T${t.tool}</b></td><td>${t.name}</td>
+        <td><span class="tag ${t.cls==='breakage'?'b':'w'}">${t.cls==='breakage'?'파손형':'마모형'}</span></td>
+        <td class="n">${f4(t.wear)}%</td><td class="n">${f2(t.share)}%</td>
+        <td>${bar(100*t.share/tmax)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h4>하위 프로그램 ${m.prog_rows.length}개</h4>
+      <table><thead><tr><th>프로그램</th><th class="n">절삭(h)</th><th class="n">행수</th>
+        <th class="n">마모 기여</th><th class="n">공구</th><th style="width:150px">제품 내 비중</th>
+        </tr></thead><tbody>
+      ${m.prog_rows.map(p=>`<tr style="cursor:pointer"
+          onclick="SEL.main='${m.main}';SEL.prog='${p.prog}';goTab('mfg')">
+        <td><b>${pn(p)}</b></td><td class="n">${f2(p.hours)}</td><td class="n">${num(p.rows)}</td>
+        <td class="n">${f3(p.wear)}%</td><td class="n">${p.tools}종</td>
+        <td>${bar(100*p.wear/(m.wear||1))}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="muted" style="margin-top:10px;font-size:11.5px">
+        줄을 누르면 제조관리에서 그 프로그램의 상세를 봅니다.</div>
+    </div>
+
+    <div class="panel" style="background:var(--raise)">
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7">
+        <b>제품별 일별 생산량은 표시하지 않습니다.</b>
+        집계본의 일별 자료는 설비 전체 기준이라 제품별로 나눌 근거가 없습니다.
+        ${only?`이 제품만 돌아간 구간이 따로 있습니다 —
+          위 기준 막대에서 <b>${esc(only.label)}</b> 구간을 고르면 그 기간의 일별 자료를 그대로 보실 수 있습니다.`
+          :'제품별 일별이 필요하면 수집 단계에서 제품 구분이 함께 들어와야 합니다.'}
+      </div>
+    </div>`;
+}
+
 // ═════ 공구 주문
+/* 좌측에서 고른 화면. null 이면 전부 보여 준다.
+   'life' 교체 주기 · 'level' 과다 판정 · 'cand' 과다 · 'over' 평균 초과
+   · 'orders' 발주 이력 · 'reps' 교체 이력 */
+let ORDER_VIEW = null;
+function pickOrder(v){ ORDER_VIEW = (ORDER_VIEW===v? null : v); renderOrder(); }
+
 async function renderOrder(){
   const o = await api('/api/orders');
   const b = o.basis;
@@ -950,51 +1064,48 @@ async function renderOrder(){
   let rep = {rows:[],applied:[],applied_count:0,note:'',table_missing:false,hint:'',can_edit:false};
   try{ rep = await api('/api/replacements'); }catch(e){ /* 없으면 없는 대로 */ }
   REP_LAST = rep;
-  $('side').innerHTML = `<h3>기준</h3>
-    <div class="item">교체 주기<span class="m">${b.life_days}일 · 앵커 ${b.anchor_label}</span></div>
-    <div class="item">과다 판정<span class="m">마모율 ${o.order_level}% 이상</span></div>
-    <h3>현황</h3>
-    <div class="item">과다<span class="m">${o.recommend_count}종 / ${o.candidates.length}종</span></div>
-    <div class="item">평균 초과<span class="m">${o.over_count}종</span></div>
-    <div class="item">발주 이력<span class="m">${o.orders.length}건</span></div>
-    <div class="item">교체 이력<span class="m">${rep.rows.length}건 · 반영 ${rep.applied_count}종</span></div>`;
+  const V = ORDER_VIEW;
+  const it = (k,label,sub) =>
+    `<div class="item ${V===k?'on':''}" onclick="pickOrder('${k}')">${label}<span class="m">${sub}</span></div>`;
+  $('side').innerHTML =
+    `<div class="item ${V?'':'on'}" onclick="ORDER_VIEW=null;renderOrder()">전체
+       <span class="m">아래 항목을 누르면 그것만 봅니다</span></div>
+     <h3>기준</h3>` +
+    it('life','교체 주기',`${b.life_days}일 · 앵커 ${b.anchor_label}`) +
+    it('level','과다 판정',`마모율 ${o.order_level}% 이상`) +
+    `<h3>현황</h3>` +
+    it('cand','과다',`${o.recommend_count}종 / ${o.candidates.length}종`) +
+    it('over','평균 초과',`${o.over_count}종`) +
+    it('orders','발주 이력',`${o.orders.length}건`) +
+    it('reps','교체 이력',`${rep.rows.length}건 · 반영 ${rep.applied_count}종`);
+
   const canManage = ME.role==='manager';
-  const top = o.candidates.slice(0,20);
   ORDER_CAND = Object.fromEntries(o.candidates.map(c=>[c.tool,c]));
   // 구간이 바뀌어 없어진 공구는 선택에서 뺀다
   [...ORDER_SEL].forEach(t=>{ if(!(t in ORDER_CAND)) ORDER_SEL.delete(t); });
-  $('main').innerHTML = `
-    <h2>공구 주문 — ${b.segment_label}</h2>
-    <div class="desc">소모가 많은 순 — ${canManage?'발주 가능':'조회 전용 (관리자만 발주)'}</div>
-    <div class="cards">
-      ${cardHtml(`마모 ${o.order_level}% 초과`, o.recommend_count,'종', o.recommend_count?'warn':'ok')}
-      ${cardHtml('평균 초과 사용', o.over_count,'종')}
-      ${cardHtml('발주 이력', o.orders.length,'건')}
-    </div>
-    <div class="panel" style="background:var(--raise)">
-      <div style="font-size:11.5px;color:var(--muted);line-height:1.7">
-        <b>잔여 일수와 발주 시점을 표시하지 않습니다.</b>
-        "며칠 남았다"를 말하려면 «이 공구가 몇 일 만에 수명을 다했는가» 가 쌓여야 합니다.
-        아래 교체 이력이 공구마다 두세 번씩 쌓이면 그때 되살립니다.
-        지금은 얼마나 닳았는지(마모율)와 평균보다 몇 배 빨리 닳는지(사용강도)로 우선순위를 정합니다.
-      </div>
-    </div>
-    ${rep.table_missing?`<div class="panel" style="border-color:var(--warn)">
-      <div style="font-size:11.5px;color:var(--warn-ink);line-height:1.7">
-        <b>교체 이력을 저장할 곳이 아직 없습니다.</b><br>${rep.hint}
-        그 전까지 「교체 처리」를 눌러도 저장되지 않습니다.
-      </div></div>`:''}
-    ${reportBar('order','open=1')}
+
+  /* 어느 화면이냐에 따라 표에 담을 공구가 달라진다.
+     «과다» 와 «평균 초과» 는 상위 20종으로 자르지 않는다 — 걸러 놓고 또
+     자르면 «과다 9종» 이라고 해 놓고 표에는 7종만 나오는 일이 생긴다. */
+  const rows = V==='cand' ? o.candidates.filter(c=>c.recommend)
+             : V==='over' ? o.candidates.filter(c=>(c.intensity||0) > 1.0)
+             : o.candidates.slice(0,20);
+  const title = V==='cand' ? `과다 — 마모율 ${o.order_level}% 이상 ${rows.length}종`
+              : V==='over' ? `평균 초과 사용 — 사용강도 1배 초과 ${rows.length}종`
+              : '소모 많은 순 — 상위 20종';
+  const back = V ? `<button class="act gray" onclick="ORDER_VIEW=null;renderOrder()">← 전체</button>` : '';
+
+  const candPanel = `
     <div class="panel">
-      <h4>소모 많은 순 — 상위 20종</h4>
-      <div style="display:flex;gap:9px;align-items:center;margin-bottom:11px">
+      <h4>${title}</h4>
+      <div style="display:flex;gap:9px;align-items:center;margin-bottom:11px;flex-wrap:wrap">
         <button class="act" ${canManage?'':'disabled'} onclick="openOrder()">
           선택 항목 발주 (<span id="selcnt">${ORDER_SEL.size}</span>)</button>
         <button class="act gray" onclick="ORDER_SEL.clear();renderOrder()">선택 해제</button>
         <button class="act sec" onclick="openReport('order','open=1')">미입고 발주서 출력</button>
         <span class="muted" style="font-size:11.5px">공구 이름 왼쪽 체크박스로 여러 개를 고를 수 있습니다</span>
       </div>
-      <table><thead><tr>
+      ${rows.length? `<table><thead><tr>
         <th class="chk"><input type="checkbox" id="allchk" onclick="toggleAll(this.checked)"></th>
         <th>공구</th><th>이름</th><th>부류</th><th class="n">마모율 / 파손 위험도</th>
         <th class="n" title="같은 조건에서 소요 전류가 주당 몇 % 변했는가 — 가중치 없는 관측값">추세</th>
@@ -1002,7 +1113,7 @@ async function renderOrder(){
           (b.horizon&&b.horizon.label)||'예상'}</th>
         <th class="n">사용강도</th><th class="n">기여도</th><th class="n">절삭(h)</th>
         <th>단계</th><th style="width:86px">교체</th></tr></thead><tbody>
-      ${top.map(c=>`<tr class="${c.recommend?'hot':''}">
+      ${rows.map(c=>`<tr class="${c.recommend?'hot':''}">
         <td class="chk"><input type="checkbox" data-tool="${c.tool}" ${ORDER_SEL.has(c.tool)?'checked':''}
           onclick="toggleTool(${c.tool},this.checked)"></td>
         <td><b>T${c.tool}</b></td><td>${c.name}</td>
@@ -1024,10 +1135,96 @@ async function renderOrder(){
           title="이 공구를 갈았다고 기록합니다 — 그날부터 다시 셉니다"
           onclick="openReplace(${c.tool})">교체 처리</button></td>
         </tr>`).join('')}
-      </tbody></table>
-    </div>
+      </tbody></table>`
+        : `<div class="muted">해당하는 공구가 없습니다</div>`}
+    </div>`;
 
+  /* 「교체 주기」 — 지금 100% 가 무엇을 뜻하는지 한자리에 모아 둔다.
+     여기 있는 값은 전부 위 기준 막대에서 바꿀 수 있는 것들이다. */
+  const lifePanel = `
     <div class="panel">
+      <h4>교체 주기 — 무엇을 100% 로 보고 있나</h4>
+      <table><tbody>
+        <tr><td style="width:190px">기준 일수</td><td><b>${b.life_days}일</b>
+          <span class="muted"> — 이 날수를 다 쓰면 마모율 100%</span></td></tr>
+        <tr><td>주간 가동시간</td><td><b>${f2(b.week_hours)}h</b>
+          <span class="muted"> — 하루 ${b.day_hours.toFixed(2)}h</span></td></tr>
+        <tr><td>수명 절삭시간</td><td><b>${num(Math.round(b.life_cut_hours))}h</b>
+          <span class="muted"> = ${b.life_days}일 × ${b.day_hours.toFixed(2)}h</span></td></tr>
+        <tr><td>앵커 (기준 공구)</td><td><b>${b.anchor_label}</b>
+          ${(b.calib&&b.calib.fixed)?'<span class="tag g">고정된 자</span>':''}</td></tr>
+        <tr><td>관측 절삭시간</td><td><b>${b.observed_hours}h</b>
+          <span class="muted"> = 기준 수명의 ${(100*b.observed_hours/b.life_cut_hours).toFixed(2)}%</span></td></tr>
+        ${b.horizon?`<tr><td>${b.horizon.label}</td><td class="muted">${b.horizon.note}</td></tr>`:''}
+      </tbody></table>
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:12px">
+        <b>이 값들은 가정입니다.</b> 교체 이력이 쌓이기 전까지 «400일» 은 측정값이 아니라
+        현장이 정한 목표 수명이고, 주간 가동시간은 «100%가 몇 절삭시간인가» 를 정합니다.
+        위쪽 기준 막대에서 바꾸면 화면 전체가 즉시 다시 계산됩니다 — 재집계는 필요 없습니다.
+      </div>
+    </div>`;
+
+  /* 「과다 판정」 — 임계가 공구를 실제로 어떻게 가르는지 보여 준다.
+     숫자만 적어 두면 «70% 가 왜 70% 인가» 를 아무도 확인할 수 없다. */
+  const STEP = [['교체',100,'d'],['교체 준비',90,'w'],['주의',70,'w'],['정상',0,'']];
+  const levelPanel = (()=>{
+    const c = o.candidates;
+    const seen = new Set();
+    const rowsOf = lo => c.filter(x=>{
+      if(seen.has(x.tool) || x.wear < lo) return false;
+      seen.add(x.tool); return true; });
+    const groups = STEP.map(([nm,lo,cl])=>({nm,lo,cl,list:rowsOf(lo)}));
+    return `
+    <div class="panel">
+      <h4>과다 판정 — 마모율 ${o.order_level}% 이상</h4>
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7;margin-bottom:12px">
+        판정은 <b>마모율 하나</b>로만 합니다. 사용강도는 옆에 참고로 둘 뿐,
+        판정에는 넣지 않습니다 — 두 가지를 섞으면 어느 쪽 때문에 걸렸는지 알 수 없게 됩니다.
+        파손형(TAP · 6mm 미만 드릴)의 숫자는 마모율이 아니라 <b>파손 위험도</b>라,
+        같은 70%라도 뜻이 다릅니다.
+      </div>
+      <table><thead><tr><th>단계</th><th class="n">임계</th><th class="n">공구</th>
+        <th>해당 공구</th></tr></thead><tbody>
+      ${groups.map(g=>`<tr>
+        <td>${g.cl?`<span class="tag ${g.cl==='d'?'b':'w'}">${g.nm}</span>`:`<span class="muted">${g.nm}</span>`}</td>
+        <td class="n">${g.lo?g.lo+'% 이상':'-'}</td>
+        <td class="n">${g.list.length}종</td>
+        <td class="muted">${g.list.length? g.list.slice(0,8).map(x=>'T'+x.tool).join(' · ')
+          + (g.list.length>8?` 외 ${g.list.length-8}종`:'') : '-'}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="muted" style="margin-top:10px;font-size:11.5px">
+        좌측 「과다」를 누르면 ${o.order_level}% 이상인 ${o.recommend_count}종만 표로 봅니다.</div>
+    </div>`;
+  })();
+
+  const head = `
+    <h2>공구 주문 — ${b.segment_label}</h2>
+    <div class="desc">${back}
+      <span style="${back?'margin-left:10px':''}">소모가 많은 순 — ${
+        canManage?'발주 가능':'조회 전용 (관리자만 발주)'}</span></div>
+    <div class="cards">
+      ${clickCard(cardHtml(`마모 ${o.order_level}% 초과`, o.recommend_count,'종',
+          o.recommend_count?'warn':'ok'), `pickOrder('cand')`)}
+      ${clickCard(cardHtml('평균 초과 사용', o.over_count,'종'), `pickOrder('over')`)}
+      ${clickCard(cardHtml('발주 이력', o.orders.length,'건'), `pickOrder('orders')`)}
+    </div>`;
+
+  const warnPanels = `
+    <div class="panel" style="background:var(--raise)">
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7">
+        <b>잔여 일수와 발주 시점을 표시하지 않습니다.</b>
+        "며칠 남았다"를 말하려면 «이 공구가 몇 일 만에 수명을 다했는가» 가 쌓여야 합니다.
+        아래 교체 이력이 공구마다 두세 번씩 쌓이면 그때 되살립니다.
+        지금은 얼마나 닳았는지(마모율)와 평균보다 몇 배 빨리 닳는지(사용강도)로 우선순위를 정합니다.
+      </div>
+    </div>
+    ${rep.table_missing?`<div class="panel" style="border-color:var(--warn)">
+      <div style="font-size:11.5px;color:var(--warn-ink);line-height:1.7">
+        <b>교체 이력을 저장할 곳이 아직 없습니다.</b><br>${rep.hint}
+        그 전까지 「교체 처리」를 눌러도 저장되지 않습니다.
+      </div></div>`:''}`;
+
+  const repPanel = `<div class="panel">
       <h4>공구 교체 이력</h4>
       <div style="font-size:11.5px;color:var(--muted);line-height:1.7;margin-bottom:10px">
         공구를 갈면 여기에 적습니다. 적는 순간부터 그 공구의 마모율은
@@ -1052,8 +1249,8 @@ async function renderOrder(){
       }).join('')
         : '<tr><td colspan=6 class="muted">아직 교체 기록이 없습니다 — 위 표에서 「교체 처리」를 누르세요</td></tr>'}
       </tbody></table>
-    </div>
-    <div class="panel">
+    </div>`;
+  const ordPanel = `<div class="panel">
       <h4>발주 이력</h4>
       <table><thead><tr><th>일시</th><th>공구</th><th class="n">수량</th><th>담당</th><th>상태</th>
         <th>비고</th><th style="width:74px">출력</th></tr></thead><tbody>
@@ -1072,7 +1269,19 @@ async function renderOrder(){
         : '<tr><td colspan=7 class="muted">발주 이력이 없습니다</td></tr>'}
       </tbody></table>
     </div>`;
+
+  const body =
+      V==='life'   ? lifePanel + candPanel
+    : V==='level'  ? levelPanel + candPanel
+    : V==='cand'   ? candPanel
+    : V==='over'   ? candPanel
+    : V==='orders' ? reportBar('order','open=1') + ordPanel
+    : V==='reps'   ? (rep.table_missing?warnPanels:'') + repPanel
+    : warnPanels + reportBar('order','open=1') + candPanel + repPanel + ordPanel;
+
+  $('main').innerHTML = head + body;
 }
+
 // ── 다중 선택
 let ORDER_CAND = {};
 function toggleTool(t,on){
@@ -1217,6 +1426,11 @@ async function delReplace(id){
 }
 
 // ═════ 알림
+/* 좌측·카드에서 고른 알림 갈래. null 이면 전부 보여 준다.
+   'danger' 위험 · 'break' 파손형 즉시 · 'warn' 주의 · 'unread' 안 읽음 */
+let ALERT_SEL = null;
+function pickAlert(v){ ALERT_SEL = (ALERT_SEL===v? null : v); renderAlert(); }
+
 async function renderAlert(){
   const a = await api('/api/alerts');
   const canManage = ME.role==='manager';
@@ -1232,6 +1446,25 @@ async function renderAlert(){
       </div>`:''}
     </div>`;
 
+  /* 갈래마다 «자동 경보에서 무엇을 남기나 · 받은 알림에서 무엇을 남기나» 를
+     한 곳에 적어 둔다. 두 목록을 따로 거르면 규칙이 갈라진다. */
+  const V = ALERT_SEL;
+  const FILT = {
+    danger: {label:'위험', auto:x=>x.level==='danger', manual:x=>x.level==='danger',
+             desc:'마모율이 교체 임계를 넘었거나 파손형에서 즉시 경보가 난 건'},
+    break:  {label:'파손형 즉시', auto:x=>x.kind==='break', manual:()=>false,
+             desc:'TAP·6mm 미만 드릴 — 과부하·충격 이벤트나 하루 급증. 마모율 임계와는 별개입니다'},
+    warn:   {label:'주의', auto:x=>x.level==='warn', manual:x=>x.level==='warn',
+             desc:'교체 준비 단계이거나 사용강도가 기준을 넘은 건'},
+    unread: {label:'안 읽은 알림', auto:()=>false, manual:x=>x.unread,
+             desc:'사람이 보낸 알림 중 아직 안 읽은 것 — 자동 경보에는 읽음 표시가 없습니다'},
+  };
+  const F = V && FILT[V];
+  const auto   = F ? a.auto.filter(F.auto)     : a.auto;
+  const manual = F ? a.manual.filter(F.manual) : a.manual;
+
+  const it = (k,label,sub) =>
+    `<div class="item ${V===k?'on':''}" onclick="pickAlert('${k}')">${label}<span class="m">${sub}</span></div>`;
   $('side').innerHTML = `<h3>경보 규칙</h3>` +
     a.rules.wear.map(r=>`<div class="item">마모율 ${r.threshold}%<span class="m">${r.name}</span></div>`).join('') +
     `<div class="item">사용강도 ${a.rules.intensity}배<span class="m">과다 소모 경고</span></div>
@@ -1239,22 +1472,29 @@ async function renderAlert(){
      <div class="item">임계 초과 이벤트<span class="m">과부하·충격 발생 시 즉시</span></div>
      <div class="item">하루 급증 ${a.rules.breakage.spike}배<span class="m">직전 ${a.rules.breakage.lookback}일 평균 대비</span></div>`:''}
      <h3>현황</h3>
-     <div class="item">위험<span class="m">${a.counts.danger}건</span></div>
-     ${a.counts.breakage!==undefined?`<div class="item">그중 파손형 즉시<span class="m">${a.counts.breakage}건</span></div>`:''}
-     <div class="item">주의<span class="m">${a.counts.warn}건</span></div>
-     <div class="item">안 읽은 알림<span class="m">${a.counts.unread}건</span></div>`;
+     <div class="item ${V?'':'on'}" onclick="ALERT_SEL=null;renderAlert()">전체
+       <span class="m">아래 항목을 누르면 그것만 봅니다</span></div>` +
+    it('danger','위험',`${a.counts.danger}건`) +
+    (a.counts.breakage!==undefined? it('break','그중 파손형 즉시',`${a.counts.breakage}건`) : '') +
+    it('warn','주의',`${a.counts.warn}건`) +
+    it('unread','안 읽은 알림',`${a.counts.unread}건`);
 
   $('main').innerHTML = `
-    <h2>알림</h2>
-    <div class="desc">자동 경보는 선택한 기준으로 매번 다시 판정합니다 — 규칙 기반이라 근거를 그대로 보여줍니다</div>
+    <h2>알림${F?` — ${F.label}`:''}</h2>
+    <div class="desc">
+      ${F?`<button class="act gray" onclick="ALERT_SEL=null;renderAlert()">← 전체 알림</button>
+          <span style="margin-left:10px">${F.desc}</span>`
+        :'자동 경보는 선택한 기준으로 매번 다시 판정합니다 — 규칙 기반이라 근거를 그대로 보여줍니다'}
+    </div>
     <div class="cards">
-      ${cardHtml('위험', a.counts.danger,'건', a.counts.danger?'warn':'ok')}
-      ${a.counts.breakage!==undefined?cardHtml('파손형 즉시', a.counts.breakage,'건', a.counts.breakage?'warn':'ok'):''}
-      ${cardHtml('주의', a.counts.warn,'건')}
-      ${cardHtml('안 읽은 알림', a.counts.unread,'건', a.counts.unread?'hl':'')}
+      ${clickCard(cardHtml('위험', a.counts.danger,'건', a.counts.danger?'warn':'ok'), `pickAlert('danger')`)}
+      ${a.counts.breakage!==undefined? clickCard(
+        cardHtml('파손형 즉시', a.counts.breakage,'건', a.counts.breakage?'warn':'ok'), `pickAlert('break')`):''}
+      ${clickCard(cardHtml('주의', a.counts.warn,'건'), `pickAlert('warn')`)}
+      ${clickCard(cardHtml('안 읽은 알림', a.counts.unread,'건', a.counts.unread?'hl':''), `pickAlert('unread')`)}
     </div>
 
-    ${canManage?`<div class="panel">
+    ${(canManage && !F)?`<div class="panel">
       <h4>작업자에게 알림 보내기</h4>
       <div class="sendbox">
         <select id="s_to"><option value="all">전체</option>
@@ -1268,16 +1508,20 @@ async function renderAlert(){
       <button class="act" onclick="sendAlert()">전송</button>
     </div>`:''}
 
-    <div class="panel">
-      <h4>받은 알림 ${a.manual.length?`(${a.manual.length})`:''}</h4>
-      ${a.manual.length? a.manual.map(card).join('') : '<div class="muted">받은 알림이 없습니다</div>'}
-    </div>
+    ${(F && !manual.length && !auto.length)?`<div class="panel">
+      <div class="muted">${F.label}에 해당하는 알림이 없습니다.</div></div>`:''}
 
-    <div class="panel">
-      <h4>자동 경보 ${a.auto.length?`(${a.auto.length})`:''}</h4>
-      ${a.auto.length? a.auto.map(card).join('') : '<div class="muted">경보 없음</div>'}
-    </div>`;
+    ${(!F || manual.length)?`<div class="panel">
+      <h4>받은 알림 ${manual.length?`(${manual.length})`:''}</h4>
+      ${manual.length? manual.map(card).join('') : '<div class="muted">받은 알림이 없습니다</div>'}
+    </div>`:''}
+
+    ${(!F || auto.length)?`<div class="panel">
+      <h4>자동 경보 ${auto.length?`(${auto.length})`:''}</h4>
+      ${auto.length? auto.map(card).join('') : '<div class="muted">경보 없음</div>'}
+    </div>`:''}`;
 }
+
 async function sendAlert(){
   const body={to:$('s_to').value, level:$('s_lv').value,
               title:$('s_title').value, body:$('s_body').value};

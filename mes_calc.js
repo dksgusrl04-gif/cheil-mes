@@ -558,6 +558,9 @@
         segments: Object.keys(segs).map(k => ({
           key: k, label: segs[k].label, period: segs[k].period,
           tools: segs[k].tools.length, hours: segs[k].cut_h,
+          /* 그 구간에 어떤 제품이 돌았는가. 영업관리에서 «이 제품만 담긴
+             구간» 을 찾아 건너뛰는 데 쓴다. 계산에는 안 들어간다. */
+          mains: (segs[k].mains || []).map(m => m.main),
         })),
         /* 「기준일수 예상」의 근거 — 화면이 그대로 밝힐 수 있어야 한다.
            예측이라는 사실과, 무엇을 전제했는지를 숫자와 함께 들고 다닌다. */
@@ -823,20 +826,63 @@
   function programDetail(b, name) {
     const p = (b.seg.progs || []).find(x => x.prog === name);
     if (!p) return null;
-    const names = {};
-    (b.seg.tools || []).forEach(t => { names[t.tool] = t.name; });
     const tot = p.raw || 1;
+    /* progs[].tools 가 아니라 tools[].progs 에서 모은다 — 앞엣것은 상위 12종만
+       실려 있어 합이 프로그램 마모량에 못 미친다 (productBreak 주석 참조). */
+    const acc = progTools(b, new Set([p.prog]));
     return {
       prog: {
         prog: p.prog, main: p.main, hours: p.hours, rows: p.rows,
         wear: round(b.wear(p.raw), 4),
       },
-      tools: (p.tools || []).map(x => ({
-        tool: x.tool, name: names[x.tool] || `T${x.tool}`,
-        wear: round(b.wear(x.raw), 5),
-        share: round(100 * x.raw / tot, 2),
-      })),
+      tools: [...acc.entries()].map(([tool, v]) => ({
+        tool: tool, name: v.name || `T${tool}`,
+        wear: round(b.wear(v.raw), 5),
+        share: round(100 * v.raw / tot, 2),
+      })).sort((x, y) => (y.share - x.share) || (x.tool - y.tool)),
     };
+  }
+
+  /* 제품(메인 프로그램) 하나를 열었을 때 보여 줄 속내용.
+
+     새로 계산하는 값은 없다. 그 제품에 딸린 프로그램들의 공구별 마모량을
+     그대로 더할 뿐이다 (prog.tools 는 집계본에 이미 있다). 그래서 제품별
+     합은 언제나 전체 합과 맞아떨어진다 — 여기서 어긋나면 집계가 깨진 것이다.
+
+     일별·생산량은 제품별로 나누지 않는다. 집계본의 days 는 설비 전체 기준이라
+     제품별로 쪼갤 근거가 없다. 없는 걸 만들어 내느니 화면에서 밝히는 쪽이 낫다. */
+  /* 공구 → 프로그램별 마모량. 집계본의 tools[].progs 를 쓴다.
+
+     progs[].tools 를 쓰지 않는 이유 — 그쪽은 프로그램마다 상위 12종만 싣는다
+     (mes_rebuild.py 의 [:12]). O390 은 실제로 26종을 쓰는데 12종만 실려서,
+     그 목록을 더하면 프로그램 마모량의 74% 밖에 안 된다. tools[].progs 는
+     자르지 않은 전량이라 합이 정확히 맞는다 (세 구간 모두 편차 0). */
+  function progTools(b, want) {
+    const acc = new Map();
+    (b.seg.tools || []).forEach(t => {
+      const pm = t.progs || {};
+      let r = 0;
+      Object.keys(pm).forEach(p => { if (want.has(p)) r += pm[p]; });
+      if (r > 0) acc.set(t.tool, { raw: r, name: t.name, cls: t.cls });
+    });
+    return acc;
+  }
+
+  function productBreak(b, m) {
+    const set = new Set(m.progs || []);
+    const acc = progTools(b, set);
+    const progs = (b.seg.progs || []).filter(p => set.has(p.prog)).map(p => ({
+      prog: p.prog, hours: p.hours, rows: p.rows,
+      wear: round(b.wear(p.raw), 4),
+      tools: progTools(b, new Set([p.prog])).size,
+    }));
+    const tot = m.raw || 1;
+    const tools = [...acc.entries()].map(([tool, v]) => ({
+      tool: tool, name: v.name || ('T' + tool), cls: v.cls || 'wear',
+      wear: round(b.wear(v.raw), 5), share: round(100 * v.raw / tot, 2),
+    })).sort((x, y) => (y.share - x.share) || (x.tool - y.tool));
+    progs.sort((x, y) => (y.wear - x.wear) || (x.prog < y.prog ? -1 : 1));
+    return { tools: tools, prog_rows: progs };
   }
 
   function sales(b) {
@@ -852,10 +898,10 @@
     return {
       basis: b.info(), parts: parts, wear: round(wear, 4), per_part: perPart,
       per_1000: round(perPart * 1000, 4), days: days,
-      mains: (s.mains || []).map(m => ({
+      mains: (s.mains || []).map(m => Object.assign({
         main: m.main, hours: m.hours, wear: round(b.wear(m.raw), 4),
         progs: m.progs.length, share: round(100 * m.raw / (s.raw_total || 1), 1),
-      })),
+      }, productBreak(b, m))),
       capacity: [1000, 5000, 10000, 20000].map(q => ({
         qty: q, wear: round(perPart * q, 3),
         days: avg ? round(perPart * q / avg, 1) : 0,
