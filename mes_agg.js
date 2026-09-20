@@ -53,11 +53,27 @@
   const EV_KEEP = 1500;   // 임계 초과 이벤트를 몇 건까지 들고 갈 것인가 (최근 우선)
   const SWITCH_MS = Date.parse('2026-08-24T16:00:00');   // 부품 모델 전환 시각
 
-  const SEG_META = {
-    fa: { label: 'FA 밸브', period: '2026-08-06 ~ 08-24 16:00' },
-    rear: { label: '3.5톤 RearCover', period: '2026-08-24 16:00 ~ 08-27' },
-    all: { label: '전체 (구간 혼합)', period: '2026-08-06 ~ 08-27' },
+  /* 구간 이름은 사람이 붙인 것이라 박아 둔다. 기간은 «자료에서» 뽑는다.
+     예전에는 기간도 박아 뒀는데, 주차를 더해도 안 바뀌어서 43일치 집계에
+     「2026-08-06 ~ 08-27」 이라고 적혀 나갔다. mes_rebuild.py 의
+     seg_meta() 와 한 글자도 다르면 안 된다 — _test_both.py 가 대조한다. */
+  const SEG_LABEL = {
+    fa: 'FA 밸브', rear: '3.5톤 RearCover', all: '전체 (구간 혼합)',
   };
+  const SWITCH_DAY = '2026-08-24';
+  const SWITCH_TXT = '2026-08-24 16:00';   // 전환 시각 (연-월-일 시:분)
+  const SWITCH_MD = '08-24 16:00';         // 전환 시각 (월-일 시:분)
+
+  function segMeta(sg, days) {
+    const lab = SEG_LABEL[sg] || sg;
+    if (!days || days.length === 0) return { label: lab, period: '' };
+    const lo = days[0].date, hi = days[days.length - 1].date;
+    /* 전환 시각은 «그날 자료가 실제로 있을 때만» 적는다. 자료가 전환일보다
+       늦게 시작하는데 전환 시각을 적으면, 없는 날까지 관측한 것처럼 보인다. */
+    if (sg === 'fa' && hi === SWITCH_DAY) return { label: lab, period: `${lo} ~ ${SWITCH_MD}` };
+    if (sg === 'rear' && lo === SWITCH_DAY) return { label: lab, period: `${SWITCH_TXT} ~ ${hi.slice(5)}` };
+    return { label: lab, period: `${lo} ~ ${hi.slice(5)}` };
+  }
 
   /* ── 카한 합 — 100만 번 더해도 오차가 안 쌓인다 ───────────── */
   function Kahan() { this.s = 0; this.c = 0; }
@@ -737,11 +753,11 @@
     for (const k of ['fa', 'rear']) {
       if (segs[k].rows === 0) continue;
       out[k] = build(segs[k]);
-      Object.assign(out[k], SEG_META[k]);
+      Object.assign(out[k], segMeta(k, out[k].days));
     }
     if (out.fa && out.rear) {
       out.all = mixAll(out.fa, out.rear);
-      Object.assign(out.all, SEG_META.all);
+      Object.assign(out.all, segMeta('all', out.all.days));
     }
     const keys = Object.keys(out);
     if (keys.length === 0) throw new Error('집계할 행이 없습니다. 날짜·컬럼을 확인하세요.');
