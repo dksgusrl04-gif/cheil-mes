@@ -130,6 +130,66 @@
   #bnote{font-size:11.5px;color:var(--muted);line-height:1.45;
     white-space:nowrap}
   #bnote b{color:var(--accent);font-weight:650}
+  /* ── 한 줄 안내 띠 ─────────────────────────────────────────
+     문단으로 깔아 두던 설명을 한 줄로 줄인 자리. 자세한 것은 «?» 뒤. */
+  .note{background:var(--accent-soft);border:1px solid var(--accent-line);
+    border-radius:var(--r-sm);padding:9px 13px;margin:0 0 13px;font-size:12.5px;
+    color:var(--ink-2);line-height:1.6;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .note.warn{background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn-ink)}
+  .note.danger{background:var(--danger-soft);border-color:var(--danger-line);color:#991B1B}
+  .note b{font-weight:650}
+  .lnk{border:1px solid currentColor;background:transparent;color:inherit;font:inherit;
+    font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;cursor:pointer}
+  .lnk:hover{background:rgba(255,255,255,.55)}
+  .hint{font-weight:400;font-size:11.5px;color:var(--faint);margin-left:7px}
+
+  /* ── 「?」 부가설명 단추 ─────────────────────────────────── */
+  .help{width:17px;height:17px;border-radius:50%;border:1px solid var(--line);
+    background:var(--surface);color:var(--muted);font:600 11px/1 sans-serif;
+    cursor:pointer;padding:0;flex:none;transition:all .12s}
+  .help:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .helpbox{position:fixed;inset:0;background:rgba(15,23,42,.36);z-index:60;
+    display:flex;align-items:center;justify-content:center;padding:24px}
+  .helpbox.hide{display:none}
+  .hcard{background:var(--surface);border-radius:var(--r);box-shadow:var(--sh-2);
+    max-width:520px;width:100%;padding:22px 24px 18px}
+  .hcard h4{margin:0 0 11px;font-size:15px;color:var(--ink)}
+  .hcard p{margin:0 0 9px;font-size:12.5px;color:var(--ink-2);line-height:1.75}
+  .hcard .act{margin-top:6px}
+
+  /* ── 원그래프 범례(색 뜻) ──────────────────────────────── */
+  .dsum{margin-top:13px;font-size:11.5px;color:var(--muted);line-height:1.6}
+  .dsum b{color:var(--ink);font-weight:650}
+  .dkey{display:flex;align-items:center;gap:15px;margin-top:13px;padding-top:11px;
+    border-top:1px solid var(--line-2);font-size:11.5px;color:var(--muted)}
+  .dkey span{display:flex;align-items:center;gap:5px}
+  .dkey i{width:9px;height:9px;border-radius:2px}
+  /* ── 사용량 원그래프 ────────────────────────────────────────
+     조각 크기 = 돌아간 시간, 조각 색 = 마모 단계.
+     크고 빨간 조각이 지금 제일 급한 공구다. */
+  .donut{display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:center}
+  .dchart{position:relative;width:240px;height:240px}
+  .dchart svg{width:100%;height:100%;display:block}
+  .dslice{cursor:pointer;transition:opacity .12s,transform .12s;transform-origin:100px 100px}
+  .dslice:hover,.dslice:focus{outline:none;transform:scale(1.035)}
+  .dslice.dim{opacity:.34}
+  .dmid{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;pointer-events:none;text-align:center;padding:0 26px}
+  .dmid b{font-size:26px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.01em}
+  .dmid b.lv1{color:var(--warn)} .dmid b.lv2{color:var(--danger)}
+  .dmid span{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .dmid span.sub{font-size:10.5px;color:var(--faint);margin-top:1px}
+  .dlegs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px}
+  .dleg{display:flex;align-items:center;gap:8px;padding:5px 8px;border:0;border-radius:6px;
+    background:transparent;font:inherit;font-size:12px;color:var(--ink-2);cursor:pointer;
+    text-align:left;width:100%;transition:background .1s}
+  .dleg:hover,.dleg.on{background:var(--accent-soft)}
+  .dleg i{width:9px;height:9px;border-radius:2px;flex:none}
+  .dleg .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dleg .hr{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11.5px}
+  .dleg .we{width:46px;text-align:right;color:var(--ink);font-weight:600;
+    font-variant-numeric:tabular-nums;font-size:11.5px}
+  @media(max-width:900px){ .donut{grid-template-columns:1fr} .dchart{margin:0 auto} }
   .warnbar{grid-column:1/3;align-self:start;background:var(--warn-soft);
     border-bottom:1px solid var(--warn-line);color:#92610C;padding:9px 22px;font-size:12px}
 
@@ -369,10 +429,12 @@
   원본 CSV 는 공장 밖으로 나가지 않습니다.
 </div>
   <div id="basis">
-    <div class="bset"><span>구간</span><select id="b_seg" onchange="setBasis()"></select></div>
+    <div class="bset"><span>구간</span><select id="b_seg" onchange="setBasis()"></select>
+      <button class="help" type="button" title="구간이란" onclick="openHelp('segment')">?</button></div>
     <div class="bset"><span>기준 수명</span><select id="b_life" onchange="setBasis()"></select></div>
     <div class="bset"><span>주간 가동시간</span><select id="b_week" onchange="setBasis()"></select></div>
-    <div class="bset"><span>앵커</span><select id="b_anchor" onchange="setBasis()"></select></div>
+    <div class="bset"><span>앵커</span><select id="b_anchor" onchange="setBasis()"></select>
+      <button class="help" type="button" title="기준 공구와 자" onclick="openHelp('anchor')">?</button></div>
     <div id="bnote"></div>
   </div>
   <div id="warn" class="warnbar hide"></div>
@@ -384,10 +446,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="bc2bc9f52e">
+<meta name="mes-build" content="93c08dd4f9">
 <script>
 (function(){
-  var mine = "bc2bc9f52e";
+  var mine = "93c08dd4f9";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -590,6 +652,194 @@ async function render(){
 }
 
 // ═════ 대시보드
+/* ═════ 부가설명 — 화면에서 덜어 낸 근거를 «물어볼 때만» 보여 준다
+   ════════════════════════════════════════════════════════════════
+   예전에는 근거와 단서를 본문에 통째로 깔아 뒀다. 정직하지만, 처음
+   보는 관리자에게는 읽을 것이 너무 많아 정작 숫자가 안 보였다.
+
+   그래서 한 줄만 남기고 나머지는 «?» 뒤로 넣었다. 묻지 않으면 안
+   나오고, 물으면 그 자리에서 나온다. 심사에서 「근거가 뭐냐」가
+   나오면 그 자리에서 누르면 된다 — 없앤 것이 아니라 접어 둔 것이다.
+
+   이 표가 화면_설명.md 의 원본이기도 하다. 두 군데 적으면 갈라진다. */
+const HELP = {
+  'anchor-stall': ['기준 공구가 안 돌 때',
+    '마모율은 «기준 공구(앵커)가 400일에 100%» 라는 자로 잽니다. 그 기준 공구가 이 구간에서 안 돌면 「기준 대비 진행」만 멈춥니다.\n자(k)는 한 번 만들고 얼려 두기 때문에 다른 공구의 마모율은 흔들리지 않습니다.\n기준 공구가 계속 안 돌면, 꾸준히 도는 공구로 기준을 옮기는 것을 검토하세요 (옮겨도 공구들 사이의 비율은 안 바뀝니다).'],
+  'donut': ['원그래프 읽는 법',
+    '조각의 «크기» 는 그 공구가 실제로 돈 절삭시간입니다. 많이 돌수록 조각이 큽니다.\n조각에 마우스를 올리면 그 공구의 마모율이 가운데에 나옵니다. 누르면 아래에서 자세히 볼 수 있습니다.\n조각의 «진하기» 는 마모율입니다 — 다만 절대 위험도가 아니라 이 열 종 안에서 견준 상대값입니다. 지금은 90%를 넘은 공구가 없어 절대 단계로는 색이 갈리지 않기 때문입니다.\n90%를 넘으면 주황, 100%를 넘으면 빨강으로 바뀝니다. 그때는 진하기가 아니라 색으로 바로 보입니다.\n많이 쓴 순서로 열 종만 그립니다. 나머지가 전체에서 몇 시간인지는 그림 아래에 적습니다.'],
+  'wear': ['마모율이란',
+    '1초마다 «이번 1초에 공구가 얼마나 상했나» 를 계산해 더한 값입니다. 그 합을 0~100% 로 환산합니다.\n무엇이 공구를 상하게 하는가 — 실가공 50 · 과부하 30 · 충격 10 · 알림 10 으로 배분했습니다. 알림은 수집이 안 돼 실제로는 실가공 55.56 · 과부하 33.33 · 충격 11.11 % 가 됩니다.\n절대 잔여 수명이 아니라, 기준 공구와 견준 «상대값» 입니다.'],
+  'breakage': ['파손형 공구',
+    'TAP 과 지름 6mm 미만 드릴은 닳아서 죽지 않고 한 번의 충격으로 부러집니다.\n그래서 이 공구들의 값은 «닳은 정도» 가 아니라 그동안 받은 과부하·충격의 누적입니다. 낮아도 부러질 수 있습니다.\n파손 위험은 알림 탭의 「파손형 즉시」 경보로 따로 봅니다.'],
+  'trend': ['소요 전류 추세',
+    '같은 조건에서 깎을 때 드는 전류가 주마다 얼마나 늘었는지를 본 값입니다.\n가중치도 기준일수도 안 쓴 «관측값» 이라 마모율과는 별개입니다.\n무뎌지면 같은 일을 하는 데 힘이 더 들기 때문에, 마모의 방증으로 씁니다.'],
+  'life': ['예상 수명',
+    '기준 공구를 몇 일로 잡느냐에 따라 정해지는 «환산값» 입니다.\n공구마다 내구성이 같다는 전제가 들어 있습니다. 교체 이력이 쌓이면 공구별로 다시 맞춰야 합니다.\n「며칠 남았다」를 화면에 안 띄우는 것도 같은 이유입니다.'],
+  'intensity': ['사용강도',
+    '평균 공구 한 자루가 닳는 속도를 1 로 놓았을 때, 이 공구가 몇 배로 닳는지입니다.\n기준일수·앵커를 안 쓰는 값이라 기준을 바꿔도 안 흔들립니다. 기준 논쟁이 있을 때 이쪽을 보세요.'],
+  'anchor': ['기준 공구(앵커)와 자',
+    '마모율 = 자(k) × 그 공구의 마모량. 자는 «기준 공구가 400일에 100% 가 되도록» 한 번 만들고 얼려 둡니다.\n얼려 두는 이유 — 매번 다시 만들면, 그 공구를 안 썼는데도 설비가 돌았다는 이유만으로 값이 오르내립니다.\n앵커를 누구로 잡든 공구들 사이의 비율은 안 바뀝니다.'],
+  'segment': ['구간 — FA 밸브 / 리어커버',
+    '2026-08-24 16:00 에 부품 모델이 바뀌면서 공구 세트가 통째로 교체됐습니다.\n같은 공구 번호라도 앞뒤가 다른 공구일 수 있어, 두 구간을 섞은 「전체」 값은 참고용입니다.\n「지금 뭐가 급한가」를 볼 때는 리어커버 구간만 보시는 편이 정확합니다.'],
+  'missing': ['못 쓴 신호',
+    '알람·진동 첨도·주축 부하율·생산 수량·고정 사이클 G코드는 수집이 안 되거나 값이 고정이라 계산에 못 넣었습니다.\n못 쓴 것을 썼다고 하지 않으려고 화면에도 「미수집」으로 그대로 적습니다.'],
+};
+
+function helpBtn(key){
+  const h = HELP[key];
+  if(!h) return '';
+  return `<button class="help" type="button" aria-label="${esc(h[0])} 설명"
+    title="${esc(h[0])}" onclick="openHelp('${key}')">?</button>`;
+}
+
+function openHelp(key){
+  const h = HELP[key]; if(!h) return;
+  let box = $('helpbox');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'helpbox'; box.className = 'helpbox hide';
+    document.body.appendChild(box);
+    box.addEventListener('click', e => { if(e.target === box) closeHelp(); });
+  }
+  box.innerHTML = `<div class="hcard">
+    <h4>${esc(h[0])}</h4>
+    ${h[1].split('\n').map(t => `<p>${esc(t)}</p>`).join('')}
+    <button class="act sec" onclick="closeHelp()">닫기</button>
+  </div>`;
+  box.classList.remove('hide');
+}
+function closeHelp(){ const b = $('helpbox'); if(b) b.classList.add('hide'); }
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeHelp(); });
+
+
+/* ═════ 사용량 원그래프 ═════════════════════════════════════════
+   조각 «크기» 는 그 공구가 실제로 돈 시간, 조각 «색» 은 마모 단계다.
+   그래서 «크고 빨간 조각» 이 지금 제일 급한 공구가 된다 — 설명을
+   읽지 않아도 눈이 먼저 찾는다.
+
+   라이브러리를 안 쓴다. 조각 하나에 <path> 하나씩 그리고, 마우스를
+   올리면 가운데 글자만 바꾼다. 붙일 것이 없으니 오프라인에서도 돈다. */
+const WLV = w => w >= 100 ? 2 : w >= 90 ? 1 : 0;      // 0 보통 · 1 주의 · 2 교체
+const WCOL = ['var(--chart-bar)', 'var(--warn)', 'var(--danger)'];
+
+/* 조각 진하기 — 경보선(90·100%)은 색으로 못박고, 그 아래는 «이 그림 안에서»
+   상대적으로 얼마나 닳았나를 진하기로 낸다.
+   처음에는 0~90% 를 진하기로 폈는데, 지금 자료는 8~28% 에 몰려 있어
+   열 조각이 죄다 비슷한 연파랑이 됐다. 눈에 안 갈리면 없는 것과 같다.
+   그래서 «그림에 실제로 들어간 값의 범위» 로 편다. 대신 이건 절대 위험도가
+   아니라 상대 비교라는 것을 범례와 «?» 에 분명히 적는다. */
+function wden(w, lo, hi){
+  if(!(hi > lo)) return 0.72;
+  return 0.30 + 0.70 * Math.min(Math.max(((w || 0) - lo) / (hi - lo), 0), 1);
+}
+
+function donutTop(tools, n){
+  n = n || 10;
+  const used = tools.filter(t => (t.hours || 0) > 0)
+                    .sort((a, b) => b.hours - a.hours);
+  if(!used.length) return '<div class="muted" style="padding:20px 0">돌아간 공구가 없습니다</div>';
+
+  /* 상위 n 종«만» 그린다. 「그 외」를 한 조각으로 넣어 보니 그 회색 덩어리가
+     44% 를 차지해 정작 보여 주려던 열 개가 안 보였다. 대신 이 열 종이 전체의
+     몇 %인지는 그림 아래에 글로 적는다 — 숨기지 않고 자리만 옮긴 것이다. */
+  const top = used.slice(0, n);
+  const rest = used.slice(n);
+  const restH = rest.reduce((s, t) => s + t.hours, 0);
+  const allH = used.reduce((s, t) => s + t.hours, 0);
+  const all = top.reduce((s, t) => s + t.hours, 0);
+
+  const ws = top.map(t => t.wear || 0);
+  const lo = Math.min(...ws), hi = Math.max(...ws);
+  const seg = top.map(t => ({ tool: t.tool, name: t.name, h: t.hours,
+                              wear: t.wear, cls: t.cls,
+                              col: WCOL[WLV(t.wear)],
+                              op: WLV(t.wear) ? 1 : wden(t.wear, lo, hi),
+                              lv: WLV(t.wear) }));
+
+  const R = 88, r = 54, C = 100;      // 바깥·안쪽 반지름, 중심
+  let a0 = -Math.PI / 2;              // 12시부터 시계방향
+  const arcs = seg.map((g, i) => {
+    const a1 = a0 + (g.h / all) * Math.PI * 2;
+    const big = (a1 - a0) > Math.PI ? 1 : 0;
+    const P = (rad, ang) => [C + rad * Math.cos(ang), C + rad * Math.sin(ang)];
+    const [x1, y1] = P(R, a0), [x2, y2] = P(R, a1);
+    const [x3, y3] = P(r, a1), [x4, y4] = P(r, a0);
+    a0 = a1;
+    const lab = g.tool == null ? g.name : `T${g.tool} ${g.name}`;
+    return `<path d="M${x1} ${y1} A${R} ${R} 0 ${big} 1 ${x2} ${y2}
+             L${x3} ${y3} A${r} ${r} 0 ${big} 0 ${x4} ${y4} Z"
+      fill="${g.col}" fill-opacity="${g.op.toFixed(3)}" class="dslice" tabindex="0" role="button"
+      data-i="${i}" data-tool="${g.tool == null ? '' : g.tool}"
+      data-lab="${esc(lab)}" data-h="${g.h.toFixed(2)}"
+      data-pct="${(100 * g.h / all).toFixed(1)}"
+      data-wear="${g.wear == null ? '' : g.wear.toFixed(2)}"
+      data-lv="${g.lv}"><title>${esc(lab)} — ${g.h.toFixed(1)}h${
+        g.wear == null ? '' : ` · 마모 ${g.wear.toFixed(2)}%`}</title></path>`;
+  }).join('');
+
+  const legend = seg.map((g, i) => `<button class="dleg" data-i="${i}"
+      ${g.tool == null ? '' : `onclick="SEL.tool=${g.tool};render()"`}>
+      <i style="background:${g.col};opacity:${g.op.toFixed(3)}"></i>
+      <span class="nm">${g.tool == null ? esc(g.name) : 'T' + g.tool + ' ' + esc(g.name)}</span>
+      <span class="hr">${g.h.toFixed(1)}h</span>
+      <span class="we">${g.wear == null ? '' : g.wear.toFixed(1) + '%'}</span>
+    </button>`).join('');
+
+  return `<div class="donut">
+    <div class="dchart">
+      <svg viewBox="0 0 200 200" role="img" aria-label="공구별 사용량">
+        ${arcs}
+        <circle cx="100" cy="100" r="${r - 1}" fill="var(--surface)"></circle>
+      </svg>
+      <div class="dmid" id="dmid">
+        <b>${top.length}종</b>
+        <span>가장 많이 쓴 공구</span>
+      </div>
+    </div>
+    <div class="dlegs">${legend}</div>
+  </div>
+  <div class="dsum">진한 조각일수록 많이 닳았습니다 — 이 그림 안에서 견준 것으로,
+    가장 옅은 것이 ${lo.toFixed(1)}% · 가장 진한 것이 ${hi.toFixed(1)}% 입니다.<br>이 ${top.length}종이 전체 절삭의
+    <b>${(100 * all / allH).toFixed(0)}%</b>
+    (${all.toFixed(1)}h / ${allH.toFixed(1)}h)${
+      rest.length ? ` · 나머지 ${rest.length}종은 ${restH.toFixed(1)}h` : ''}</div>`;
+}
+
+/* 마우스를 올리면 가운데 글자를 바꾼다. 조각마다 말풍선을 띄우면
+   화면이 어지럽고, 가운데는 어차피 비어 있다. */
+function bindDonut(){
+  const mid = $('dmid'); if(!mid) return;
+  const base = mid.innerHTML;
+  const show = el => {
+    const w = el.dataset.wear;
+    mid.innerHTML = `<b class="${w === '' ? '' : 'lv' + el.dataset.lv}">${
+        w === '' ? el.dataset.h + 'h' : w + '%'}</b>` +
+      `<span>${esc(el.dataset.lab)}</span>` +
+      `<span class="sub">${el.dataset.h}h · 사용량의 ${el.dataset.pct}%</span>`;
+    document.querySelectorAll('.dleg').forEach(b =>
+      b.classList.toggle('on', b.dataset.i === el.dataset.i));
+    document.querySelectorAll('.dslice').forEach(p =>
+      p.classList.toggle('dim', p.dataset.i !== el.dataset.i));
+  };
+  const clear = () => {
+    mid.innerHTML = base;
+    document.querySelectorAll('.dleg').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('.dslice').forEach(p => p.classList.remove('dim'));
+  };
+  document.querySelectorAll('.dslice').forEach(p => {
+    p.addEventListener('mouseenter', () => show(p));
+    p.addEventListener('focus', () => show(p));
+    p.addEventListener('click', () => { if(p.dataset.tool){ SEL.tool = +p.dataset.tool; render(); } });
+  });
+  document.querySelectorAll('.dleg').forEach(b => {
+    b.addEventListener('mouseenter', () =>
+      show(document.querySelector(`.dslice[data-i="${b.dataset.i}"]`)));
+  });
+  const box = document.querySelector('.donut');
+  if(box) box.addEventListener('mouseleave', clear);
+}
+
+
 async function renderDash(){
   const ov = await api('/api/overview');
   const b = ov.basis; fillBasisBar(b);
@@ -609,78 +859,87 @@ async function renderDash(){
   DASH_TOOL = det ? det.tool : null;     // 「교체 처리」가 이 값을 쓴다
   const s = ov.summary;
 
+  // 사용량 상위 — 급한 순서가 아니라 «많이 쓴 순서» 다. 관리자가 먼저
+  // 보고 싶은 것은 「무엇이 제일 많이 도는가」 이고, 그중 빨간 것이 급한 것이다.
+  const busy = TOOLS.filter(x => (x.hours || 0) > 0)
+                    .sort((a, b2) => b2.hours - a.hours).slice(0, 10);
+  const hot = TOOLS.filter(x => x.wear >= 90).sort((a, b2) => b2.wear - a.wear);
+
   $('main').innerHTML = `
-    <h2>대시보드 — ${b.segment_label}</h2>
-    <div class="desc">${b.segment_period} · 앵커 <b>${b.anchor_label}</b> = ${b.life_days}일 ·
-      주간 ${b.week_hours}h · 데이터 ${b.built}</div>
-    ${s.anchor_live===false?`<div class="panel" style="border-color:var(--warn)">
-      <div style="font-size:11.5px;color:var(--warn-ink);line-height:1.7">
-        <b>기준 공구가 이 구간에서 안 돌았습니다.</b>
-        「기준 대비 진행」이 보정 시점 값에 멈춰 있습니다. 다른 공구 마모율은 정상입니다
-        (자는 얼려 두었으니 흔들리지 않습니다). 기준 공구가 계속 안 돌면
-        꾸준히 도는 공구로 기준을 옮기는 것을 검토하세요.
-      </div></div>`:''}
+    <h2>대시보드</h2>
+    <div class="desc">${b.segment_label} · ${b.segment_period}</div>
+    ${s.anchor_live===false?`<div class="note warn">
+      <b>기준 공구가 이 구간에서 안 돌았습니다</b> — 「기준 대비 진행」이 멈춰 있습니다.
+      다른 공구 마모율은 정상입니다. ${helpBtn('anchor-stall')}</div>`:''}
 
     <div class="cards">
+      ${cardHtml('교체가 필요한 공구', hot.length, '종', hot.length?'warn':'ok')}
+      ${cardHtml('가장 많이 쓴 공구', busy[0]?('T'+busy[0].tool):'-',
+                 busy[0]?f2(busy[0].hours)+'h':'')}
       ${cardHtml('관측 절삭', f2(s.cut_hours), 'h')}
-      ${cardHtml(s.anchor_live===false?'기준 대비 진행 (멈춤)':'기준 대비 진행',
-                 f2(s.anchor_wear), '%', s.anchor_live===false?'warn':'hl')}
-      ${cardHtml('평균 공구 마모', f2(s.mean_wear), '%')}
-      ${cardHtml('사용 공구', s.tools, '종')}
-      ${cardHtml('생산 수량', num(s.parts), '개')}
-      ${cardHtml('평균 초과 사용', ov.over, '종', ov.over?'warn':'ok')}
+      ${cardHtml('쓰는 공구', s.tools, '종')}
     </div>
 
-    ${reportBar('wear')}
+    ${hot.length?`<div class="note danger">
+      <b>먼저 보세요</b> — ${hot.slice(0,4).map(x=>`<button class="lnk" onclick="SEL.tool=${x.tool};render()">T${x.tool} ${esc(x.name)} ${f2(x.wear)}%</button>`).join(' ')}
+      ${hot.length>4?`<span class="muted">외 ${hot.length-4}종</span>`:''}</div>`:''}
+
     <div class="panel">
-      <h4>공구 선택</h4>
-      <select id="tsel" onchange="SEL.tool=+this.value;render()">
-        ${TOOLS.map(x=>`<option value="${x.tool}" ${x.tool===SEL.tool?'selected':''}>
-          T${x.tool} · ${x.name} — 마모 ${f2(x.wear)}% · 사용강도 ${inten(x.intensity)}</option>`).join('')}
-      </select>
-      <div class="chips">
-        <span class="muted" style="align-self:center;font-size:12px;margin-right:4px">사용량 TOP 5</span>
-        ${ov.top5.map(x=>`<button class="chip ${x.tool===SEL.tool?'on':''}" onclick="SEL.tool=${x.tool};render()">
-          T${x.tool} ${x.name}<span class="r">${f2(x.share)}%</span></button>`).join('')}
+      <h4>어느 공구가 많이 도는가 <span class="hint">조각에 마우스를 올리면 마모율</span></h4>
+      ${donutTop(TOOLS, 10)}
+      <div class="dkey">
+        <span><i style="background:var(--chart-bar);opacity:.3"></i><i
+          style="background:var(--chart-bar);opacity:.65;margin-left:-2px"></i><i
+          style="background:var(--chart-bar);margin-left:-2px"></i>진할수록 많이 닳음</span>
+        <span><i style="background:var(--warn)"></i>주의 90% 이상</span>
+        <span><i style="background:var(--danger)"></i>교체 100% 이상</span>
+        ${helpBtn('donut')}
       </div>
     </div>
+
+    <div class="panel">
+      <h4>공구 하나 자세히 보기</h4>
+      <select id="tsel" onchange="SEL.tool=+this.value;render()">
+        ${TOOLS.map(x=>`<option value="${x.tool}" ${x.tool===SEL.tool?'selected':''}>
+          T${x.tool} · ${x.name} — 마모 ${f2(x.wear)}%</option>`).join('')}
+      </select>
+      <div class="chips">
+        ${busy.slice(0,6).map(x=>`<button class="chip ${x.tool===SEL.tool?'on':''}" onclick="SEL.tool=${x.tool};render()">
+          T${x.tool} ${esc(x.name)}<span class="r">${f2(x.hours)}h</span></button>`).join('')}
+      </div>
+    </div>
+    ${reportBar('wear')}
 
     ${det ? `
     <div class="grid2">
       <div class="panel">
         <h4>T${det.tool.tool} · ${det.tool.name}
           <span class="tag ${det.tool.cls==='breakage'?'b':'w'}">${det.tool.cls==='breakage'?'파손형':'마모형'}</span>
-          <span class="muted" style="font-weight:400;font-size:12px"> — ${det.tool.wear_label||'마모율'}</span></h4>
+          <span class="muted" style="font-weight:400;font-size:12px"> — ${det.tool.wear_label||'마모율'}</span>
+          ${helpBtn(det.tool.cls==='breakage'?'breakage':'wear')}</h4>
         <div class="gauge"><i class="${lvl(det.tool.wear)}" style="width:${Math.min(det.tool.wear,100)}%"></i>
           <span>${f3(det.tool.wear)} %</span></div>
-        ${det.tool.cls==='breakage'?`<div style="font-size:11px;color:var(--warn-ink);line-height:1.6;margin:6px 0 2px">
-          파손형입니다. 이 값은 «닳은 정도» 가 아니라 <b>그동안 받은 과부하·충격의 누적</b>입니다.
-          낮아도 한 번에 부러질 수 있으니, 파손 위험은 알림 탭의 «파손형 즉시» 경보를 보세요.
-        </div>`:''}
+        ${det.tool.cls==='breakage'?`<div class="note warn" style="margin:8px 0 2px">
+          닳은 정도가 아니라 <b>받은 충격의 누적</b>입니다 — 낮아도 부러질 수 있습니다.
+          ${helpBtn('breakage')}</div>`:''}
         <div class="row"><span>경보 단계</span><span>${det.level}</span></div>
         ${det.tool.trend?`<div class="row">
-          <span>소요 전류 추세 <span class="tag ${det.tool.trend.pct_per_week>1?'b':'w'}">관측</span></span>
+          <span>소요 전류 추세 <span class="tag ${det.tool.trend.pct_per_week>1?'b':'w'}">관측</span> ${helpBtn('trend')}</span>
           <span class="mono">${det.tool.trend.pct_per_week>0?'+':''}${f2(det.tool.trend.pct_per_week)} %/주
             · 누적 ${det.tool.trend.cum_pct>0?'+':''}${f2(det.tool.trend.cum_pct)} %</span></div>
-          <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:5px">
-            ${(b.trend_basis&&b.trend_basis.basis)||''}
-            표본 ${num(det.tool.trend.rows)}행. 가중치·기준일수를 쓰지 않은 관측값이라 마모율과 별개입니다.
-          </div>`:''}
+          `:''}
         ${det.tool.wear_h!==null&&det.tool.wear_h!==undefined?`<div class="row">
           <span>${(b.horizon&&b.horizon.label)||'예상'} <span class="tag w">예측</span></span>
           <span class="mono">${f2(det.tool.wear_h)} %</span></div>
-          <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:5px">
-            ${(b.horizon&&b.horizon.note)||''}</div>`:''}
-        <div class="row"><span>사용강도 (평균 대비)</span><span class="mono">${inten(det.tool.intensity)}</span></div>
-        <div class="row"><span>예상 수명 <span class="tag w">참고</span></span><span class="mono">${days(det.tool.life)}</span></div>
-        <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:7px">${det.tool.life_basis||''}<br>앵커를 고르면 정해지는 환산값입니다. 공구별 내구성이 같다는 전제가 있어 교체 이력이 쌓이면 보정이 필요합니다.</div>
+          `:''}
+        <div class="row"><span>사용강도 (평균 대비) ${helpBtn('intensity')}</span><span class="mono">${inten(det.tool.intensity)}</span></div>
+        <div class="row"><span>예상 수명 <span class="tag w">참고</span> ${helpBtn('life')}</span><span class="mono">${days(det.tool.life)}</span></div>
         <div class="row"><span>누적 절삭</span><span class="mono">${f2(det.tool.hours)} h</span></div>
         <div class="row"><span>세트 내 기여도</span><span class="mono">${f2(det.tool.share)} %</span></div>
         ${det.tool.replaced_at?`<div class="row"><span>교체 기록</span>
           <span class="mono">${det.tool.replaced_at} 부터</span></div>
-          <div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:5px">
-            위 숫자는 모두 ${det.tool.replaced_at} 교체 이후로만 센 값입니다.
-            ${det.tool.replace_note?`<br><span style="color:var(--warn-ink)">${det.tool.replace_note}</span>`:''}
+          <div class="note" style="margin:8px 0 0">${det.tool.replaced_at} 교체 이후로만 센 값입니다.
+            ${det.tool.replace_note?`<span style="color:var(--warn-ink)">${det.tool.replace_note}</span>`:''}
           </div>`:''}
         ${ME.role==='manager'?`<div style="margin-top:11px">
           <button class="act sec" title="이 공구를 갈았다고 기록합니다 — 그날부터 다시 셉니다"
@@ -696,13 +955,13 @@ async function renderDash(){
             <span class="mono">${f4(v)}% (${f2(p)}%)</span></div>${bar(p)}</div>`;
         }).join('')}
         <div style="margin-bottom:9px"><div class="row" style="border:0;padding:3px 0">
-          <span>알림 <span class="tag w">미수집</span></span>
+          <span>알림 <span class="tag w">미수집</span> ${helpBtn('missing')}</span>
           <span class="mono">0.0000% (0.00%)</span></div>${bar(0)}</div>
-        ${(BASIS.units&&BASIS.units.wear_note)?`<div style="font-size:11px;color:var(--faint);line-height:1.6;margin-top:8px">
-          ${det.tool.cls==='breakage'
-            ? '파손형은 별도 배분입니다 — 실가공 20 · 과부하 40 · 충격 25 · 조건급변 15.'
-            : esc(BASIS.units.wear_note)}
-        </div>`:''}
+        <div class="dkey" style="margin-top:11px">
+          <span>${det.tool.cls==='breakage'
+            ? '파손형 배분 — 실가공 20 · 과부하 40 · 충격 25 · 조건급변 15'
+            : '마모형 배분 — 실가공 50 · 과부하 30 · 충격 10 · 알림 10'}</span>
+          ${helpBtn(det.tool.cls==='breakage'?'breakage':'wear')}</div>
       </div>
     </div>
 
@@ -728,6 +987,7 @@ async function renderDash(){
       <canvas id="cv"></canvas>
     </div>`;
   drawDays(ov.days);
+  bindDonut();
 }
 
 /* 그림 색은 위 :root 에서 읽는다. 코드에 박아 두면 화면 색을 바꿔도
