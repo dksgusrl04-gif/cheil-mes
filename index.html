@@ -226,7 +226,32 @@
   .phead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
   .phead h4{margin:0;flex:1;min-width:200px}
   .phead select{max-width:330px}
-  @media(max-width:900px){ .donut{grid-template-columns:1fr} .dchart{margin:0 auto}
+
+  /* ── 요약 숫자를 원그래프 왼쪽에 세로로 ──────────────────────
+     넉 장짜리 가로 카드 줄이 그림 위에 따로 있었다. 숫자 네 개를 위해
+     화면 한 줄(카드 높이 + 사이 여백)을 쓰는 셈이라, 그림 왼쪽의 빈
+     자리로 내린다. 네 줄이 그림 높이(196px)를 똑같이 나눠 가지므로
+     판 높이는 그림 높이 그대로다 — 숫자는 공짜로 얹힌 셈이 된다. */
+  .dwrap{display:grid;grid-template-columns:206px 1fr;gap:20px;align-items:start}
+  .dwrap .donut{min-width:0}
+  .sumcol{display:flex;flex-direction:column;min-height:196px;
+    border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+  .srow{flex:1;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;padding:0 13px;border-bottom:1px solid var(--line-2);min-width:0}
+  .srow:last-child{border-bottom:0}
+  .srow .k{font-size:11.5px;color:var(--muted);line-height:1.3}
+  .srow .v{font-size:18px;font-weight:700;color:var(--ink);white-space:nowrap;
+    letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .srow .v em{font-style:normal;font-size:11.5px;font-weight:500;
+    color:var(--muted);margin-left:2px}
+  .srow.ok{background:var(--ok-soft)}    .srow.ok .v{color:var(--ok)}
+  .srow.warn{background:var(--warn-soft)} .srow.warn .v{color:var(--warn)}
+  .srow.ok:first-child,.srow.warn:first-child{border-radius:var(--r) var(--r) 0 0}
+
+  @media(max-width:1200px){ .dwrap{grid-template-columns:186px 1fr;gap:14px} }
+  @media(max-width:900px){ .dwrap{grid-template-columns:1fr}
+    .sumcol{min-height:0} .srow{padding:9px 13px}
+    .donut{grid-template-columns:1fr} .dchart{margin:0 auto}
     .dside{min-height:0} .dside .dkey{margin-top:0} }
   /* 구간 혼합 경고는 띠로 두지 않는다. 화면 맨 위에서 한 줄을 통째로 먹는데
      늘 같은 문장이라 며칠이면 아무도 안 읽는다. 대신 기준 막대의 «구간» 옆
@@ -490,10 +515,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="df0f53799d">
+<meta name="mes-build" content="61f03b2916">
 <script>
 (function(){
-  var mine = "df0f53799d";
+  var mine = "61f03b2916";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -681,6 +706,9 @@ const inten=v=> v==null?'-': v.toFixed(2)+'배';
 const days=v=> v==null?'-': v>=10000? (v/365).toFixed(0)+'년' : num(Math.round(v))+'일';
 const bar=(p,c)=>`<div class="bar"><i class="${c||''}" style="width:${Math.min(Math.max(p,0),100)}%"></i></div>`;
 const cardHtml=(k,v,u,c)=>`<div class="card ${c||''}"><div class="k">${k}</div><div class="v">${v}<span class="u">${u||''}</span></div></div>`;
+/* 같은 숫자를 «한 줄» 로 적는 판. 대시보드에서만 쓴다 — 거기서는 숫자 넉 장이
+   원그래프 왼쪽에 세로로 서고, 가로 카드(cardHtml)는 다른 탭들이 계속 쓴다. */
+const sumRow=(k,v,u,c)=>`<div class="srow ${c||''}"><span class="k">${k}</span><span class="v">${v}${u?`<em>${u}</em>`:''}</span></div>`;
 /* 카드를 눌러 그 항목만 보게 한다. .cards 가 flex 라 래퍼 div 로 감싸면
    카드가 안 늘어난다 — 그래서 카드 자체에 onclick 을 심는다. */
 const clickCard=(html,call)=>html.replace('<div class="card',
@@ -937,22 +965,15 @@ async function renderDash(){
       <b>기준 공구가 이 구간에서 안 돌았습니다</b> — 「기준 대비 진행」이 멈춰 있습니다.
       다른 공구 마모율은 정상입니다. ${helpBtn('anchor-stall')}</div>`:''}
 
-    <div class="cards">
-      ${cardHtml('교체가 필요한 공구', hot.length, '종', hot.length?'warn':'ok')}
-      ${cardHtml('가장 많이 쓴 공구', busy[0]?('T'+busy[0].tool):'-',
-                 busy[0]?f2(busy[0].hours)+'h':'')}
-      ${cardHtml('관측 절삭', f2(s.cut_hours), 'h')}
-      ${cardHtml('쓰는 공구', s.tools, '종')}
-    </div>
-
     ${hot.length?`<div class="note danger">
       <b>먼저 보세요</b> — ${hot.slice(0,4).map(x=>`<button class="lnk" onclick="SEL.tool=${x.tool};render()">T${x.tool} ${esc(x.name)} ${f2(x.wear)}%</button>`).join(' ')}
       ${hot.length>4?`<span class="muted">외 ${hot.length-4}종</span>`:''}</div>`:''}
 
-    <!-- 그림 · 목록 · 공구 고르기를 한 판에 합친다. 예전에는 원그래프 판과
-         「공구 하나 자세히 보기」 판이 따로 있었는데, 범례와 빠른 선택 칩이
-         같은 상위 공구를 두 번 적고 있었다. 판 둘을 하나로 줄이면 아래의
-         공구 상세가 스크롤 없이 바로 보인다. -->
+    <!-- 대시보드 첫 판 하나에 다 넣는다 — 요약 숫자 · 원그래프 · 공구 목록 ·
+         공구 고르는 칸. 예전에는 카드 줄 / 원그래프 판 / 「공구 하나 자세히
+         보기」 판이 따로 서서 화면 위쪽 600px 가까이를 쓰고 있었고, 범례와
+         빠른 선택 칩은 같은 상위 공구를 두 번 적고 있었다. 지금은 판 높이가
+         원그래프 높이(196px)로 묶여, 아래 공구 상세가 스크롤 없이 보인다. -->
     <div class="panel">
       <div class="phead">
         <h4>어느 공구가 많이 도는가
@@ -963,7 +984,16 @@ async function renderDash(){
             T${x.tool} · ${x.name} — 마모 ${f2(x.wear)}%</option>`).join('')}
         </select>
       </div>
-      ${donutTop(TOOLS, 10, SEL.tool)}
+      <div class="dwrap">
+        <div class="sumcol">
+          ${sumRow('교체가 필요한 공구', hot.length, '종', hot.length?'warn':'ok')}
+          ${sumRow('가장 많이 쓴 공구', busy[0]?('T'+busy[0].tool):'-',
+                   busy[0]?f2(busy[0].hours)+'h':'')}
+          ${sumRow('관측 절삭', f2(s.cut_hours), 'h')}
+          ${sumRow('쓰는 공구', s.tools, '종')}
+        </div>
+        ${donutTop(TOOLS, 10, SEL.tool)}
+      </div>
     </div>
 
     ${det ? `
