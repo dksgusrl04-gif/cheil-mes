@@ -218,7 +218,7 @@
    * 조회 기간 — 기준 막대에 달력을 붙인다
    * ═══════════════════════════════════════════════════════════════
    * 달력에서 날짜 하나를 고르면 그 날 하루의 자료만 본다.
-   * «최근 7일» 같은 버튼은 구간으로 본다.
+   * «최근 7일» 버튼은 구간으로 본다.
    *
    * 화면은 qs() 로 조회 조건을 만들어 /api/* 에 붙인다. 그 함수가
    * seg·life·week·anchor 넷만 담으므로, 감싸서 from·to 를 더 넣는다.
@@ -316,8 +316,7 @@
     wrap.innerHTML = '<span>조회 날짜</span>' +
       '<input type="date" id="mes-from" title="고른 날 하루의 자료만 봅니다">' +
       '<button type="button" data-days="all">전체</button>' +
-      '<button type="button" data-days="7">최근 7일</button>' +
-      '<button type="button" data-days="3">최근 3일</button>';
+      '<button type="button" data-days="7">최근 7일</button>';
 
     const note = document.getElementById('bnote');
     if (note && note.parentNode === basis) basis.insertBefore(wrap, note);
