@@ -178,38 +178,56 @@
   .hcard .act{margin-top:6px}
 
   /* ── 원그래프 범례(색 뜻) ──────────────────────────────── */
-  .dsum{margin-top:13px;font-size:11.5px;color:var(--muted);line-height:1.6}
-  .dsum b{color:var(--ink);font-weight:650}
-  .dkey{display:flex;align-items:center;gap:15px;margin-top:13px;padding-top:11px;
-    border-top:1px solid var(--line-2);font-size:11.5px;color:var(--muted)}
+  .dkey{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;
+    font-size:11.5px;color:var(--muted);line-height:1.5}
   .dkey span{display:flex;align-items:center;gap:5px}
   .dkey i{width:9px;height:9px;border-radius:2px}
+  .dkey b{color:var(--ink);font-weight:650}
+  .dkey .sep{width:1px;height:11px;background:var(--line-2);padding:0}
+  .dkey.tp{padding-top:11px;border-top:1px solid var(--line-2)}
   /* ── 사용량 원그래프 ────────────────────────────────────────
      조각 크기 = 돌아간 시간, 조각 색 = 마모 단계.
-     크고 빨간 조각이 지금 제일 급한 공구다. */
-  .donut{display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:center}
-  .dchart{position:relative;width:240px;height:240px}
+     크고 빨간 조각이 지금 제일 급한 공구다.
+
+     한 판에 다 넣는다 — 그림 / 목록 / 색 뜻이 예전엔 위아래로 쌓여 있어서
+     이 판 하나가 화면 높이의 절반을 먹었고, 정작 아래의 공구 상세는 스크롤을
+     내려야 보였다. 그림 옆의 빈 자리에 목록과 색 뜻을 넣어 판 높이를 그림
+     높이(196px)로 묶는다. */
+  .donut{display:grid;grid-template-columns:196px 1fr;gap:18px;align-items:start}
+  .dchart{position:relative;width:196px;height:196px}
   .dchart svg{width:100%;height:100%;display:block}
+  .dside{display:flex;flex-direction:column;gap:9px;min-height:196px}
+  .dside .dkey{margin-top:auto;padding-top:9px;border-top:1px solid var(--line-2)}
   .dslice{cursor:pointer;transition:opacity .12s,transform .12s;transform-origin:100px 100px}
   .dslice:hover,.dslice:focus{outline:none;transform:scale(1.035)}
   .dslice.dim{opacity:.34}
+  .dslice.sel{stroke:var(--ink);stroke-width:1.5;paint-order:stroke}
   .dmid{position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;pointer-events:none;text-align:center;padding:0 26px}
-  .dmid b{font-size:26px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.01em}
+    align-items:center;justify-content:center;pointer-events:none;text-align:center;padding:0 22px}
+  .dmid b{font-size:23px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.01em}
   .dmid b.lv1{color:var(--warn)} .dmid b.lv2{color:var(--danger)}
-  .dmid span{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .dmid span{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
   .dmid span.sub{font-size:10.5px;color:var(--faint);margin-top:1px}
-  .dlegs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px}
-  .dleg{display:flex;align-items:center;gap:8px;padding:5px 8px;border:0;border-radius:6px;
+  .dlegs{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:1px 8px}
+  .dleg{display:flex;align-items:center;gap:8px;padding:4px 8px;border:0;border-radius:6px;
     background:transparent;font:inherit;font-size:12px;color:var(--ink-2);cursor:pointer;
     text-align:left;width:100%;transition:background .1s}
   .dleg:hover,.dleg.on{background:var(--accent-soft)}
+  /* 지금 아래에서 펼쳐 보고 있는 공구 — 목록과 상세가 한 화면에 같이 있으니
+     어느 줄이 아래 내용인지 표시가 없으면 둘이 따로 노는 것처럼 보인다 */
+  .dleg.sel{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+  .dleg.sel .nm{color:var(--accent);font-weight:650}
   .dleg i{width:9px;height:9px;border-radius:2px;flex:none}
   .dleg .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dleg .hr{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11.5px}
   .dleg .we{width:46px;text-align:right;color:var(--ink);font-weight:600;
     font-variant-numeric:tabular-nums;font-size:11.5px}
-  @media(max-width:900px){ .donut{grid-template-columns:1fr} .dchart{margin:0 auto} }
+  /* 판 제목 줄 — 오른쪽 끝에 「그 밖의 공구」 고르는 칸을 같이 둔다 */
+  .phead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .phead h4{margin:0;flex:1;min-width:200px}
+  .phead select{max-width:330px}
+  @media(max-width:900px){ .donut{grid-template-columns:1fr} .dchart{margin:0 auto}
+    .dside{min-height:0} .dside .dkey{margin-top:0} }
   /* 구간 혼합 경고는 띠로 두지 않는다. 화면 맨 위에서 한 줄을 통째로 먹는데
      늘 같은 문장이라 며칠이면 아무도 안 읽는다. 대신 기준 막대의 «구간» 옆
      «?» 단추가 ⚠ 로 바뀐다 — 자리를 안 먹고, 누르면 같은 설명이 나온다. */
@@ -258,9 +276,11 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
   @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
 
-  select#tsel{width:100%;padding:9px 11px;border:1px solid var(--line);
-    border-radius:var(--r-sm);font:inherit;font-size:13px;background:var(--surface);
-    color:var(--ink)}
+  /* 판 제목 줄 오른쪽에 앉는다 — 상위 10종은 그림에서 바로 누르면 되고,
+     이 칸은 «목록에 없는 나머지 공구» 를 찾을 때만 쓴다. 그래서 작게. */
+  select#tsel{width:100%;padding:7px 10px;border:1px solid var(--line);
+    border-radius:var(--r-sm);font:inherit;font-size:12.5px;background:var(--surface);
+    color:var(--ink-2)}
   select#tsel:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
   .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
   .chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;
@@ -470,10 +490,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="94b1fc0b45">
+<meta name="mes-build" content="df0f53799d">
 <script>
 (function(){
-  var mine = "94b1fc0b45";
+  var mine = "df0f53799d";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -761,7 +781,9 @@ function wden(w, lo, hi){
   return 0.30 + 0.70 * Math.min(Math.max(((w || 0) - lo) / (hi - lo), 0), 1);
 }
 
-function donutTop(tools, n){
+/* sel = 지금 아래 상세에 펼쳐 둔 공구 번호. 목록에서 그 줄을 짚어 준다 —
+   그림·목록·상세가 한 화면에 같이 있으니 어느 줄이 아래 내용인지 보여야 한다. */
+function donutTop(tools, n, sel){
   n = n || 10;
   const used = tools.filter(t => (t.hours || 0) > 0)
                     .sort((a, b) => b.hours - a.hours);
@@ -796,7 +818,8 @@ function donutTop(tools, n){
     const lab = g.tool == null ? g.name : `T${g.tool} ${g.name}`;
     return `<path d="M${x1} ${y1} A${R} ${R} 0 ${big} 1 ${x2} ${y2}
              L${x3} ${y3} A${r} ${r} 0 ${big} 0 ${x4} ${y4} Z"
-      fill="${g.col}" fill-opacity="${g.op.toFixed(3)}" class="dslice" tabindex="0" role="button"
+      fill="${g.col}" fill-opacity="${g.op.toFixed(3)}"
+      class="dslice${g.tool != null && g.tool === sel ? ' sel' : ''}" tabindex="0" role="button"
       data-i="${i}" data-tool="${g.tool == null ? '' : g.tool}"
       data-lab="${esc(lab)}" data-h="${g.h.toFixed(2)}"
       data-pct="${(100 * g.h / all).toFixed(1)}"
@@ -805,13 +828,29 @@ function donutTop(tools, n){
         g.wear == null ? '' : ` · 마모 ${g.wear.toFixed(2)}%`}</title></path>`;
   }).join('');
 
-  const legend = seg.map((g, i) => `<button class="dleg" data-i="${i}"
+  const legend = seg.map((g, i) => `<button class="dleg${
+      g.tool != null && g.tool === sel ? ' sel' : ''}" data-i="${i}"
       ${g.tool == null ? '' : `onclick="SEL.tool=${g.tool};render()"`}>
       <i style="background:${g.col};opacity:${g.op.toFixed(3)}"></i>
       <span class="nm">${g.tool == null ? esc(g.name) : 'T' + g.tool + ' ' + esc(g.name)}</span>
       <span class="hr">${g.h.toFixed(1)}h</span>
       <span class="we">${g.wear == null ? '' : g.wear.toFixed(1) + '%'}</span>
     </button>`).join('');
+
+  /* 색 뜻과 「이 열 종이 전체의 몇 %인가」를 그림 «아래» 가 아니라 «옆»
+     아래쪽에 붙인다. 그림 옆은 어차피 비는 자리고, 아래에 쌓으면 그만큼
+     화면이 밀려 정작 중요한 공구 상세가 접힌다. */
+  const key = `<div class="dkey">
+    <span><i style="background:var(--chart-bar);opacity:.3"></i><i
+      style="background:var(--chart-bar);opacity:.65;margin-left:-2px"></i><i
+      style="background:var(--chart-bar);margin-left:-2px"></i>진할수록 많이 닳음
+      (${lo.toFixed(1)}~${hi.toFixed(1)}%)</span>
+    <span><i style="background:var(--warn)"></i>주의 90%↑</span>
+    <span><i style="background:var(--danger)"></i>교체 100%↑</span>
+    <span class="sep"></span>
+    <span>이 ${top.length}종이 전체 절삭의 <b>${(100 * all / allH).toFixed(0)}%</b>${
+      rest.length ? ` · 나머지 ${rest.length}종 ${restH.toFixed(1)}h` : ''}</span>
+    ${typeof helpBtn === 'function' ? helpBtn('donut') : ''}</div>`;
 
   return `<div class="donut">
     <div class="dchart">
@@ -824,13 +863,11 @@ function donutTop(tools, n){
         <span>가장 많이 쓴 공구</span>
       </div>
     </div>
-    <div class="dlegs">${legend}</div>
-  </div>
-  <div class="dsum">진한 조각일수록 많이 닳았습니다 — 이 그림 안에서 견준 것으로,
-    가장 옅은 것이 ${lo.toFixed(1)}% · 가장 진한 것이 ${hi.toFixed(1)}% 입니다.<br>이 ${top.length}종이 전체 절삭의
-    <b>${(100 * all / allH).toFixed(0)}%</b>
-    (${all.toFixed(1)}h / ${allH.toFixed(1)}h)${
-      rest.length ? ` · 나머지 ${rest.length}종은 ${restH.toFixed(1)}h` : ''}</div>`;
+    <div class="dside">
+      <div class="dlegs">${legend}</div>
+      ${key}
+    </div>
+  </div>`;
 }
 
 /* 마우스를 올리면 가운데 글자를 바꾼다. 조각마다 말풍선을 띄우면
@@ -912,31 +949,22 @@ async function renderDash(){
       <b>먼저 보세요</b> — ${hot.slice(0,4).map(x=>`<button class="lnk" onclick="SEL.tool=${x.tool};render()">T${x.tool} ${esc(x.name)} ${f2(x.wear)}%</button>`).join(' ')}
       ${hot.length>4?`<span class="muted">외 ${hot.length-4}종</span>`:''}</div>`:''}
 
+    <!-- 그림 · 목록 · 공구 고르기를 한 판에 합친다. 예전에는 원그래프 판과
+         「공구 하나 자세히 보기」 판이 따로 있었는데, 범례와 빠른 선택 칩이
+         같은 상위 공구를 두 번 적고 있었다. 판 둘을 하나로 줄이면 아래의
+         공구 상세가 스크롤 없이 바로 보인다. -->
     <div class="panel">
-      <h4>어느 공구가 많이 도는가 <span class="hint">조각에 마우스를 올리면 마모율</span></h4>
-      ${donutTop(TOOLS, 10)}
-      <div class="dkey">
-        <span><i style="background:var(--chart-bar);opacity:.3"></i><i
-          style="background:var(--chart-bar);opacity:.65;margin-left:-2px"></i><i
-          style="background:var(--chart-bar);margin-left:-2px"></i>진할수록 많이 닳음</span>
-        <span><i style="background:var(--warn)"></i>주의 90% 이상</span>
-        <span><i style="background:var(--danger)"></i>교체 100% 이상</span>
-        ${helpBtn('donut')}
+      <div class="phead">
+        <h4>어느 공구가 많이 도는가
+          <span class="hint">누르면 아래에 자세히 · 올리면 마모율</span></h4>
+        <select id="tsel" title="목록에 없는 공구 고르기"
+                onchange="SEL.tool=+this.value;render()">
+          ${TOOLS.map(x=>`<option value="${x.tool}" ${x.tool===SEL.tool?'selected':''}>
+            T${x.tool} · ${x.name} — 마모 ${f2(x.wear)}%</option>`).join('')}
+        </select>
       </div>
+      ${donutTop(TOOLS, 10, SEL.tool)}
     </div>
-
-    <div class="panel">
-      <h4>공구 하나 자세히 보기</h4>
-      <select id="tsel" onchange="SEL.tool=+this.value;render()">
-        ${TOOLS.map(x=>`<option value="${x.tool}" ${x.tool===SEL.tool?'selected':''}>
-          T${x.tool} · ${x.name} — 마모 ${f2(x.wear)}%</option>`).join('')}
-      </select>
-      <div class="chips">
-        ${busy.slice(0,6).map(x=>`<button class="chip ${x.tool===SEL.tool?'on':''}" onclick="SEL.tool=${x.tool};render()">
-          T${x.tool} ${esc(x.name)}<span class="r">${f2(x.hours)}h</span></button>`).join('')}
-      </div>
-    </div>
-    ${reportBar('wear')}
 
     ${det ? `
     <div class="grid2">
@@ -985,7 +1013,7 @@ async function renderDash(){
         <div style="margin-bottom:9px"><div class="row" style="border:0;padding:3px 0">
           <span>알림 <span class="tag w">미수집</span> ${helpBtn('missing')}</span>
           <span class="mono">0.0000% (0.00%)</span></div>${bar(0)}</div>
-        <div class="dkey" style="margin-top:11px">
+        <div class="dkey tp" style="margin-top:11px">
           <span>${det.tool.cls==='breakage'
             ? '파손형 배분 — 실가공 20 · 과부하 40 · 충격 25 · 조건급변 15'
             : '마모형 배분 — 실가공 50 · 과부하 30 · 충격 10 · 알림 10'}</span>
@@ -1013,7 +1041,11 @@ async function renderDash(){
     <div class="panel">
       <h4>일별 절삭시간 · 마모 추이</h4>
       <canvas id="cv"></canvas>
-    </div>`;
+    </div>
+
+    <!-- 서류 출력은 맨 아래로. 그림과 공구 상세 사이에 있으면 매번 보게 되는
+         내용을 한 줄 밀어내는데, 서류는 하루에 한 번 쓸까 말까 한 기능이다. -->
+    ${reportBar('wear')}`;
   drawDays(ov.days);
   bindDonut();
 }
