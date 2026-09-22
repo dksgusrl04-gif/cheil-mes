@@ -266,20 +266,29 @@
   .dmid b.lv1{color:var(--warn)} .dmid b.lv2{color:var(--danger)}
   .dmid span{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
   .dmid span.sub{font-size:10.5px;color:var(--faint);margin-top:1px}
-  .dlegs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px 10px}
-  .dleg{display:flex;align-items:center;gap:9px;padding:5px 9px;border:0;border-radius:7px;
-    background:transparent;font:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer;
-    text-align:left;width:100%;transition:background .1s}
-  .dleg:hover,.dleg.on{background:var(--accent-soft)}
+  .dlegs{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:2px 10px}
+  /* 줄 바탕에 사용 비중만큼 색을 깔아 둔다(인라인 style 의 gradient).
+     그래서 background-color 대신 box-shadow 로 눌린 표시를 준다 —
+     색을 덮어쓰면 비중 막대가 사라진다. */
+  .dleg{display:flex;align-items:center;gap:8px;padding:5px 9px;border:0;border-radius:7px;
+    background-color:transparent;background-repeat:no-repeat;
+    font:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer;
+    text-align:left;width:100%;transition:box-shadow .1s,color .1s}
+  .dleg:hover,.dleg.on{box-shadow:inset 0 0 0 1px var(--accent-line)}
+  .rk{width:15px;flex:none;text-align:right;font-size:11px;font-weight:700;
+    color:var(--faint);font-variant-numeric:tabular-nums}
   /* 지금 아래에서 펼쳐 보고 있는 공구 — 목록과 상세가 한 화면에 같이 있으니
      어느 줄이 아래 내용인지 표시가 없으면 둘이 따로 노는 것처럼 보인다 */
-  .dleg.sel{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
-  .dleg.sel .nm{color:var(--accent);font-weight:650}
+  .dleg.sel{box-shadow:inset 2px 0 0 var(--accent),inset 0 0 0 1px var(--accent-line)}
+  .dleg.sel .nm{color:var(--accent);font-weight:700}
+  .dleg.sel .rk{color:var(--accent)}
   .dleg i{width:9px;height:9px;border-radius:2px;flex:none}
   .dleg .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dleg .hr{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
   .dleg .we{width:50px;text-align:right;color:var(--ink);font-weight:650;
     font-variant-numeric:tabular-nums;font-size:12px}
+  /* 90% 넘은 것은 목록에서도 색으로 튄다 — 그림만 보고 있지 않아도 보인다 */
+  .dleg .we.lv1{color:var(--warn)} .dleg .we.lv2{color:var(--danger)}
   /* 판 제목 줄 — 오른쪽 끝에 「그 밖의 공구」 고르는 칸을 같이 둔다 */
   .phead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
   .phead h4{margin:0;flex:1;min-width:200px}
@@ -290,7 +299,41 @@
      화면 한 줄(카드 높이 + 사이 여백)을 쓰는 셈이라, 그림 왼쪽의 빈
      자리로 내린다. 네 줄이 그림 높이(196px)를 똑같이 나눠 가지므로
      판 높이는 그림 높이 그대로다 — 숫자는 공짜로 얹힌 셈이 된다. */
-  .dwrap{display:grid;grid-template-columns:214px 1fr;gap:22px;align-items:start}
+  /* 왼쪽부터 센서 현황 · 요약 숫자 · 원그래프. 원그래프를 오른쪽으로 밀고
+     폭을 줄였다 — 그림은 좁아져도 읽히지만, 「지금 값이 들어오고는 있나」는
+     안 보이면 아예 모른다. */
+  .dwrap{display:grid;grid-template-columns:248px 206px 1fr;gap:20px;align-items:start}
+
+  /* ── 센서·반영 현황 ──────────────────────────────────────── */
+  .senscol{display:flex;flex-direction:column;min-height:212px;
+    border:1px solid var(--line);border-radius:var(--r);background:var(--surface);
+    padding:12px 14px 11px}
+  .shead{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:650;
+    color:var(--ink);padding-bottom:9px;border-bottom:1px solid var(--line-2)}
+  .shead b{margin-left:auto;font-size:12px;font-weight:650;color:var(--accent);
+    font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  /* 뛰는 점 — 값이 들어오고 있다는 표시. 「지금 이 순간」 이 아니라는 것은
+     옆의 시계와 «?» 가 말한다. */
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ok);
+    box-shadow:0 0 0 0 rgba(5,150,105,.55);animation:pulse 2.4s infinite}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(5,150,105,.5)}
+    70%{box-shadow:0 0 0 7px rgba(5,150,105,0)}
+    100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}}
+  @media(prefers-reduced-motion:reduce){ .dot{animation:none} }
+  .sline{display:flex;align-items:baseline;gap:7px;padding:6px 0;font-size:11.5px;
+    color:var(--muted);border-bottom:1px solid var(--line-2)}
+  .sline span{flex:none}
+  .sline b{margin-left:auto;font-size:13px;font-weight:700;color:var(--ink);
+    font-variant-numeric:tabular-nums}
+  .sline em{font-style:normal;font-size:11px;color:var(--faint);flex:none}
+  .sigs{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px;align-items:center}
+  .sig{display:inline-flex;align-items:center;gap:5px;font-size:11px;
+    padding:3px 8px;border-radius:999px;white-space:nowrap;
+    background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent)}
+  .sig i{width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+  .sig.off{background:var(--bg);border-color:var(--line);color:var(--faint)}
+  .sigs .help{width:19px;height:19px;font-size:10.5px}
   .dwrap .donut{min-width:0}
   .sumcol{display:flex;flex-direction:column;min-height:212px;
     border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
@@ -306,7 +349,27 @@
   .srow.warn{background:var(--warn-soft)} .srow.warn .v{color:var(--warn)}
   .srow.ok:first-child,.srow.warn:first-child{border-radius:var(--r) var(--r) 0 0}
 
-  @media(max-width:1320px){ .dwrap{grid-template-columns:190px 1fr;gap:16px} }
+  /* 좁아지면 센서 현황과 요약 숫자를 위아래로 접는다 — 셋을 다 세워 두면
+     원그래프가 읽을 수 없을 만큼 얇아진다. */
+  @media(max-width:1700px){ .dwrap{grid-template-columns:230px 190px 1fr;gap:16px} }
+  /* 1500px 아래에서는 그림을 줄여 목록에 자리를 넘긴다. 그림이 커 봐야
+     목록이 한 줄짜리로 떨어지면 판이 열 줄만큼 길어진다 — 그러면 아래
+     공구 상세가 다시 접힌다. 시간은 줄에서 빼고 말풍선에만 남긴다. */
+  @media(max-width:1500px){
+    .dchart{width:176px;height:176px}
+    .donut{grid-template-columns:176px 1fr;gap:16px}
+    .dside,.sumcol,.senscol{min-height:176px}
+    .dmid b{font-size:22px} .dmid{padding:0 16px}
+    .dlegs{grid-template-columns:repeat(auto-fill,minmax(206px,1fr))}
+    .dleg .hr{display:none}
+  }
+  @media(max-width:1340px){
+    .dwrap{grid-template-columns:230px 1fr;gap:16px}
+    .senscol{grid-column:1;min-height:0}
+    .sumcol{grid-column:1;min-height:0}
+    .sumcol .srow{padding:9px 14px}
+    .donut{grid-column:2;grid-row:1/3}
+  }
   @media(max-width:900px){ .dwrap{grid-template-columns:1fr}
     .sumcol{min-height:0} .srow{padding:9px 13px}
     .donut{grid-template-columns:1fr} .dchart{margin:0 auto}
@@ -340,6 +403,11 @@
     color:#fff;font-weight:700}
   .item .m{display:block;font-size:11px;color:rgba(255,255,255,.56);
     font-weight:400;margin-top:2px}
+  /* 걸린 건이 0 인 규칙 — 흐리게 두되 누를 수는 있다. 눌러 보면 화면이
+     「0건입니다」 라고 말해 준다. 아예 못 누르게 하면 규칙이 안 도는 건지
+     걸린 게 없는 건지 알 길이 없다. */
+  .item.zero{color:rgba(255,255,255,.52)}
+  .item.zero .m{color:rgba(255,255,255,.38)}
   .item.muted{color:rgba(255,255,255,.5);cursor:default}
   main{padding:26px 34px 64px;overflow-y:auto;min-height:0}
   h2{font-size:24px;margin-bottom:5px;font-weight:700;letter-spacing:-.025em}
@@ -378,14 +446,47 @@
   .panel > h4::before,.phead h4::before{content:'';width:3px;height:15px;flex:none;
     background:var(--accent);border-radius:2px;margin-right:2px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+  /* ── 「없습니다」 판 ───────────────────────────────────────
+     빈 화면을 그냥 비워 두면 «안 뜬 건가» 하고 기다리게 된다.
+     0건이라는 사실과 «무슨 기준으로 0인지» 를 같이 적는다. */
+  .none{text-align:center;padding:26px 18px}
+  .none .t{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:8px}
+  .none .b{font-size:13px;color:var(--muted);line-height:1.75;
+    max-width:620px;margin:0 auto}
+  .none .b b{color:var(--ink);font-weight:650}
+
+  /* ── 공구 상세: 그림 | 값 ─────────────────────────────────
+     그림이 있는 공구만 왼쪽 칸이 생긴다(.haspic). 없는 공구에 빈 네모를
+     띄우면 «사진이 깨졌나» 하고 한 번 더 보게 되므로 칸 자체를 안 만든다. */
+  .tdet{display:block}
+  .tdet.haspic{display:grid;grid-template-columns:132px 1fr;gap:18px;align-items:start}
+  .tpic{background:var(--raise);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:9px;display:flex;align-items:center;justify-content:center;
+    min-height:96px;overflow:hidden}
+  .tpic img{max-width:100%;height:auto;display:block;
+    image-rendering:-webkit-optimize-contrast}
+  .tinfo{min-width:0}
+  @media(max-width:1500px){ .tdet.haspic{grid-template-columns:112px 1fr;gap:14px} }
+  @media(max-width:1100px){ .tdet.haspic{grid-template-columns:1fr}
+    .tpic{max-width:260px} }
   @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
 
-  /* 판 제목 줄 오른쪽에 앉는다 — 상위 10종은 그림에서 바로 누르면 되고,
-     이 칸은 «목록에 없는 나머지 공구» 를 찾을 때만 쓴다. 그래서 작게. */
-  select#tsel{width:100%;padding:7px 10px;border:1px solid var(--line);
+  /* 판 제목 줄 오른쪽 — 찾기 · 정렬 · 고르기 한 벌.
+     상위 10종은 그림에서 바로 누르면 되고, 이 칸은 나머지 57종을 찾을 때 쓴다. */
+  .tpick{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+  .tpick input#tq{width:190px;padding:7px 11px;border:1px solid var(--line);
     border-radius:var(--r-sm);font:inherit;font-size:12.5px;background:var(--surface);
-    color:var(--ink-2)}
-  select#tsel:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+    color:var(--ink)}
+  .tpick input#tq::placeholder{color:var(--faint)}
+  .tpick select#tsort{padding:7px 9px;border:1px solid var(--line);
+    border-radius:var(--r-sm);font:inherit;font-size:12.5px;background:var(--surface);
+    color:var(--muted);cursor:pointer}
+  select#tsel{max-width:340px;padding:7px 10px;border:1px solid var(--line);
+    border-radius:var(--r-sm);font:inherit;font-size:12.5px;background:var(--surface);
+    color:var(--ink-2);cursor:pointer}
+  .tpick :focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+  @media(max-width:1200px){ .tpick input#tq{width:150px} select#tsel{max-width:240px} }
   .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
   .chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;
     padding:6px 13px;font-size:12px;cursor:pointer;display:flex;gap:7px;align-items:center;
@@ -617,10 +718,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="34861c09fa">
+<meta name="mes-build" content="7fd362936a">
 <script>
 (function(){
-  var mine = "34861c09fa";
+  var mine = "7fd362936a";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -668,9 +769,9 @@
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=610ec0de"></script>
+<script src="mes_supa.js?v=0a7a2a6e"></script>
 <script src="mes_ui.js?v=999432d5"></script>
-<script src="mes_dash.js?v=dcd9f779"></script>
+<script src="mes_dash.js?v=41565f90"></script>
 <script>
 const $ = id => document.getElementById(id);
 /* 사람이 적은 글을 화면에 넣을 때 반드시 거친다. 프로그램 이름처럼
@@ -807,12 +908,15 @@ function goTab(name){
    목록을 화면 가운데 칸에 따로 두면 어느 메뉴에 딸린 것인지가 안 보인다.
    메뉴 밑에 들어가 있으면 「제조관리를 눌렀더니 그 밑에 프로그램이 폈다」로
    읽힌다 — 누르는 곳과 결과가 붙어 있어야 한다.
-   눌린 칸이 탭이 아닐 때(종합처럼 다른 파일이 붙인 버튼)는 목록을 비운다 —
-   남겨 두면 엉뚱한 메뉴에 딸린 것처럼 보인다. */
+
+   눌린 칸이 무엇이든 «그 칸 밑» 으로 옮긴다. 「종합」처럼 다른 파일
+   (mes_dash.js)이 붙인 버튼도 자기 목록(주차 요약)을 쓰기 때문이다.
+   예전에는 탭이 아니면 비우기만 하고 자리를 안 옮겼는데, 그러면 종합이
+   채워 넣은 목록이 직전에 눌렀던 메뉴(질의 등) 밑에 그대로 남았다. */
 function placeSide(){
   const side = $('side'); if(!side) return;
   const on = document.querySelector('nav button.on');
-  if(!on || !on.dataset.tab){ side.innerHTML=''; return; }
+  if(!on){ side.innerHTML=''; return; }
   if(on.nextSibling !== side) on.parentNode.insertBefore(side, on.nextSibling);
 }
 window.placeSide = placeSide;
@@ -891,9 +995,33 @@ const HELP = {
     '마모율 = 자(k) × 그 공구의 마모량. 자는 «기준 공구가 400일에 100% 가 되도록» 한 번 만들고 얼려 둡니다.\n얼려 두는 이유 — 매번 다시 만들면, 그 공구를 안 썼는데도 설비가 돌았다는 이유만으로 값이 오르내립니다.\n앵커를 누구로 잡든 공구들 사이의 비율은 안 바뀝니다.'],
   'segment': ['구간 — FA 밸브 / 리어커버',
     '2026-08-24 16:00 에 부품 모델이 바뀌면서 공구 세트가 통째로 교체됐습니다.\n같은 공구 번호라도 앞뒤가 다른 공구일 수 있어, 두 구간을 섞은 「전체」 값은 참고용입니다.\n「지금 뭐가 급한가」를 볼 때는 리어커버 구간만 보시는 편이 정확합니다.'],
+  'sensor': ['센서 수집 현황 읽는 법',
+    '「센서 수집」 옆 시계는 «집계를 만든 때부터 흐른 시간» 입니다. 지금 이 순간 값을 읽어 오는 것이 아닙니다.\n이 시스템은 설비에서 받은 CSV 를 주 단위로 집계해 올리는 구조라, 화면이 아는 가장 최근 시각이 그 집계 시각입니다.\n그래서 시계가 「3일 04:12:33 전」 이면 그만큼 묵은 값을 보고 계신 것입니다 — 그 사실이 숨겨지지 않게 세어서 보여 줍니다.\n\n파란 칸은 실제로 값이 들어온 신호, 흐린 칸은 이 설비에서 값이 안 들어오는 신호입니다. 마우스를 올리면 몇 행이 들어왔는지 나옵니다.'],
   'missing': ['못 쓴 신호',
     '알람·진동 첨도·주축 부하율·생산 수량·고정 사이클 G코드는 수집이 안 되거나 값이 고정이라 계산에 못 넣었습니다.\n못 쓴 것을 썼다고 하지 않으려고 화면에도 「미수집」으로 그대로 적습니다.'],
 };
+
+/* ═════ 공구 형상 그림 ════════════════════════════════════════
+   12종만 있다. 없는 공구는 그림 자리를 아예 안 만든다 — 빈 네모를
+   띄우면 «사진이 깨졌나» 하고 한 번 더 보게 된다.
+   파일로 빼지 않고 여기 박아 둔다. 그림을 따로 두면 web\ 으로 옮기는 걸
+   잊는 순간 깨진 그림이 뜨고, 그때는 화면이 이미 배포된 뒤다.
+   값은 [주소, 원본 가로, 원본 세로]. */
+const TOOLIMG = {
+  33:['data:image/webp;base64,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',280,87],
+  80:['data:image/webp;base64,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',280,87],
+  48:['data:image/webp;base64,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',280,87],
+  32:['data:image/webp;base64,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',260,195],
+  8:['data:image/webp;base64,UklGRhYFAABXRUJQVlA4IAoFAABQJQCdASoEAcMAPlUokkajoqIhIrR6KHAKiWluumBOqbpeERrtzhHmdRNnyLoTtIX1cKnMKqxhJawjMoe/TsbYvjFZhq1gOKGTZd39DRcYmsahpaIUi2wbr88SPLqkT6lOLrtvH8E9+uAhp3rhqARyi7Hd1YpjbJyVtVsTA0Y9l2gmDDi0ABTDj2+SB4GoRFDeKHLzusym/974m7VZk6gPVWWd0BE8lXjSW9z3YIEovhVRfiNzhzEixl7IIunN0rmPWKXbsNQIAWzxMDjlyE7Q/cLu5WZmY+OOyEFg1rxSmVmn23d3aIbd2rXbup961ZVVVQEmV45MUEJ1VVTOPodg/YVueT3d3dji3EO8ZApe7u7fqwVV4GC5w/2OLKJMI+K9Kc0reYkREPSB1VUaDQaB5lTQAP71Z3k+X/V86FdambH+n9/qv9OP1H04C3cd123iVGB7nWTNvfEu6RI1oJCEsmZhmOUetmttTqT5cT3VQGHRvVrW6wv6AW/31YEnlCVv1nn8i3NWRLYt+Ar/v7XKYbBEZq7rIohU8aHCi94kD+1zgFxzTxow+v57eF9g6s7eAR0cA8fhYqwrkDjZhmaiAZdIjKz4XyLjsVmOZS7rB1HytrkN0M/9/Bg9AoAaXxdP9uSw978J2L6Jl7Wa+CRIIZe023UHu7M/ss5lJkv/86wNXNH0EFdqqUYa6DVj5FbP+/mZcg3r4yNGbF9AKLwovySviy2g47fn937CEJZc48Y4tkv64MXs5op0KEIsYL53Lttg16e9oUfE+UvdyFy/dPDR6mdP/bxJszsnDU529Iz9oNmGuuKfA5EFZXa5a8LOpTuxtKYMXDgfcsPGJ6lM86KO4ykRQKv4NN7YKYbQoY0ROSatuhVEECrrMMWJKlQFd20TKjKL2X9+D+L4dY8+IU7DCOaUSimTL7kDre0q49HWzvgs3TrpgrF7kydlU94RkFYBZlraVlouspWXXkUcSoiw5ToU8+Vff82YeNPKjFgp0UkVd1tj9Z7MJgMB0FP23IEbFX48bN0M44adQjd+75LZby2IcusZAvJgSJSTI+U4dvPRl6irIt7IdfsmLQsboXsq0OASizXPCsyFUd/yT2u2zu6uDG1OSmeLInykrzgw2WIcPEBaI5DaJE10XZ8UJiKDJbekCMuYqg/O4VClMXJRVJWN+zRNquxK7igoo+YKXkj7vRXGXhTQukK9cCpkawiQ80hfkFVf993ON3ecuzRzYH7Xp6g+qhvZhVDiVgs4BwKsUp9c7o7KGWXDgk4UtC4fSp9NcVYEbN30mWzg6e1zGiEEaRyzkFfjYU3f0/0fbD9kKcKlue3vKJAL3LXOEbtnw3Sso/G/AOJmCRUA8+oFZE1VwiT+zIiUokkbD9mKQlOcEze/WLYENlgXWgKfTnCsY3dUfa3Om+4mPqCo4x54LdZdq/5fc7DTeKQx4m0T9qdf0uXK/CrOEbu25ZBabp+XiMQRripiCu/ul6i4sUM80LI9Yv9myvfibGHh234EYYEdzzHMOb5AAyMnvz5uYI8ZvFDKedgxmFGynB9uXZYmshj/StQpADnpIpMppR7oGhUyGHs/XrQqd/1Kgc4QjyFGRiA5H9ucBF4EQIlfGqURW2p/bjdywfkYlgI205PFWM269F9szLfQrCHeC11DlUX22bcwxr83YRdl9y+uzwn2y/RlrkURwEwGROAm9osAhc0KtAAAAAA=',260,195],
+  39:['data:image/webp;base64,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',280,87],
+  36:['data:image/webp;base64,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',280,87],
+  43:['data:image/webp;base64,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',280,87],
+  34:['data:image/webp;base64,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',280,87],
+  35:['data:image/webp;base64,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',280,87],
+  49:['data:image/webp;base64,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',280,87],
+  2:['data:image/webp;base64,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',280,87],
+};
+const toolImg = t => TOOLIMG[t] || null;
 
 function helpBtn(key){
   const h = HELP[key];
@@ -945,6 +1073,120 @@ function wden(w, lo, hi){
 
 /* sel = 지금 아래 상세에 펼쳐 둔 공구 번호. 목록에서 그 줄을 짚어 준다 —
    그림·목록·상세가 한 화면에 같이 있으니 어느 줄이 아래 내용인지 보여야 한다. */
+/* ═════ 공구 고르기 — 찾기와 정렬 ═════════════════════════════
+   67종을 한 줄 목록으로만 두면 「T43 이 어디 있지」 를 눈으로 훑게 된다.
+   글자로 찾고, 무엇을 위로 올릴지 고를 수 있게 한다.
+   찾기는 화면 전체를 다시 그리지 않고 목록 속만 갈아 끼운다 — 다시 그리면
+   글자를 한 자 칠 때마다 입력칸에서 커서가 튕겨 나간다. */
+let TSEL_Q = '', TSEL_SORT = 'wear';
+const TSORT = {
+  wear:  ['마모율 높은 순',   (a,b)=> (b.wear ||0) - (a.wear ||0)],
+  hours: ['사용시간 많은 순', (a,b)=> (b.hours||0) - (a.hours||0)],
+  no:    ['공구 번호 순',     (a,b)=> (a.tool ||0) - (b.tool ||0)],
+  name:  ['이름 순',          (a,b)=> String(a.name||'').localeCompare(String(b.name||''),'ko')],
+};
+/* 찾는 말이 번호에도 이름에도 걸리게 한다. 「33」 과 「T33」 과 「드릴」 이
+   모두 통해야 사람이 외운 대로 칠 수 있다. */
+function toolHits(){
+  const q = TSEL_Q.trim().toLowerCase();
+  const ok = x => !q
+    || String(x.tool).includes(q)
+    || ('t' + x.tool).includes(q)
+    || String(x.name || '').toLowerCase().includes(q);
+  return (TOOLS || []).filter(ok).slice().sort(TSORT[TSEL_SORT][1]);
+}
+function toolOptions(){
+  const list = toolHits();
+  if(!list.length)
+    return `<option value="">찾는 공구가 없습니다 — 「${esc(TSEL_Q)}」</option>`;
+  const head = TSEL_Q.trim()
+    ? `<option value="" disabled>${list.length}종 찾음</option>` : '';
+  return head + list.map(x=>`<option value="${x.tool}" ${x.tool===SEL.tool?'selected':''}>`
+    + `T${x.tool} · ${esc(x.name)} — 마모 ${f2(x.wear)}% · ${f2(x.hours)}h</option>`).join('');
+}
+function tfind(v){
+  TSEL_Q = v;
+  const el = $('tsel'); if(el) el.innerHTML = toolOptions();
+}
+function tsort(v){ TSEL_SORT = v; tfind(TSEL_Q); }
+/* 찾기칸에서 Enter — 맨 위에 걸린 공구로 바로 간다 */
+function tfirst(){
+  const first = toolHits()[0];
+  if(first){ SEL.tool = first.tool; render(); }
+}
+
+/* ═════ 센서·반영 현황 ════════════════════════════════════════
+   «지금 이 순간» 값은 없다. 주 단위로 받은 CSV 를 집계해 올리는 구조라서,
+   화면이 아는 가장 최근 시각은 «집계를 만든 때» 다. 그래서 거짓말 대신
+   그 시각으로부터 흐른 시간을 1초마다 세어 보여 준다 — 화면은 살아
+   움직이고, 보는 사람은 «얼마나 묵은 값인지» 를 그대로 알게 된다.
+
+   신호 목록도 「수집 중」 이라고 뭉뚱그리지 않고, 실제로 몇 행이 들어왔는지
+   (health 의 n) 를 세어 들어온 것과 안 들어온 것을 갈라 적는다. */
+let SENS_T = null;
+
+function sensPanel(b, ov, hs){
+  const dr = b.date_range || {};
+  const rows = (ov.days || []).reduce((s, d) => s + (d.rows || 0), 0);
+  const man = v => v >= 1e8 ? (v/1e8).toFixed(1)+'억'
+                 : v >= 1e4 ? Math.round(v/1e4).toLocaleString()+'만' : num(v);
+
+  /* 신호를 사람이 부르는 이름으로 묶는다. 화면에 cur_r · servo_x 를 그대로
+     적으면 이 일을 모르는 관리자는 한 줄도 못 읽는다. */
+  const GROUP = [
+    ['전류 R·S·T',   ['cur_r','cur_s','cur_t']],
+    ['3상 불평형',   ['imbalance']],
+    ['서보 부하 X·Y·Z', ['servo_x','servo_y','servo_z']],
+    ['진동 주파수',  ['freq_x','freq_y','freq_z']],
+    ['주축 부하율',  ['spindle_load']],
+    ['온도·습도',    ['vib_temp','uyeg_temp','uyeg_humi']],
+  ];
+  const st = (hs && hs.available && hs.stats) ? hs.stats : null;
+  const sigs = st ? GROUP.map(([nm, keys]) => {
+    const n = keys.reduce((s,k) => Math.max(s, (st[k] && st[k].n) || 0), 0);
+    return {nm, n, on: n > 0};
+  }) : [];
+  /* 안 들어오는 것도 같이 적는다. 빠진 것을 안 적으면 «다 들어온다» 로 읽힌다 */
+  const OFF = ['알람 코드', '진동 첨도', '생산 수량', '고정 사이클 G코드'];
+
+  return `<div class="senscol">
+    <div class="shead"><i class="dot"></i>센서 수집
+      <b id="since" title="집계를 만든 때부터 흐른 시간">—</b></div>
+    <div class="sline"><span>마지막 반영</span>
+      <b>${esc((b.built||'').slice(5,16) || '-')}</b></div>
+    <div class="sline"><span>자료 기간</span>
+      <b>${dr.count||0}일</b><em>${esc((dr.min||'').slice(5))}~${esc((dr.max||'').slice(5))}</em></div>
+    <div class="sline"><span>이 구간 행</span><b>${man(rows)}</b><em>행</em></div>
+    <div class="sigs">
+      ${sigs.map(g=>`<span class="sig ${g.on?'on':'off'}" title="${num(g.n)}행">
+        <i></i>${g.nm}</span>`).join('')}
+      ${OFF.map(n=>`<span class="sig off" title="이 설비에서 값이 안 들어옵니다"><i></i>${n}</span>`).join('')}
+      ${helpBtn('sensor')}
+    </div>
+  </div>`;
+}
+
+/* 1초마다 «집계를 만든 때로부터» 를 다시 적는다. 화면을 다시 그릴 때마다
+   앞 시계를 반드시 끈다 — 안 끄면 탭을 옮길 때마다 시계가 하나씩 쌓인다. */
+function tickSens(built){
+  if(SENS_T){ clearInterval(SENS_T); SENS_T = null; }
+  const el = $('since'); if(!el) return;
+  const t0 = built ? new Date(String(built).replace(' ', 'T')).getTime() : NaN;
+  if(!(t0 > 0)){ el.textContent = '시각 없음'; return; }
+  const draw = () => {
+    const el2 = $('since');
+    if(!el2){ clearInterval(SENS_T); SENS_T = null; return; }   // 화면이 바뀌었다
+    let s = Math.max(0, Math.floor((Date.now() - t0) / 1000));
+    const d = Math.floor(s/86400); s -= d*86400;
+    const h = Math.floor(s/3600);  s -= h*3600;
+    const m = Math.floor(s/60);    s -= m*60;
+    const p = v => String(v).padStart(2,'0');
+    el2.textContent = (d?d+'일 ':'') + `${p(h)}:${p(m)}:${p(s)} 전`;
+  };
+  draw();
+  SENS_T = setInterval(draw, 1000);
+}
+
 function donutTop(tools, n, sel){
   n = n || 10;
   const used = tools.filter(t => (t.hours || 0) > 0)
@@ -990,14 +1232,35 @@ function donutTop(tools, n, sel){
         g.wear == null ? '' : ` · 마모 ${g.wear.toFixed(2)}%`}</title></path>`;
   }).join('');
 
-  const legend = seg.map((g, i) => `<button class="dleg${
-      g.tool != null && g.tool === sel ? ' sel' : ''}" data-i="${i}"
+  /* 목록 한 줄 = 순위 · 색 · 이름 · 시간 · 마모율.
+     줄 바탕을 사용 비중만큼 칠한다 — 막대를 따로 그리면 줄 높이가 두 배가
+     되는데, 바탕으로 깔면 높이를 안 먹고도 «누가 큰가» 가 한눈에 보인다.
+     그림을 못 보는 상황(작은 화면·흑백 인쇄)에서도 목록만으로 읽힌다. */
+  const legend = seg.map((g, i) => {
+    const pct = 100 * g.h / all;
+    const sel_ = g.tool != null && g.tool === sel;
+    return `<button class="dleg${sel_ ? ' sel' : ''}" data-i="${i}"
+      aria-pressed="${sel_}" title="${esc(g.name)} — 절삭 ${g.h.toFixed(2)}h · 사용량의 ${pct.toFixed(1)}%${
+        g.wear == null ? '' : ` · 마모 ${g.wear.toFixed(2)}%`}"
+      style="background-image:linear-gradient(90deg,var(--accent-soft) ${pct.toFixed(1)}%,transparent ${pct.toFixed(1)}%)"
       ${g.tool == null ? '' : `onclick="SEL.tool=${g.tool};render()"`}>
+      <span class="rk">${i + 1}</span>
       <i style="background:${g.col};opacity:${g.op.toFixed(3)}"></i>
       <span class="nm">${g.tool == null ? esc(g.name) : 'T' + g.tool + ' ' + esc(g.name)}</span>
       <span class="hr">${g.h.toFixed(1)}h</span>
-      <span class="we">${g.wear == null ? '' : g.wear.toFixed(1) + '%'}</span>
-    </button>`).join('');
+      <span class="we lv${g.lv}">${g.wear == null ? '' : g.wear.toFixed(1) + '%'}</span>
+    </button>`;
+  }).join('');
+
+  /* 가운데 글자. 고른 공구가 이 그림 안에 있으면 그것을 먼저 적는다 —
+     마우스를 떼면 늘 「10종」 으로 돌아가 버리면, 방금 무엇을 골랐는지
+     그림에서는 알 수가 없다. */
+  const cur = seg.find(g => g.tool != null && g.tool === sel);
+  const mid = cur
+    ? `<b class="${cur.lv ? 'lv' + cur.lv : ''}">${cur.wear == null ? cur.h.toFixed(1) + 'h' : cur.wear.toFixed(1) + '%'}</b>`
+      + `<span>T${cur.tool} ${esc(cur.name)}</span>`
+      + `<span class="sub">${cur.h.toFixed(1)}h · 사용량의 ${(100 * cur.h / all).toFixed(1)}%</span>`
+    : `<b>${top.length}종</b><span>가장 많이 쓴 공구</span>`;
 
   /* 색 뜻과 「이 열 종이 전체의 몇 %인가」를 그림 «아래» 가 아니라 «옆»
      아래쪽에 붙인다. 그림 옆은 어차피 비는 자리고, 아래에 쌓으면 그만큼
@@ -1020,10 +1283,7 @@ function donutTop(tools, n, sel){
         ${arcs}
         <circle cx="100" cy="100" r="${r - 1}" fill="var(--surface)"></circle>
       </svg>
-      <div class="dmid" id="dmid">
-        <b>${top.length}종</b>
-        <span>가장 많이 쓴 공구</span>
-      </div>
+      <div class="dmid" id="dmid">${mid}</div>
     </div>
     <div class="dside">
       <div class="dlegs">${legend}</div>
@@ -1070,6 +1330,10 @@ function bindDonut(){
 async function renderDash(){
   const ov = await api('/api/overview');
   const b = ov.basis; fillBasisBar(b);
+  /* 센서 현황은 있으면 좋은 것이지 없으면 화면이 안 떠서는 안 되는 값이다 —
+     못 읽어도 대시보드는 그대로 뜨게 둔다. */
+  let hs = null;
+  try{ hs = await api('/api/health'); }catch(e){ hs = null; }
 
   /* 대시보드에는 딸린 목록을 안 둔다. 여기 있던 「메인 프로그램 / 세부
      프로그램」 목록은 이 화면의 숫자를 하나도 거르지 않았다 — 눌러 봐야
@@ -1107,13 +1371,24 @@ async function renderDash(){
       <div class="phead">
         <h4>어느 공구가 많이 도는가
           <span class="hint">누르면 아래에 자세히 · 올리면 마모율</span></h4>
-        <select id="tsel" title="목록에 없는 공구 고르기"
-                onchange="SEL.tool=+this.value;render()">
-          ${TOOLS.map(x=>`<option value="${x.tool}" ${x.tool===SEL.tool?'selected':''}>
-            T${x.tool} · ${x.name} — 마모 ${f2(x.wear)}%</option>`).join('')}
-        </select>
+        <!-- 67종을 한 줄 목록으로만 두면 «T43 이 어디 있지» 를 눈으로 훑게
+             된다. 찾기(글자)와 정렬(무엇이 위로 오나)을 칸 옆에 붙인다. -->
+        <div class="tpick">
+          <input id="tq" type="search" placeholder="공구 찾기 — 번호나 이름"
+                 value="${esc(TSEL_Q)}" autocomplete="off" spellcheck="false"
+                 oninput="tfind(this.value)" onkeydown="if(event.key==='Enter')tfirst()">
+          <select id="tsort" title="무엇을 위로 올릴지" onchange="tsort(this.value)">
+            ${Object.entries(TSORT).map(([k,v])=>
+              `<option value="${k}" ${k===TSEL_SORT?'selected':''}>${v[0]}</option>`).join('')}
+          </select>
+          <select id="tsel" title="공구 고르기" size="1"
+                  onchange="if(this.value){SEL.tool=+this.value;render()}">
+            ${toolOptions()}
+          </select>
+        </div>
       </div>
       <div class="dwrap">
+        ${sensPanel(b, ov, hs)}
         <div class="sumcol">
           ${sumRow('교체가 필요한 공구', hot.length, '종', hot.length?'warn':'ok')}
           ${sumRow('가장 많이 쓴 공구', busy[0]?('T'+busy[0].tool):'-',
@@ -1132,6 +1407,16 @@ async function renderDash(){
           <span class="tag ${det.tool.cls==='breakage'?'b':'w'}">${det.tool.cls==='breakage'?'파손형':'마모형'}</span>
           <span class="muted" style="font-weight:400;font-size:12px"> — ${det.tool.wear_label||'마모율'}</span>
           ${helpBtn(det.tool.cls==='breakage'?'breakage':'wear')}</h4>
+        <!-- 그림이 있는 공구는 왼쪽에 형상을 놓고, 값은 그 오른쪽으로 모은다.
+             숫자만 늘어놓으면 «T33» 이 무엇처럼 생긴 물건인지 모르는 사람은
+             끝까지 모른다. 그림이 없는 공구는 이 칸 자체가 안 생긴다. -->
+        <div class="tdet${toolImg(det.tool.tool)?' haspic':''}">
+          ${toolImg(det.tool.tool)?`<div class="tpic">
+            <img src="${toolImg(det.tool.tool)[0]}" alt="${esc(det.tool.name)} 형상"
+                 width="${toolImg(det.tool.tool)[1]}" height="${toolImg(det.tool.tool)[2]}"
+                 loading="lazy" decoding="async">
+          </div>`:''}
+          <div class="tinfo">
         <div class="gauge"><i class="${lvl(det.tool.wear)}" style="width:${Math.min(det.tool.wear,100)}%"></i>
           <span>${f3(det.tool.wear)} %</span></div>
         ${det.tool.cls==='breakage'?`<div class="note warn" style="margin:8px 0 2px">
@@ -1159,6 +1444,8 @@ async function renderDash(){
         ${ME.role==='manager'?`<div style="margin-top:11px">
           <button class="act sec" title="이 공구를 갈았다고 기록합니다 — 그날부터 다시 셉니다"
             onclick="openReplace(${det.tool.tool})">교체 처리</button></div>`:''}
+          </div>
+        </div>
       </div>
       <div class="panel">
         <h4>인자별 ${det.tool.cls==='breakage'?'파손 위험':'마모'} 기여</h4>
@@ -1207,6 +1494,7 @@ async function renderDash(){
     ${reportBar('wear')}`;
   drawDays(ov.days);
   bindDonut();
+  tickSens(b.built);
 }
 
 /* 그림 색은 위 :root 에서 읽는다. 코드에 박아 두면 화면 색을 바꿔도
@@ -1911,6 +2199,8 @@ function pickAlert(v){ ALERT_SEL = (ALERT_SEL===v? null : v); renderAlert(); }
 
 async function renderAlert(){
   const a = await api('/api/alerts');
+  /* 「0건입니다」 라고 말할 때 무슨 기준으로 판정한 0인지 같이 밝힌다 */
+  const b0 = a.basis || BASIS || {};
   const canManage = ME.role==='manager';
   const badge=$('badge'), n=a.counts.danger+a.counts.unread;
   if(n){ badge.textContent=n; badge.classList.remove('hide'); } else badge.classList.add('hide');
@@ -1920,7 +2210,10 @@ async function renderAlert(){
       ${x.evidence?`<div class="e">근거 — ${x.evidence}</div>`:''}
       ${x.by?`<div class="meta"><span>${x.by} · ${x.at} · 수신 ${
         {all:'전체',manager:'관리자',operator:'작업자'}[x.to]||x.to}</span>
-        ${x.unread?`<button class="act sec" onclick="readAlert('${x.id}')">읽음</button>`:'<span>읽음</span>'}
+        ${x.unread
+          ? `<button class="act sec" title="확인 처리합니다 — 목록에서 내려가고 기록이 남습니다"
+               onclick="readAlert('${x.id}')">확인</button>`
+          : `<span title="확인한 알림은 왼쪽 「확인한 알림」 에서 볼 수 있습니다">확인함</span>`}
       </div>`:''}
     </div>`;
 
@@ -1936,26 +2229,66 @@ async function renderAlert(){
              desc:'교체 준비 단계이거나 사용강도가 기준을 넘은 건'},
     unread: {label:'안 읽은 알림', auto:()=>false, manual:x=>x.unread,
              desc:'사람이 보낸 알림 중 아직 안 읽은 것 — 자동 경보에는 읽음 표시가 없습니다'},
+    done:   {label:'확인한 알림', auto:()=>false, manual:x=>!x.unread,
+             desc:'이미 확인 처리한 알림 — 확인하면 기본 목록에서는 내려갑니다'},
   };
+  /* 규칙 하나하나도 눌러 볼 수 있어야 한다. 「마모율 70%」 가 목록에만 적혀
+     있고 눌러도 아무 일이 없으면, 그 규칙에 걸린 게 없는 건지 규칙이 안 도는
+     건지 알 길이 없다. 눌러서 0건이면 0건이라고 화면이 말해 준다. */
+  (a.rules.wear || []).forEach(r => {
+    FILT['wear' + r.threshold] = {
+      label: `마모율 ${r.threshold}% — ${r.name}`, rule: true,
+      auto: x => x.rule === 'wear' + r.threshold, manual: () => false,
+      desc: `마모율이 ${r.threshold}% 를 넘은 공구. 임계마다 한 번씩만 잡으므로 더 높은 단계에 걸린 공구는 그쪽에 있습니다`};
+  });
+  FILT['intensity'] = {label:`사용강도 ${a.rules.intensity}배 초과`, rule:true,
+    auto:x=>x.rule==='intensity', manual:()=>false,
+    desc:'평균 공구보다 빠르게 닳는 중 — 일괄 교체 주기 안에 먼저 닳습니다'};
+  if(a.rules.breakage){
+    FILT['break-event'] = {label:'파손형 — 임계 초과 이벤트', rule:true,
+      auto:x=>x.rule==='break-event', manual:()=>false,
+      desc:'과부하·충격이 실제로 찍힌 건. 마모율과 무관하게 즉시 확인할 일입니다'};
+    FILT['break-spike'] = {label:`파손형 — 하루 급증 ${a.rules.breakage.spike}배`, rule:true,
+      auto:x=>x.rule==='break-spike', manual:()=>false,
+      desc:`그 공구 자신의 직전 ${a.rules.breakage.lookback}일 평균과 견준 값입니다`};
+  }
+  FILT['quality'] = {label:'수집 이상', rule:true,
+    auto:x=>x.rule==='quality', manual:()=>false,
+    desc:'있어야 할 값이 전량 0이거나 절반 이상 0인 컬럼'};
   const F = V && FILT[V];
   const auto   = F ? a.auto.filter(F.auto)     : a.auto;
-  const manual = F ? a.manual.filter(F.manual) : a.manual;
+  /* 확인한 알림은 기본 목록에서 내린다. 읽은 것이 계속 쌓여 있으면 새 알림이
+     그 사이에 묻히고, 결국 목록 전체를 안 보게 된다. 없어지지는 않는다 —
+     왼쪽 「확인한 알림」 에 그대로 있다. */
+  const manual = F ? a.manual.filter(F.manual) : a.manual.filter(x => x.unread);
+  const doneN  = a.manual.length - a.counts.unread;
 
   const it = (k,label,sub) =>
     `<div class="item ${V===k?'on':''}" onclick="pickAlert('${k}')">${label}<span class="m">${sub}</span></div>`;
+  /* 규칙마다 지금 몇 건이 걸려 있는지 옆에 적는다. 0 건이면 0 이라고
+     적고, 눌러 들어가도 «없습니다» 라고 화면이 말한다 — 눌러도 아무 일이
+     없으면 규칙이 안 도는 건지 걸린 게 없는 건지 알 수가 없다. */
+  const nAuto = k => a.auto.filter(FILT[k] ? FILT[k].auto : ()=>false).length;
+  const rule = (k,label) => {
+    const n = nAuto(k);
+    return `<div class="item ${V===k?'on':''} ${n?'':'zero'}" onclick="pickAlert('${k}')">
+      ${label}<span class="m">${n?`${n}건`:'해당 없음'}</span></div>`;
+  };
   $('side').innerHTML = `<h3>경보 규칙</h3>` +
-    a.rules.wear.map(r=>`<div class="item">마모율 ${r.threshold}%<span class="m">${r.name}</span></div>`).join('') +
-    `<div class="item">사용강도 ${a.rules.intensity}배<span class="m">과다 소모 경고</span></div>
-     ${a.rules.breakage?`<h3>파손형 (TAP · 6mm 미만 드릴)</h3>
-     <div class="item">임계 초과 이벤트<span class="m">과부하·충격 발생 시 즉시</span></div>
-     <div class="item">하루 급증 ${a.rules.breakage.spike}배<span class="m">직전 ${a.rules.breakage.lookback}일 평균 대비</span></div>`:''}
-     <h3>현황</h3>
+    a.rules.wear.map(r=>rule('wear'+r.threshold, `마모율 ${r.threshold}% · ${r.name}`)).join('') +
+    rule('intensity', `사용강도 ${a.rules.intensity}배`) +
+    rule('quality', '수집 이상') +
+    (a.rules.breakage?`<h3>파손형 (TAP · 6mm 미만 드릴)</h3>`
+      + rule('break-event','임계 초과 이벤트')
+      + rule('break-spike',`하루 급증 ${a.rules.breakage.spike}배`) : '') +
+    `<h3>현황</h3>
      <div class="item ${V?'':'on'}" onclick="ALERT_SEL=null;renderAlert()">전체
        <span class="m">아래 항목을 누르면 그것만 봅니다</span></div>` +
     it('danger','위험',`${a.counts.danger}건`) +
     (a.counts.breakage!==undefined? it('break','그중 파손형 즉시',`${a.counts.breakage}건`) : '') +
     it('warn','주의',`${a.counts.warn}건`) +
-    it('unread','안 읽은 알림',`${a.counts.unread}건`);
+    it('unread','안 읽은 알림',`${a.counts.unread}건`) +
+    it('done','확인한 알림',`${a.manual.length - a.counts.unread}건`);
 
   $('main').innerHTML = `
     ${pageHead('알림' + (F?` — ${F.label}`:''),
@@ -1985,10 +2318,22 @@ async function renderAlert(){
     </div>`:''}
 
     ${(F && !manual.length && !auto.length)?`<div class="panel">
-      <div class="muted">${F.label}에 해당하는 알림이 없습니다.</div></div>`:''}
+      <div class="none">
+        <div class="t">해당하는 알림이 없습니다</div>
+        <div class="b">${F.label}${F.rule?' 규칙':''}에 걸린 건이 지금 <b>0건</b>입니다.
+          규칙이 안 도는 것이 아니라, 지금 기준(${esc(b0.segment_label||'')} ·
+          기준 수명 ${b0.life_days||'-'}일 · 앵커 ${esc(b0.anchor_label||'-')})으로
+          판정했을 때 걸리는 공구가 없다는 뜻입니다.</div>
+        <div class="b" style="margin-top:7px">${esc(F.desc||'')}</div>
+        <button class="act sec" style="margin-top:11px"
+          onclick="ALERT_SEL=null;renderAlert()">← 전체 알림으로</button>
+      </div></div>`:''}
 
     ${(!F || manual.length)?`<div class="panel">
-      <h4>받은 알림 ${manual.length?`(${manual.length})`:''}</h4>
+      <h4>받은 알림 ${manual.length?`(${manual.length})`:''}
+        ${(!F && doneN)?`<span class="muted" style="font-weight:400;font-size:12px">
+          — 확인한 ${doneN}건은 내려 두었습니다
+          <button class="lnk" onclick="pickAlert('done')">보기</button></span>`:''}</h4>
       ${manual.length? manual.map(card).join('') : '<div class="muted">받은 알림이 없습니다</div>'}
     </div>`:''}
 

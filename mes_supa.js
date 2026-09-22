@@ -306,7 +306,7 @@
       if (done.has(e.tool)) continue;
       done.add(e.tool);
       out.push({
-        kind: 'break', level: 'danger', tool: e.tool,
+        kind: 'break', rule: 'break-event', level: 'danger', tool: e.tool,
         title: `T${e.tool} ${nameOf.get(e.tool)} — 즉시 교체 검토 (파손형)`,
         body: `${e.type} · ${e.time}${ago(e.time)}` + (cnt.get(e.tool) > 1
           ? ` · 이 구간에 같은 이벤트 ${cnt.get(e.tool)}건` : ''),
@@ -329,7 +329,7 @@
       const avg = prev.reduce((s, x) => s + x.raw, 0) / prev.length;
       if (!(avg > 0) || last.raw < avg * BREAK_SPIKE) continue;
       out.push({
-        kind: 'break', level: 'danger', tool: t.tool,
+        kind: 'break', rule: 'break-spike', level: 'danger', tool: t.tool,
         title: `T${t.tool} ${t.name} — 하루 마모 급증 (파손형)`,
         body: `${last.date} 마모 ${MES.round(b.wear(last.raw), 4)}% · `
           + `직전 ${prev.length}일 평균의 ${(last.raw / avg).toFixed(1)}배`,
@@ -347,7 +347,7 @@
       for (const [thr, name, level] of WEAR_LEVELS) {
         if (t.wear >= thr) {
           out.push({
-            kind: 'wear', level, tool: t.tool,
+            kind: 'wear', rule: 'wear' + thr, level, tool: t.tool,
             title: `T${t.tool} ${t.name} — ${name}`,
             body: `마모율 ${t.wear.toFixed(2)}% (기준 ${thr}% 초과) · 기여도 ${t.share.toFixed(2)}%`,
             /* 파손형에게 마모율 임계는 «계획» 이지 «위험» 이 아니다.
@@ -363,7 +363,7 @@
     for (const t of tools) {
       if ((t.intensity || 0) >= INTENSITY_WARN && !out.some(o => o.tool === t.tool)) {
         out.push({
-          kind: 'intensity', level: 'warn', tool: t.tool,
+          kind: 'intensity', rule: 'intensity', level: 'warn', tool: t.tool,
           title: `T${t.tool} ${t.name} — 사용강도 과다`,
           body: `평균 공구의 ${t.intensity.toFixed(1)}배로 소모 중 · 기여도 ${t.share.toFixed(2)}%`,
           evidence: '일괄 교체 주기 안에 먼저 닳는 공구',
@@ -375,7 +375,7 @@
       const m = DEAD_COL[col];
       if (!m) return;
       out.push({
-        kind: 'quality', level: m[0] === 'critical' ? 'danger' : 'warn', tool: null,
+        kind: 'quality', rule: 'quality', level: m[0] === 'critical' ? 'danger' : 'warn', tool: null,
         title: `${col} — 전량 0`, body: m[1],
         evidence: `절삭 ${(q.cut_rows || 0).toLocaleString()}행 전부 0`,
       });
@@ -384,7 +384,7 @@
       const m = WEAK_COL[w.col];
       if (!m) return;
       out.push({
-        kind: 'quality', level: 'danger', tool: null,
+        kind: 'quality', rule: 'quality', level: 'danger', tool: null,
         title: `${w.col} — 비영률 ${w.nonzero.toFixed(1)}%`, body: m[1],
         evidence: '절반 이상이 0',
       });
@@ -805,12 +805,16 @@
     if (path.startsWith('/api/alert/') && path.endsWith('/read')) {
       const id = path.split('/')[3];
       try {
-        const rows = await db('GET', `/mes_alerts?id=eq.${id}&select=read_by&limit=1`);
+        const rows = await db('GET', `/mes_alerts?id=eq.${id}&select=read_by,title&limit=1`);
         if (!rows.length) return ok({ ok: false });
         const rb = rows[0].read_by || [];
         if (!rb.includes(u.id)) {
           rb.push(u.id);
           await db('PATCH', `/mes_alerts?id=eq.${id}`, { read_by: rb }, 'return=minimal');
+          /* 누가 언제 확인했는지 남긴다. 확인하면 목록에서 내려가므로,
+             기록이 없으면 «아무도 안 봤다» 와 «봤는데 안 적었다» 가
+             구별이 안 된다. 질의 탭의 활동 로그에서 그대로 보인다. */
+          await log('알림 확인', `${id}${rows[0].title ? ' · ' + rows[0].title : ''}`);
         }
         return ok({ ok: true });
       } catch (e) { return err({ error: e.message }, 500); }
