@@ -228,16 +228,36 @@
 
   const DATE_CSS = `
   #basis .mes-date{ display:flex; align-items:center; gap:6px; }
+  /* 테두리 색은 mes.html 의 --line-in 을 따라간다. 여기에 색을 박아 두면
+     화면 톤을 바꿨을 때 이 두 칸만 옛 색으로 남는다. */
   #basis .mes-date input[type=date]{
-    font:inherit; font-size:12px; padding:3px 6px; border:1px solid #c3ced8;
-    border-radius:5px; background:#fff; color:#1f2a33; cursor:pointer;
+    font:inherit; font-size:12.5px; padding:6px 9px;
+    border:1px solid var(--line-in, #AFBCCB);
+    border-radius:6px; background:#fff; color:#1f2a33; cursor:pointer;
+    box-shadow:0 1px 1px rgba(15,23,42,.04);
+    transition:border-color .12s, box-shadow .12s;
   }
   #basis .mes-date button{
-    font:inherit; font-size:11.5px; padding:3px 9px; border:1px solid #c3ced8;
-    border-radius:5px; background:#fff; color:#41525f; cursor:pointer;
+    font:inherit; font-size:12px; padding:6px 11px;
+    border:1px solid var(--line-in, #AFBCCB);
+    border-radius:6px; background:#fff; color:var(--ink-2, #334155); cursor:pointer;
+    box-shadow:0 1px 1px rgba(15,23,42,.04);
+    transition:border-color .12s, background .12s, box-shadow .12s;
   }
-  #basis .mes-date button:hover{ background:#eef3fa; border-color:#9fb6cf; }
-  #basis .mes-date button[data-on]{ background:#1b365d; border-color:#1b365d; color:#fff; }
+  #basis .mes-date input[type=date]:hover,
+  #basis .mes-date button:hover{
+    background:var(--accent-soft, #EDF3FC); border-color:var(--line-in-2, #7E93AB);
+    box-shadow:0 1px 3px rgba(15,23,42,.09);
+  }
+  #basis .mes-date button[data-on]{
+    background:var(--accent, #004EA1); border-color:var(--accent, #004EA1);
+    color:#fff; font-weight:650;
+  }
+  /* 못 누르는 단추는 못 누른다는 게 보여야 한다 — 색이 같으면 눌러 보고 나서야 안다 */
+  #basis .mes-date button:disabled{
+    background:#F3F5F8; border-color:#DDE2E9; color:#A3AEBC;
+    cursor:not-allowed; box-shadow:none;
+  }
   #mes-from-note{
     font-size:11.5px; color:#8a6d1f; background:#fff8e6; border:1px solid #f0dfae;
     border-radius:5px; padding:4px 9px; margin-left:4px;

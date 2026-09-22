@@ -9,8 +9,12 @@
     --bg:#F7F9FB;        /* 화면 바탕 */
     --surface:#FFFFFF;   /* 카드·표 바탕 */
     --raise:#FCFDFE;     /* 살짝 띄운 곳 (표 머리글 등) */
-    --line:#E7EAEE;      /* 기본 테두리 */
+    --line:#E7EAEE;      /* 기본 테두리 — 판·표처럼 «가만히 있는 것» */
     --line-2:#F1F4F7;    /* 표 안쪽 가로줄처럼 더 연한 선 */
+    /* 누를 수 있는 칸(선택칸·입력칸·단추)의 테두리. 판 테두리와 같은 색을
+       쓰면 «눌러도 되는 곳» 이 바탕에 묻혀 버린다. 한 단계 진하게 둔다. */
+    --line-in:#AFBCCB;
+    --line-in-2:#7E93AB;  /* 마우스를 올렸을 때 */
     --ink:#0F172A;       /* 본문 글자 */
     --ink-2:#334155;     /* 소제목 */
     --muted:#64748B;     /* 설명문 */
@@ -83,10 +87,10 @@
   .lbox .sub{color:var(--muted);font-size:12.5px;margin-bottom:24px}
   .lbox label{display:block;font-size:12px;color:var(--ink-2);margin:14px 0 6px;
     font-weight:550}
-  .lbox input{width:100%;padding:10px 12px;border:1px solid var(--line);
+  .lbox input{width:100%;padding:10px 12px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font-size:13px;background:var(--surface);color:var(--ink);
     transition:border-color .12s,box-shadow .12s}
-  .lbox input:hover{border-color:#CBD5E1}
+  .lbox input:hover{border-color:var(--line-in-2)}
   .lbox input:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
   .lbox button{width:100%;margin-top:22px;padding:11px;background:var(--accent);color:#fff;
     border:0;border-radius:var(--r-sm);font-size:14px;font-weight:600;cursor:pointer;
@@ -195,10 +199,13 @@
     padding:11px 30px;display:flex;align-items:center;gap:18px;row-gap:9px;flex-wrap:wrap}
   .bset{display:flex;align-items:center;gap:7px}
   .bset > span{font-size:12.5px;color:var(--muted);white-space:nowrap;font-weight:550}
-  .bset select,.bset input[type=date]{padding:7px 10px;border:1px solid var(--line);
+  .bset select,.bset input[type=date]{padding:7px 10px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font:inherit;font-size:13px;background:var(--surface);
-    color:var(--ink);cursor:pointer;transition:border-color .12s}
-  .bset select:hover,.bset input[type=date]:hover{border-color:#CBD5E1}
+    color:var(--ink);cursor:pointer;
+    box-shadow:0 1px 1px rgba(15,23,42,.04);
+    transition:border-color .12s,box-shadow .12s}
+  .bset select:hover,.bset input[type=date]:hover{border-color:var(--line-in-2);
+    box-shadow:0 1px 3px rgba(15,23,42,.09)}
   .bset select:focus,.bset input[type=date]:focus{outline:none;border-color:var(--accent);
     box-shadow:var(--ring)}
   /* 기준 설명. 예전에는 margin-left:auto 로 오른쪽 끝에 붙이고 두 줄로 썼다.
@@ -222,7 +229,7 @@
   .hint{font-weight:400;font-size:11.5px;color:var(--faint);margin-left:7px}
 
   /* ── 「?」 부가설명 단추 ─────────────────────────────────── */
-  .help{width:17px;height:17px;border-radius:50%;border:1px solid var(--line);
+  .help{width:18px;height:18px;border-radius:50%;border:1px solid var(--line-in);
     background:var(--surface);color:var(--muted);font:600 11px/1 sans-serif;
     cursor:pointer;padding:0;flex:none;transition:all .12s}
   .help:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
@@ -251,22 +258,32 @@
      이 판 하나가 화면 높이의 절반을 먹었고, 정작 아래의 공구 상세는 스크롤을
      내려야 보였다. 그림 옆의 빈 자리에 목록과 색 뜻을 넣어 판 높이를 그림
      높이(196px)로 묶는다. */
-  .donut{display:grid;grid-template-columns:212px 1fr;gap:20px;align-items:start}
-  .dchart{position:relative;width:212px;height:212px}
+  /* 그림 | 목록. 목록을 여러 열로 펴 놓으면 네 줄이면 끝나 버려서, 그림
+     높이만큼 아래가 통째로 비었다. 목록을 한 줄짜리 칸으로 세우고 넘치면
+     그 칸만 굴러가게 하면 — 빈자리가 안 생기고, 남는 가로폭이 전부
+     그림으로 간다. 그래서 그림이 커진다. */
+  .donut{display:grid;grid-template-columns:1fr 358px;gap:22px;align-items:stretch}
+  .dchart{position:relative;width:100%;max-width:340px;aspect-ratio:1/1;
+    margin:0 auto;align-self:center}
   .dchart svg{width:100%;height:100%;display:block}
-  .dside{display:flex;flex-direction:column;gap:10px;min-height:212px}
-  .dside .dkey{margin-top:auto;padding-top:9px;border-top:1px solid var(--line-2)}
+  .dside{display:flex;flex-direction:column;gap:9px;min-height:0}
+  .dside .dkey{flex:none;margin-top:0;padding-top:9px;border-top:1px solid var(--line-2)}
   .dslice{cursor:pointer;transition:opacity .12s,transform .12s;transform-origin:100px 100px}
   .dslice:hover,.dslice:focus{outline:none;transform:scale(1.035)}
   .dslice.dim{opacity:.34}
   .dslice.sel{stroke:var(--ink);stroke-width:1.5;paint-order:stroke}
   .dmid{position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;pointer-events:none;text-align:center;padding:0 22px}
-  .dmid b{font-size:26px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.015em}
+  .dmid b{font-size:30px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
   .dmid b.lv1{color:var(--warn)} .dmid b.lv2{color:var(--danger)}
-  .dmid span{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .dmid span{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.35}
   .dmid span.sub{font-size:10.5px;color:var(--faint);margin-top:1px}
-  .dlegs{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:2px 10px}
+  /* 한 줄짜리. 넘치면 여기만 굴러간다 — min-height:0 이 있어야 판 높이를
+     밀지 않고 제 안에서 줄어든다. */
+  .dlegs{flex:1;min-height:0;overflow-y:auto;align-content:start;
+    display:grid;grid-template-columns:1fr;gap:2px;padding-right:4px}
+  .dlegs::-webkit-scrollbar{width:6px}
+  .dlegs::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
   /* 줄 바탕에 사용 비중만큼 색을 깔아 둔다(인라인 style 의 gradient).
      그래서 background-color 대신 box-shadow 로 눌린 표시를 준다 —
      색을 덮어쓰면 비중 막대가 사라진다. */
@@ -302,10 +319,10 @@
   /* 왼쪽부터 센서 현황 · 요약 숫자 · 원그래프. 원그래프를 오른쪽으로 밀고
      폭을 줄였다 — 그림은 좁아져도 읽히지만, 「지금 값이 들어오고는 있나」는
      안 보이면 아예 모른다. */
-  .dwrap{display:grid;grid-template-columns:248px 206px 1fr;gap:20px;align-items:start}
+  .dwrap{display:grid;grid-template-columns:248px 206px 1fr;gap:20px;align-items:stretch}
 
   /* ── 센서·반영 현황 ──────────────────────────────────────── */
-  .senscol{display:flex;flex-direction:column;min-height:212px;
+  .senscol{display:flex;flex-direction:column;min-height:236px;
     border:1px solid var(--line);border-radius:var(--r);background:var(--surface);
     padding:12px 14px 11px}
   .shead{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:650;
@@ -327,7 +344,10 @@
   .sline b{margin-left:auto;font-size:13px;font-weight:700;color:var(--ink);
     font-variant-numeric:tabular-nums}
   .sline em{font-style:normal;font-size:11px;color:var(--faint);flex:none}
-  .sigs{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px;align-items:center}
+  /* 신호 표는 칸 아래쪽에 붙인다 — 그림 높이에 맞춰 칸이 늘어나므로,
+     위로 몰아 두면 아래가 통째로 빈다. */
+  .sigs{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto;padding-top:10px;
+    align-items:center;align-content:flex-end}
   .sig{display:inline-flex;align-items:center;gap:5px;font-size:11px;
     padding:3px 8px;border-radius:999px;white-space:nowrap;
     background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent)}
@@ -335,7 +355,7 @@
   .sig.off{background:var(--bg);border-color:var(--line);color:var(--faint)}
   .sigs .help{width:19px;height:19px;font-size:10.5px}
   .dwrap .donut{min-width:0}
-  .sumcol{display:flex;flex-direction:column;min-height:212px;
+  .sumcol{display:flex;flex-direction:column;min-height:236px;
     border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
   .srow{flex:1;display:flex;align-items:center;justify-content:space-between;
     gap:10px;padding:0 15px;border-bottom:1px solid var(--line-2);min-width:0}
@@ -356,11 +376,9 @@
      목록이 한 줄짜리로 떨어지면 판이 열 줄만큼 길어진다 — 그러면 아래
      공구 상세가 다시 접힌다. 시간은 줄에서 빼고 말풍선에만 남긴다. */
   @media(max-width:1500px){
-    .dchart{width:176px;height:176px}
-    .donut{grid-template-columns:176px 1fr;gap:16px}
-    .dside,.sumcol,.senscol{min-height:176px}
-    .dmid b{font-size:22px} .dmid{padding:0 16px}
-    .dlegs{grid-template-columns:repeat(auto-fill,minmax(206px,1fr))}
+    .donut{grid-template-columns:1fr 300px;gap:16px}
+    .dchart{max-width:250px}
+    .dmid b{font-size:25px} .dmid{padding:0 18px}
     .dleg .hr{display:none}
   }
   @media(max-width:1340px){
@@ -475,20 +493,23 @@
   /* 판 제목 줄 오른쪽 — 찾기 · 정렬 · 고르기 한 벌.
      상위 10종은 그림에서 바로 누르면 되고, 이 칸은 나머지 57종을 찾을 때 쓴다. */
   .tpick{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
-  .tpick input#tq{width:190px;padding:7px 11px;border:1px solid var(--line);
+  .tpick input#tq{width:190px;padding:7px 11px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font:inherit;font-size:12.5px;background:var(--surface);
     color:var(--ink)}
   .tpick input#tq::placeholder{color:var(--faint)}
-  .tpick select#tsort{padding:7px 9px;border:1px solid var(--line);
+  .tpick select#tsort{padding:7px 9px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font:inherit;font-size:12.5px;background:var(--surface);
     color:var(--muted);cursor:pointer}
-  select#tsel{max-width:340px;padding:7px 10px;border:1px solid var(--line);
+  select#tsel{max-width:340px;padding:7px 10px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font:inherit;font-size:12.5px;background:var(--surface);
     color:var(--ink-2);cursor:pointer}
+  .tpick input#tq,.tpick select{box-shadow:0 1px 1px rgba(15,23,42,.04);
+    transition:border-color .12s,box-shadow .12s}
+  .tpick input#tq:hover,.tpick select:hover{border-color:var(--line-in-2)}
   .tpick :focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
   @media(max-width:1200px){ .tpick input#tq{width:150px} select#tsel{max-width:240px} }
   .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
-  .chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;
+  .chip{background:var(--surface);border:1px solid var(--line-in);border-radius:999px;
     padding:6px 13px;font-size:12px;cursor:pointer;display:flex;gap:7px;align-items:center;
     color:var(--ink-2);transition:background .12s,border-color .12s}
   .chip:hover{background:var(--accent-soft);border-color:var(--accent-line)}
@@ -540,7 +561,9 @@
     transition:background .12s}
   button.act:hover{background:var(--accent-2)}
   button.act:disabled{background:#CBD5E1;cursor:not-allowed}
-  button.act.sec{background:var(--surface);color:var(--ink-2);border:1px solid var(--line)}
+  button.act.sec{background:var(--surface);color:var(--ink-2);border:1px solid var(--line-in);
+    box-shadow:0 1px 1px rgba(15,23,42,.04)}
+  button.act.sec:hover{border-color:var(--line-in-2);background:var(--accent-soft)}
   button.act.sec:hover{background:var(--line-2);border-color:#CBD5E1}
   button.act.gray{background:var(--muted)}
   button.act.gray:hover{background:#4E5A68}
@@ -565,13 +588,13 @@
   .qrow:last-child{border:0}
   .qrow .nm{flex:1;font-size:12.5px}
   .qrow .nm b{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:2px}
-  .qrow input[type=number]{width:76px;padding:6px 9px;border:1px solid var(--line);
+  .qrow input[type=number]{width:76px;padding:6px 9px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font:inherit;font-size:12.5px;text-align:right}
   .qrow input[type=number]:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
   .qrow .del{background:none;border:0;color:var(--faint);cursor:pointer;font-size:15px;
     padding:0 5px;border-radius:5px}
   .qrow .del:hover{color:var(--danger);background:var(--danger-soft)}
-  #mnote{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-sm);
+  #mnote{width:100%;padding:9px 11px;border:1px solid var(--line-in);border-radius:var(--r-sm);
     font-size:12.5px;margin-top:12px;font-family:inherit;background:var(--surface);
     color:var(--ink)}
   #mnote:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
@@ -589,7 +612,7 @@
   .drop:hover{border-color:var(--accent);background:var(--accent-soft)}
   .drop b{display:block;font-size:13.5px;margin-bottom:6px;font-weight:600}
   .drop span{font-size:11.5px;color:var(--muted)}
-  .msel{padding:5px 8px;border:1px solid var(--line);border-radius:var(--r-sm);
+  .msel{padding:5px 8px;border:1px solid var(--line-in);border-radius:var(--r-sm);
     font:inherit;font-size:11.5px;width:100%;background:var(--surface)}
   .how{font-size:10.5px;padding:2px 7px;border-radius:999px;white-space:nowrap;font-weight:600}
   .how.dict{background:var(--ok-soft);color:var(--ok)}
@@ -615,7 +638,7 @@
     align-items:center}
   .al.unread{box-shadow:0 0 0 2px var(--accent-line),var(--sh)}
   .sendbox{display:grid;grid-template-columns:130px 130px 1fr;gap:9px;margin-bottom:9px}
-  .sendbox select,.sendbox input,#askq{padding:9px 11px;border:1px solid var(--line);
+  .sendbox select,.sendbox input,#askq{padding:9px 11px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font-size:12.5px;width:100%;font-family:inherit;
     background:var(--surface);color:var(--ink)}
   .sendbox select:focus,.sendbox input:focus,#askq:focus{outline:none;
@@ -628,7 +651,7 @@
     border-radius:12px 12px 3px 12px;font-size:12.5px;line-height:1.75;margin-top:8px;
     white-space:pre-wrap;box-shadow:var(--sh)}
   .qa .src{font-size:11px;color:var(--faint);margin-top:7px}
-  .exq{background:var(--surface);border:1px solid var(--line);border-radius:999px;
+  .exq{background:var(--surface);border:1px solid var(--line-in);border-radius:999px;
     padding:6px 13px;font:inherit;font-size:11.5px;cursor:pointer;margin:0 6px 7px 0;
     color:var(--ink-2);transition:background .12s,border-color .12s}
   .exq:hover{background:var(--accent-soft);border-color:var(--accent-line)}
@@ -718,10 +741,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="7fd362936a">
+<meta name="mes-build" content="381926ec06">
 <script>
 (function(){
-  var mine = "7fd362936a";
+  var mine = "381926ec06";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -770,7 +793,7 @@
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
 <script src="mes_supa.js?v=0a7a2a6e"></script>
-<script src="mes_ui.js?v=999432d5"></script>
+<script src="mes_ui.js?v=4aecf47b"></script>
 <script src="mes_dash.js?v=41565f90"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -2313,7 +2336,7 @@ async function renderAlert(){
         <input id="s_title" placeholder="제목 — 예: T33 교체 요망">
       </div>
       <input id="s_body" placeholder="내용 (선택)" style="width:100%;padding:8px 10px;
-        border:1px solid var(--line);border-radius:6px;font-size:12.5px;margin-bottom:9px">
+        border:1px solid var(--line-in);border-radius:6px;font-size:12.5px;margin-bottom:9px">
       <button class="act" onclick="sendAlert()">전송</button>
     </div>`:''}
 
