@@ -7,7 +7,7 @@
  * 그림은 전부 직접 그린 SVG 다. 외부 라이브러리를 쓰면 인터넷이 끊긴
  * 공장에서 화면이 비어 버린다.
  *
- * mes.html 은 고치지 않는다. 상단 메뉴에 버튼 하나를 붙이고,
+ * mes.html 은 고치지 않는다. 왼쪽 메뉴 기둥에 버튼 하나를 붙이고,
  * 눌렀을 때 화면 영역만 우리가 그린다.
  *
  * 판정 규칙은 전부 여기 적어 둔다 — 왜 경고가 떴는지 사람이 따라올 수 있어야 한다.
@@ -135,9 +135,9 @@
      mes.html 의 :root 변수를 읽어 쓰고, 없으면 기본값으로 떨어진다.
      그래서 «마모율 게이지와 그래프가 다른 파랑» 같은 일이 안 생긴다. */
   const FALLBACK = {
-    '--accent': '#1B365D', '--chart-bar': '#7E9CC0', '--chart-area': '#E8EFF7',
+    '--accent': '#004EA1', '--chart-bar': '#6E9FD6', '--chart-area': '#E6EFFA',
     '--chart-grid': '#F1F4F7', '--chart-axis': '#94A3B8', '--chart-label': '#64748B',
-    '--danger': '#DC2626', '--danger-soft': '#F3C7C7', '--warn': '#D97706',
+    '--danger': '#DC2626', '--danger-soft': '#F3C7C7', '--warn': '#EC6E00',
     '--surface': '#FFFFFF',
   };
   let _pal = null;
@@ -273,7 +273,7 @@ ${esc(m.why)}</title></circle>`;
   }
 
   /* ═══════════════════════════════════════════════════════════════
-   * 화면 — 상단 메뉴에 «종합» 을 붙이고 눌리면 여기서 그린다
+   * 화면 — 왼쪽 메뉴에 «종합» 을 붙이고 눌리면 여기서 그린다
    * ═══════════════════════════════════════════════════════════════ */
   /* 색·모서리는 mes.html 의 :root 를 따라간다. 그 변수가 없으면 괄호 안 기본값. */
   const CSS = `
@@ -470,7 +470,7 @@ ${esc(m.why)}</title></circle>`;
     ensureBasisSegButtons(B);
   }
 
-  /* 상단 메뉴에 버튼 하나를 붙인다. 원래 있던 버튼들은 화면 코드가
+  /* 왼쪽 메뉴에 버튼 하나를 붙인다. 원래 있던 버튼들은 화면 코드가
      자기 핸들러를 달아 두었으므로, 우리 버튼만 우리가 맡는다. */
   function addTab() {
     const nav = document.querySelector('nav');
@@ -478,7 +478,13 @@ ${esc(m.why)}</title></circle>`;
     const first = nav.querySelector('button');
     const b = document.createElement('button');
     b.id = 'mesdash-tab';
-    b.textContent = '종합';
+    b.title = '종합';
+    /* 메뉴가 왼쪽 세로 기둥이 되면서 칸 모양이 «그림표 + 글자» 로 정해졌다.
+       우리 버튼만 글자뿐이면 그 줄만 안쪽으로 밀려 보인다 — 같은 모양으로
+       만든다. 기둥이 좁아졌을 때 글자를 접는 것도 저쪽 규칙이 알아서 한다. */
+    b.innerHTML =
+      '<svg class="ic" viewBox="0 0 24 24">' +
+      '<path d="M3 20h18M6 20V9M11 20V4M16 20v-7"/></svg><span>종합</span>';
     b.addEventListener('click', () => {
       nav.querySelectorAll('button').forEach(x => x.classList.remove('on'));
       b.classList.add('on');
