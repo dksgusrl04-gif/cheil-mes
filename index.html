@@ -102,9 +102,8 @@
      화면 높이를 100vh 로 못 박고 안쪽만 굴린다. 페이지 전체가 굴러가면
      표를 아래로 내릴 때 메뉴와 기준 막대까지 같이 사라진다 — 지금 무엇을
      기준으로 보고 있는지가 화면에서 없어지면 숫자를 잘못 읽게 된다. */
-  #app{display:grid;grid-template-columns:238px 1fr;height:100vh;overflow:hidden}
+  #app{display:grid;grid-template-columns:268px 1fr;height:100vh;overflow:hidden}
   #col{display:flex;flex-direction:column;min-width:0;min-height:0}
-  #work{flex:1;min-height:0;display:grid;grid-template-columns:262px 1fr}
 
   /* ── 왼쪽 기둥 ─────────────────────────────────────────────
      여기가 화면에서 «누르는 곳» 이 몰려 있는 유일한 자리라 색을 준다.
@@ -157,17 +156,36 @@
 
   /* 좁은 화면 — 글자를 접고 그림표만 남긴다. 메뉴가 사라지지는 않는다.
      (칸마다 title 을 달아 두어 마우스를 올리면 이름이 뜬다) */
+  /* 좁은 화면 — 기둥을 그림표만 남기고 접는다. 다만 마우스를 올리면
+     제자리에서 다시 펴진다(본문 위로 덮는다). 접힌 채로 두면 탭에 딸린
+     목록을 아예 못 쓰게 되는데, 그건 기능이 없어지는 것이다. */
   @media(max-width:1180px){
-    #app{grid-template-columns:66px 1fr}
+    #app{grid-template-columns:68px 1fr}
+    #rail{position:fixed;top:0;bottom:0;left:0;width:68px;z-index:20;
+      transition:width .14s ease}
+    #rail:hover,#rail:focus-within{width:268px;
+      box-shadow:6px 0 22px rgba(15,23,42,.22)}
     #rail .brand{justify-content:center;padding:16px 0 12px}
     #rail .brand .mark{width:32px;height:32px;background-image:var(--logo-sq)}
-    #rail .brand .nm,.ngrp,#who{display:none}
+    #rail .brand .nm,.ngrp,#who,#side{display:none}
     #rail nav{padding:8px 10px 12px;gap:4px}
     #rail nav button{justify-content:center;padding:11px 0;gap:0}
     #rail nav button > span:first-of-type{display:none}
     #rail .rfoot{justify-content:center;padding:12px 8px}
     #rail .out{padding:6px 9px;font-size:11.5px}
-    #work{grid-template-columns:232px 1fr}
+    /* 펴졌을 때는 넓은 화면과 똑같이 */
+    #rail:hover .brand,#rail:focus-within .brand{justify-content:flex-start;padding:20px 20px 16px}
+    #rail:hover .brand .mark,#rail:focus-within .brand .mark{width:118px;height:24px;background-image:var(--logo)}
+    #rail:hover .brand .nm,#rail:focus-within .brand .nm,
+    #rail:hover .ngrp,#rail:focus-within .ngrp,
+    #rail:hover #who,#rail:focus-within #who{display:block}
+    #rail:hover .ngrp,#rail:focus-within .ngrp{padding:16px 11px 6px}
+    #rail:hover #side:not(:empty),#rail:focus-within #side:not(:empty){display:block}
+    #rail:hover nav,#rail:focus-within nav{padding:2px 12px 14px;gap:2px}
+    #rail:hover nav button,#rail:focus-within nav button{justify-content:flex-start;padding:10px 11px;gap:11px}
+    #rail:hover nav button > span:first-of-type,
+    #rail:focus-within nav button > span:first-of-type{display:block}
+    #rail:hover .rfoot,#rail:focus-within .rfoot{justify-content:flex-start;padding:13px 16px 16px}
   }
 
   /* ── 기준 선택 바 */
@@ -300,21 +318,30 @@
     color:var(--warn);font-size:11px}
   .help.mix:hover{border-color:var(--warn);background:var(--warn-soft);color:var(--warn-ink)}
 
-  /* ── 가운데 문맥 목록 (탭마다 무엇을 고르고 있는지) ───────────
-     메뉴가 왼쪽 기둥으로 갔으므로 이 칸은 이제 «거르개» 전용이다.
-     기둥과 헷갈리지 않게 바탕을 본문과 같은 흰색으로 두고 선으로만 나눈다. */
-  aside{background:var(--surface);border-right:1px solid var(--line);
-    padding:16px 0;overflow-y:auto;min-height:0}
-  aside h3{font-size:11px;color:var(--faint);padding:0 20px;margin:18px 0 8px;
-    letter-spacing:.07em;text-transform:uppercase;font-weight:700}
-  aside h3:first-child{margin-top:0}
-  .item{padding:10px 20px;cursor:pointer;font-size:13.5px;
-    border-left:3px solid transparent;transition:background .12s}
-  .item:hover{background:var(--line-2)}
-  .item.on{background:var(--accent-soft);border-left-color:var(--accent);
-    color:var(--accent);font-weight:650}
-  .item .m{display:block;font-size:11.5px;color:var(--faint);font-weight:400;margin-top:3px}
-  main{padding:26px 30px 64px;overflow-y:auto;min-height:0}
+  /* ── 메뉴에 딸린 목록 ──────────────────────────────────────
+     누른 메뉴 칸 «바로 밑» 에 편다. 화면 가운데에 칸을 따로 두었을 때는
+     어느 메뉴에 딸린 목록인지가 안 보였고, 본문 너비를 250px 씩 먹었다.
+     길어지면 목록만 따로 굴러간다 — 아래쪽 메뉴(분석·자료)가 화면 밖으로
+     밀려나면 메뉴 구실을 못 한다. */
+  #side:empty{display:none}
+  #side{display:block;margin:3px 0 6px;padding:4px 0 6px;
+    max-height:42vh;overflow-y:auto;
+    background:rgba(0,0,0,.16);border-radius:9px}
+  #side::-webkit-scrollbar{width:6px}
+  #side::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:3px}
+  #side h3{font-size:10px;color:rgba(255,255,255,.44);padding:0 12px;margin:11px 0 5px;
+    letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+  #side h3:first-child{margin-top:4px}
+  .item{padding:8px 12px 8px 14px;cursor:pointer;font-size:12.5px;
+    color:rgba(255,255,255,.86);border-left:3px solid transparent;
+    transition:background .12s,color .12s}
+  .item:hover{background:rgba(255,255,255,.12);color:#fff}
+  .item.on{background:rgba(255,255,255,.17);border-left-color:#fff;
+    color:#fff;font-weight:700}
+  .item .m{display:block;font-size:11px;color:rgba(255,255,255,.56);
+    font-weight:400;margin-top:2px}
+  .item.muted{color:rgba(255,255,255,.5);cursor:default}
+  main{padding:26px 34px 64px;overflow-y:auto;min-height:0}
   h2{font-size:24px;margin-bottom:5px;font-weight:700;letter-spacing:-.025em}
   .desc{color:var(--muted);font-size:13.5px;margin-bottom:20px;
     display:flex;align-items:center;gap:11px;flex-wrap:wrap}
@@ -505,11 +532,7 @@
     color:var(--ink-2);transition:background .12s,border-color .12s}
   .exq:hover{background:var(--accent-soft);border-color:var(--accent-line)}
 
-  /* 아주 좁은 화면 — 문맥 목록을 접는다. 메뉴 기둥은 그림표만 남기고
-     끝까지 살린다 (위의 1180px 규칙). */
   @media(max-width:860px){
-    #work{grid-template-columns:1fr}
-    aside{display:none}
     main{padding:18px 16px 48px}
     #basis{padding:10px 16px}
   }
@@ -560,6 +583,13 @@
 
       <div class="ngrp">자료</div>
       <button data-tab="data" title="데이터 추가"><svg class="ic" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg><span>데이터 추가</span></button>
+
+      <!-- 탭마다 딸린 목록(프로그램·제품·경보 규칙…). 예전에는 본문 왼쪽에
+           칸을 하나 더 두었는데, 어느 탭에 딸린 목록인지가 안 보이고 본문
+           너비를 250px 씩 먹었다. 지금은 «지금 눌린 메뉴 바로 밑» 으로
+           들어간다 — placeSide() 가 자리를 옮긴다. 딸린 목록이 없는 탭
+           (대시보드)에서는 비어 있어 높이를 안 차지한다. -->
+      <aside id="side"></aside>
     </nav>
     <div class="rfoot">
       <span id="who"></span>
@@ -583,22 +613,19 @@
     <div id="bnote"></div>
   </div>
 
-  <!-- 기준 막대는 고정, 아래 두 칸만 각자 스크롤한다. 예전에는 화면 전체가
-       한 덩이로 굴러서, 표를 아래로 내리면 기준 막대도 같이 사라졌다. -->
-  <div id="work">
-    <aside id="side"></aside>
-    <main id="main"></main>
-  </div>
+  <!-- 기준 막대는 고정, 본문만 굴러간다. 예전에는 화면 전체가 한 덩이로
+       굴러서, 표를 아래로 내리면 기준 막대도 같이 사라졌다. -->
+  <main id="main"></main>
   </div>
 </div>
 
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="6a800651e8">
+<meta name="mes-build" content="34861c09fa">
 <script>
 (function(){
-  var mine = "6a800651e8";
+  var mine = "34861c09fa";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -648,7 +675,7 @@
 <script src="mes_ask.js?v=a570547e"></script>
 <script src="mes_supa.js?v=610ec0de"></script>
 <script src="mes_ui.js?v=999432d5"></script>
-<script src="mes_dash.js?v=1b4d74d6"></script>
+<script src="mes_dash.js?v=dcd9f779"></script>
 <script>
 const $ = id => document.getElementById(id);
 /* 사람이 적은 글을 화면에 넣을 때 반드시 거친다. 프로그램 이름처럼
@@ -774,12 +801,26 @@ function goTab(name){
   TAB = name;
   document.querySelectorAll('nav button').forEach(x=>
     x.classList.toggle('on', x.dataset.tab===name));
-  /* 굴러가는 것은 페이지가 아니라 본문 칸과 목록 칸이다(레이아웃이 100vh 고정).
+  /* 굴러가는 것은 페이지가 아니라 본문 칸이다(레이아웃이 100vh 고정).
      window.scrollTo 를 부르면 아무 일도 안 일어나, 새 탭이 아래쪽부터 보인다. */
   const top = el => { if(el) el.scrollTop = 0; };
   top($('main')); top($('side'));
   render();
 }
+
+/* 탭에 딸린 목록을 «지금 눌린 메뉴 칸 바로 밑» 으로 옮긴다.
+   목록을 화면 가운데 칸에 따로 두면 어느 메뉴에 딸린 것인지가 안 보인다.
+   메뉴 밑에 들어가 있으면 「제조관리를 눌렀더니 그 밑에 프로그램이 폈다」로
+   읽힌다 — 누르는 곳과 결과가 붙어 있어야 한다.
+   눌린 칸이 탭이 아닐 때(종합처럼 다른 파일이 붙인 버튼)는 목록을 비운다 —
+   남겨 두면 엉뚱한 메뉴에 딸린 것처럼 보인다. */
+function placeSide(){
+  const side = $('side'); if(!side) return;
+  const on = document.querySelector('nav button.on');
+  if(!on || !on.dataset.tab){ side.innerHTML=''; return; }
+  if(on.nextSibling !== side) on.parentNode.insertBefore(side, on.nextSibling);
+}
+window.placeSide = placeSide;
 
 // ───────── 유틸
 const f2=v=>(v??0).toFixed(2), f3=v=>(v??0).toFixed(3), f4=v=>(v??0).toFixed(4);
@@ -812,6 +853,7 @@ const clickCard=(html,call)=>html.replace('<div class="card',
   `<div onclick="${call.replace(/"/g,'&quot;')}" class="card click`);
 
 async function render(){
+  placeSide();          // 딸린 목록을 지금 눌린 메뉴 밑으로
   if(TAB==='dash') return renderDash();
   if(TAB==='mfg') return renderMfg();
   if(TAB==='sales') return renderSales();
@@ -1034,15 +1076,11 @@ async function renderDash(){
   const ov = await api('/api/overview');
   const b = ov.basis; fillBasisBar(b);
 
-  $('side').innerHTML = `<h3>메인 프로그램</h3>` +
-    `<div class="item ${!SEL.main?'on':''}" onclick="SEL.main=null;render()">전체<span class="m">${PROGS.progs.length}개 프로그램</span></div>` +
-    PROGS.mains.map(m=>`<div class="item ${SEL.main===m.main?'on':''}" onclick="SEL.main='${m.main}';render()">
-      ${mName(m)}<span class="m">${f2(m.hours)}h · 마모 ${f3(m.wear)}%</span></div>`).join('') +
-    `<h3>세부 프로그램</h3>` +
-    PROGS.progs.filter(p=>!SEL.main||p.main===SEL.main).slice(0,20).map(p=>
-      `<div class="item ${SEL.prog===p.prog?'on':''}" onclick="SEL.prog='${p.prog}';TAB='mfg';
-        document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='mfg'));render()">
-        ${pName(p)}<span class="m">${f2(p.hours)}h · ${num(p.rows)}행</span></div>`).join('');
+  /* 대시보드에는 딸린 목록을 안 둔다. 여기 있던 「메인 프로그램 / 세부
+     프로그램」 목록은 이 화면의 숫자를 하나도 거르지 않았다 — 눌러 봐야
+     제조관리로 건너뛰는 지름길일 뿐이었고, 같은 목록이 제조관리 메뉴
+     밑에 그대로 있다. 목록을 비우면 대시보드가 화면 전체를 쓴다. */
+  $('side').innerHTML = '';
 
   const t = TOOLS.find(x=>x.tool===SEL.tool) || TOOLS[0];
   const det = t ? await api('/api/tool/'+t.tool) : null;

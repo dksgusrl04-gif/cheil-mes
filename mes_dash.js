@@ -488,6 +488,10 @@ ${esc(m.why)}</title></circle>`;
     b.addEventListener('click', () => {
       nav.querySelectorAll('button').forEach(x => x.classList.remove('on'));
       b.classList.add('on');
+      /* 탭에 딸린 목록은 «눌린 메뉴 바로 밑» 에 붙어 있다. 우리 버튼에는
+         딸린 목록이 없으니 비워 달라고 부른다 — 안 그러면 앞 탭의 목록이
+         엉뚱한 자리에 남아, 종합 화면에 딸린 것처럼 보인다. */
+      if (typeof window.placeSide === 'function') window.placeSide();
       ACTIVE = true;
       draw();
     });
