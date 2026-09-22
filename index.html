@@ -63,7 +63,7 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:"Pretendard","Apple SD Gothic Neo","맑은 고딕","Malgun Gothic",
     system-ui,-apple-system,sans-serif;
-    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;
     -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
   .hide{display:none!important}
   code{background:var(--raise);border:1px solid var(--line);padding:1px 6px;
@@ -196,10 +196,10 @@
   /* 기준 막대는 늘 화면에 붙어 있다 — 아래 표를 굴려도 «무엇을 기준으로
      보고 있는지» 가 사라지면 안 된다. */
   #basis{flex:none;background:var(--raise);border-bottom:1px solid var(--line);
-    padding:11px 30px;display:flex;align-items:center;gap:18px;row-gap:9px;flex-wrap:wrap}
+    padding:8px 26px;display:flex;align-items:center;gap:16px;row-gap:7px;flex-wrap:wrap}
   .bset{display:flex;align-items:center;gap:7px}
   .bset > span{font-size:12.5px;color:var(--muted);white-space:nowrap;font-weight:550}
-  .bset select,.bset input[type=date]{padding:7px 10px;border:1px solid var(--line-in);
+  .bset select,.bset input[type=date]{padding:5px 10px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font:inherit;font-size:13px;background:var(--surface);
     color:var(--ink);cursor:pointer;
     box-shadow:0 1px 1px rgba(15,23,42,.04);
@@ -218,7 +218,7 @@
   /* ── 한 줄 안내 띠 ─────────────────────────────────────────
      문단으로 깔아 두던 설명을 한 줄로 줄인 자리. 자세한 것은 «?» 뒤. */
   .note{background:var(--accent-soft);border:1px solid var(--accent-line);
-    border-radius:var(--r-sm);padding:11px 15px;margin:0 0 15px;font-size:13.5px;
+    border-radius:var(--r-sm);padding:8px 13px;margin:0 0 10px;font-size:13px;
     color:var(--ink-2);line-height:1.6;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
   .note.warn{background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn-ink)}
   .note.danger{background:var(--danger-soft);border-color:var(--danger-line);color:#991B1B}
@@ -243,8 +243,8 @@
   .hcard .act{margin-top:6px}
 
   /* ── 원그래프 범례(색 뜻) ──────────────────────────────── */
-  .dkey{display:flex;align-items:center;flex-wrap:wrap;gap:7px 16px;
-    font-size:12px;color:var(--muted);line-height:1.5}
+  .dkey{display:flex;align-items:center;flex-wrap:wrap;gap:5px 14px;
+    font-size:11.5px;color:var(--muted);line-height:1.45}
   .dkey span{display:flex;align-items:center;gap:5px}
   .dkey i{width:9px;height:9px;border-radius:2px}
   .dkey b{color:var(--ink);font-weight:650}
@@ -263,20 +263,27 @@
      그 칸만 굴러가게 하면 — 빈자리가 안 생기고, 남는 가로폭이 전부
      그림으로 간다. 그래서 그림이 커진다. */
   .donut{display:grid;grid-template-columns:1fr 358px;gap:22px;align-items:stretch}
-  .dchart{position:relative;width:100%;max-width:340px;aspect-ratio:1/1;
+  /* 이 판의 높이는 그림 지름이 정한다(목록은 min-height:0 이라 제 안에서
+     줄어든다). 그래서 «세로만 줄이기» = 지름 줄이기다. 340 → 282px.
+     목록은 여덟아홉 줄이 보이고 나머지는 그 칸에서 굴러간다. */
+  .dchart{position:relative;width:100%;max-width:282px;aspect-ratio:1/1;
     margin:0 auto;align-self:center}
   .dchart svg{width:100%;height:100%;display:block}
-  .dside{display:flex;flex-direction:column;gap:9px;min-height:0}
-  .dside .dkey{flex:none;margin-top:0;padding-top:9px;border-top:1px solid var(--line-2)}
+  .dside{display:flex;flex-direction:column;gap:7px;min-height:0}
+  .dside .dkey{flex:none;margin-top:0;padding-top:8px;border-top:1px solid var(--line-2)}
   .dslice{cursor:pointer;transition:opacity .12s,transform .12s;transform-origin:100px 100px}
   .dslice:hover,.dslice:focus{outline:none;transform:scale(1.035)}
   .dslice.dim{opacity:.34}
-  .dslice.sel{stroke:var(--ink);stroke-width:1.5;paint-order:stroke}
+  /* 고른 조각·줄은 마크의 주황으로 짚는다. 조각을 «칠하는» 색은 마모
+     단계(파랑–주황–빨강)가 쓰고 있으므로, 고른 표시는 테두리와 글자로만
+     준다 — 안 그러면 «주의 90%» 와 «지금 고른 것» 이 같은 색이 된다. */
+  .dslice.sel{stroke:var(--warn);stroke-width:2.5;paint-order:stroke}
   .dmid{position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;pointer-events:none;text-align:center;padding:0 22px}
   .dmid b{font-size:30px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
   .dmid b.lv1{color:var(--warn)} .dmid b.lv2{color:var(--danger)}
   .dmid span{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.35}
+  .dmid.pick span{color:var(--warn-ink);font-weight:600}
   .dmid span.sub{font-size:10.5px;color:var(--faint);margin-top:1px}
   /* 한 줄짜리. 넘치면 여기만 굴러간다 — min-height:0 이 있어야 판 높이를
      밀지 않고 제 안에서 줄어든다. */
@@ -287,18 +294,19 @@
   /* 줄 바탕에 사용 비중만큼 색을 깔아 둔다(인라인 style 의 gradient).
      그래서 background-color 대신 box-shadow 로 눌린 표시를 준다 —
      색을 덮어쓰면 비중 막대가 사라진다. */
-  .dleg{display:flex;align-items:center;gap:8px;padding:5px 9px;border:0;border-radius:7px;
+  .dleg{display:flex;align-items:center;gap:8px;padding:3px 9px;border:0;border-radius:6px;
     background-color:transparent;background-repeat:no-repeat;
-    font:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer;
+    font:inherit;font-size:12.5px;line-height:1.5;color:var(--ink-2);cursor:pointer;
     text-align:left;width:100%;transition:box-shadow .1s,color .1s}
   .dleg:hover,.dleg.on{box-shadow:inset 0 0 0 1px var(--accent-line)}
   .rk{width:15px;flex:none;text-align:right;font-size:11px;font-weight:700;
     color:var(--faint);font-variant-numeric:tabular-nums}
   /* 지금 아래에서 펼쳐 보고 있는 공구 — 목록과 상세가 한 화면에 같이 있으니
      어느 줄이 아래 내용인지 표시가 없으면 둘이 따로 노는 것처럼 보인다 */
-  .dleg.sel{box-shadow:inset 2px 0 0 var(--accent),inset 0 0 0 1px var(--accent-line)}
-  .dleg.sel .nm{color:var(--accent);font-weight:700}
-  .dleg.sel .rk{color:var(--accent)}
+  .dleg.sel{box-shadow:inset 3px 0 0 var(--warn),inset 0 0 0 1px var(--warn-line)}
+  .dleg.sel .nm{color:var(--warn-ink);font-weight:700}
+  .dleg.sel .rk{color:var(--warn)}
+  .dleg.sel .hr{color:var(--warn-ink);opacity:.75}
   .dleg i{width:9px;height:9px;border-radius:2px;flex:none}
   .dleg .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dleg .hr{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
@@ -307,7 +315,7 @@
   /* 90% 넘은 것은 목록에서도 색으로 튄다 — 그림만 보고 있지 않아도 보인다 */
   .dleg .we.lv1{color:var(--warn)} .dleg .we.lv2{color:var(--danger)}
   /* 판 제목 줄 — 오른쪽 끝에 「그 밖의 공구」 고르는 칸을 같이 둔다 */
-  .phead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .phead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
   .phead h4{margin:0;flex:1;min-width:200px}
   .phead select{max-width:330px}
 
@@ -319,12 +327,12 @@
   /* 왼쪽부터 센서 현황 · 요약 숫자 · 원그래프. 원그래프를 오른쪽으로 밀고
      폭을 줄였다 — 그림은 좁아져도 읽히지만, 「지금 값이 들어오고는 있나」는
      안 보이면 아예 모른다. */
-  .dwrap{display:grid;grid-template-columns:248px 206px 1fr;gap:20px;align-items:stretch}
+  .dwrap{display:grid;grid-template-columns:248px 206px 1fr;gap:16px;align-items:stretch}
 
   /* ── 센서·반영 현황 ──────────────────────────────────────── */
-  .senscol{display:flex;flex-direction:column;min-height:236px;
+  .senscol{display:flex;flex-direction:column;min-height:0;
     border:1px solid var(--line);border-radius:var(--r);background:var(--surface);
-    padding:12px 14px 11px}
+    padding:10px 13px 9px}
   .shead{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:650;
     color:var(--ink);padding-bottom:9px;border-bottom:1px solid var(--line-2)}
   .shead b{margin-left:auto;font-size:12px;font-weight:650;color:var(--accent);
@@ -338,7 +346,7 @@
     70%{box-shadow:0 0 0 7px rgba(5,150,105,0)}
     100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}}
   @media(prefers-reduced-motion:reduce){ .dot{animation:none} }
-  .sline{display:flex;align-items:baseline;gap:7px;padding:6px 0;font-size:11.5px;
+  .sline{display:flex;align-items:baseline;gap:7px;padding:4px 0;font-size:11.5px;
     color:var(--muted);border-bottom:1px solid var(--line-2)}
   .sline span{flex:none}
   .sline b{margin-left:auto;font-size:13px;font-weight:700;color:var(--ink);
@@ -355,10 +363,10 @@
   .sig.off{background:var(--bg);border-color:var(--line);color:var(--faint)}
   .sigs .help{width:19px;height:19px;font-size:10.5px}
   .dwrap .donut{min-width:0}
-  .sumcol{display:flex;flex-direction:column;min-height:236px;
+  .sumcol{display:flex;flex-direction:column;min-height:0;
     border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
   .srow{flex:1;display:flex;align-items:center;justify-content:space-between;
-    gap:10px;padding:0 15px;border-bottom:1px solid var(--line-2);min-width:0}
+    gap:10px;padding:0 14px;border-bottom:1px solid var(--line-2);min-width:0;min-height:44px}
   .srow:last-child{border-bottom:0}
   .srow .k{font-size:12.5px;color:var(--muted);line-height:1.3}
   .srow .v{font-size:21px;font-weight:700;color:var(--ink);white-space:nowrap;
@@ -377,7 +385,7 @@
      공구 상세가 다시 접힌다. 시간은 줄에서 빼고 말풍선에만 남긴다. */
   @media(max-width:1500px){
     .donut{grid-template-columns:1fr 300px;gap:16px}
-    .dchart{max-width:250px}
+    .dchart{max-width:230px}
     .dmid b{font-size:25px} .dmid{padding:0 18px}
     .dleg .hr{display:none}
   }
@@ -410,10 +418,10 @@
     background:rgba(0,0,0,.16);border-radius:9px}
   #side::-webkit-scrollbar{width:6px}
   #side::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:3px}
-  #side h3{font-size:10px;color:rgba(255,255,255,.44);padding:0 12px;margin:11px 0 5px;
+  #side h3{font-size:10px;color:rgba(255,255,255,.44);padding:0 12px;margin:9px 0 4px;
     letter-spacing:.08em;text-transform:uppercase;font-weight:700}
   #side h3:first-child{margin-top:4px}
-  .item{padding:8px 12px 8px 14px;cursor:pointer;font-size:12.5px;
+  .item{padding:6px 12px 6px 14px;cursor:pointer;font-size:12.5px;
     color:rgba(255,255,255,.86);border-left:3px solid transparent;
     transition:background .12s,color .12s}
   .item:hover{background:rgba(255,255,255,.12);color:#fff}
@@ -427,27 +435,27 @@
   .item.zero{color:rgba(255,255,255,.52)}
   .item.zero .m{color:rgba(255,255,255,.38)}
   .item.muted{color:rgba(255,255,255,.5);cursor:default}
-  main{padding:26px 34px 64px;overflow-y:auto;min-height:0}
-  h2{font-size:24px;margin-bottom:5px;font-weight:700;letter-spacing:-.025em}
-  .desc{color:var(--muted);font-size:13.5px;margin-bottom:20px;
-    display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+  main{padding:18px 26px 40px;overflow-y:auto;min-height:0}
+  h2{font-size:22px;margin-bottom:3px;font-weight:700;letter-spacing:-.025em}
+  .desc{color:var(--muted);font-size:13px;margin-bottom:13px;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   /* 구간·기간처럼 «지금 무엇을 보고 있나» 를 적는 표. 화면마다 자리가
      같아서, 탭을 옮겨도 눈이 같은 곳을 본다. */
   .desc .pin{display:inline-flex;align-items:center;gap:6px;
     background:var(--accent-soft);border:1px solid var(--accent-line);
-    color:var(--accent);border-radius:999px;padding:3px 11px;
+    color:var(--accent);border-radius:999px;padding:2px 10px;
     font-size:12.5px;font-weight:600}
 
   /* ── 요약 카드 */
-  .cards{display:flex;gap:13px;flex-wrap:wrap;margin-bottom:18px}
+  .cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
-    padding:15px 18px;min-width:152px;box-shadow:var(--sh);transition:border-color .12s}
+    padding:10px 15px;min-width:146px;box-shadow:var(--sh);transition:border-color .12s}
   .card:hover{border-color:#D5DBE3}
   /* 누를 수 있는 카드. 커서와 테두리로만 알린다 — 값이 흔들리면 안 된다 */
   .card.click{cursor:pointer}
   .card.click:hover{border-color:var(--accent);background:var(--accent-soft)}
-  .card .k{font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:500}
-  .card .v{font-size:27px;font-weight:700;letter-spacing:-.025em;line-height:1.2}
+  .card .k{font-size:12px;color:var(--muted);margin-bottom:3px;font-weight:500}
+  .card .v{font-size:23px;font-weight:700;letter-spacing:-.025em;line-height:1.15}
   .card .u{font-size:13px;color:var(--faint);font-weight:500;margin-left:4px}
   .card.warn{background:var(--warn-soft);border-color:var(--warn-line)}
   .card.warn .v{color:var(--warn)}
@@ -457,13 +465,13 @@
   .card.hl .v{color:var(--accent)}
 
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
-    padding:20px 22px;margin-bottom:18px;box-shadow:var(--sh)}
-  .panel h4{font-size:15px;margin-bottom:15px;color:var(--ink);font-weight:700;
+    padding:14px 18px;margin-bottom:12px;box-shadow:var(--sh)}
+  .panel h4{font-size:14.5px;margin-bottom:10px;color:var(--ink);font-weight:700;
     letter-spacing:-.015em;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   /* 제목 앞 짧은 막대 — 판이 여러 개 쌓였을 때 덩이의 시작이 눈에 띈다 */
-  .panel > h4::before,.phead h4::before{content:'';width:3px;height:15px;flex:none;
+  .panel > h4::before,.phead h4::before{content:'';width:3px;height:14px;flex:none;
     background:var(--accent);border-radius:2px;margin-right:2px}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
   /* ── 「없습니다」 판 ───────────────────────────────────────
      빈 화면을 그냥 비워 두면 «안 뜬 건가» 하고 기다리게 된다.
@@ -532,14 +540,14 @@
   .bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
 
   /* ── 표 */
-  .row{display:flex;justify-content:space-between;padding:9px 0;
+  .row{display:flex;justify-content:space-between;padding:6px 0;
     border-bottom:1px solid var(--line-2);font-size:12.5px}
   .row:last-child{border:0}
-  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
   th{position:sticky;top:0;z-index:1;
-    text-align:left;color:var(--muted);font-weight:650;font-size:12.5px;padding:11px 12px;
+    text-align:left;color:var(--muted);font-weight:650;font-size:12px;padding:7px 11px;
     background:var(--raise);box-shadow:inset 0 -1px 0 var(--line)}
-  td{padding:11px 12px;border-bottom:1px solid var(--line-2)}
+  td{padding:7px 11px;border-bottom:1px solid var(--line-2)}
   /* 긴 표에서 눈이 줄을 놓치지 않게 — 가로로 훑는 동안 그 줄만 살짝 뜬다 */
   tbody tr{transition:background .1s}
   tbody tr:hover td{background:var(--accent-soft)}
@@ -743,10 +751,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="6018fca201">
+<meta name="mes-build" content="bc92e7dc09">
 <script>
 (function(){
-  var mine = "6018fca201";
+  var mine = "bc92e7dc09";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -1348,15 +1356,15 @@ function donutTop(tools, n, sel){
      아래쪽에 붙인다. 그림 옆은 어차피 비는 자리고, 아래에 쌓으면 그만큼
      화면이 밀려 정작 중요한 공구 상세가 접힌다. */
   const key = `<div class="dkey">
-    <span><i style="background:var(--chart-bar);opacity:.3"></i><i
+    <span title="이 그림 안에서 견준 것입니다"><i style="background:var(--chart-bar);opacity:.3"></i><i
       style="background:var(--chart-bar);opacity:.65;margin-left:-2px"></i><i
-      style="background:var(--chart-bar);margin-left:-2px"></i>진할수록 많이 닳음
-      (${lo.toFixed(1)}~${hi.toFixed(1)}%)</span>
+      style="background:var(--chart-bar);margin-left:-2px"></i>진할수록 많이 닳음</span>
     <span><i style="background:var(--warn)"></i>주의 90%↑</span>
     <span><i style="background:var(--danger)"></i>교체 100%↑</span>
     <span class="sep"></span>
-    <span>이 ${top.length}종이 전체 절삭의 <b>${(100 * all / allH).toFixed(0)}%</b>${
-      rest.length ? ` · 나머지 ${rest.length}종 ${restH.toFixed(1)}h` : ''}</span>
+    <span title="${top.length}종 ${all.toFixed(1)}h / 전체 ${allH.toFixed(1)}h${
+      rest.length ? ` · 나머지 ${rest.length}종 ${restH.toFixed(1)}h` : ''}">이 ${
+      top.length}종이 전체의 <b>${(100 * all / allH).toFixed(0)}%</b></span>
     ${typeof helpBtn === 'function' ? helpBtn('donut') : ''}</div>`;
 
   return `<div class="donut">
@@ -1365,7 +1373,7 @@ function donutTop(tools, n, sel){
         ${arcs}
         <circle cx="100" cy="100" r="${r - 1}" fill="var(--surface)"></circle>
       </svg>
-      <div class="dmid" id="dmid">${mid}</div>
+      <div class="dmid${cur ? ' pick' : ''}" id="dmid">${mid}</div>
     </div>
     <div class="dside">
       <div class="dlegs">${legend}</div>
