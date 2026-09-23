@@ -539,6 +539,64 @@
     return { answer: j.answer, model: j.model, usage: j.usage, fallback: false };
   }
 
+  /* ── 흘러나오는 답 ────────────────────────────────────────────
+     답이 다 나올 때까지 빈 화면을 보여 주면, 실제로 3초여도 훨씬 길게
+     느껴진다. 첫 글자가 빨리 뜨면 그 기다림이 사라진다.
+
+     함수가 줄 단위로 «data: {"t":"조각"}» 을 흘려보내고, 여기서 조각마다
+     onText 를 부른다. 중간에 끊기면 그때까지 받은 글자를 그대로 돌려준다 —
+     반쯤 온 답이라도 «아무것도 안 나옴» 보다는 낫다. */
+  async function askClaudeStream(q, context, onText) {
+    if (!SESSION || !SESSION.access_token) {
+      throw Object.assign(new Error('로그인이 필요합니다'), { status: 401 });
+    }
+    let r;
+    try {
+      r = await realFetch(FN() + '?stream=1', {
+        method: 'POST',
+        headers: {
+          apikey: KEY, Authorization: 'Bearer ' + SESSION.access_token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ q, context }),
+      });
+    } catch (e) {
+      FN_OK = false;
+      throw Object.assign(new Error('질의 기능이 아직 설정되지 않았습니다'), { status: 501 });
+    }
+    if (!r.ok || !r.body) {
+      /* 흘려보내기가 안 되면 (옛 함수가 깔려 있거나 오류) 한 덩이 길로 간다 */
+      if (r.status === 404 || r.status === 405) {
+        FN_OK = false;
+        throw Object.assign(new Error('질의 기능이 아직 설정되지 않았습니다'), { status: 501 });
+      }
+      const j = await r.json().catch(() => ({}));
+      throw Object.assign(new Error(j.error || `질의 실패 (HTTP ${r.status})`),
+                          { status: r.status, hint: j.hint || '' });
+    }
+    FN_OK = true;
+
+    const rd = r.body.getReader(), dec = new TextDecoder();
+    let buf = '', text = '', fin = {};
+    for (;;) {
+      const { done, value } = await rd.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith('data:')) continue;
+        let ev;
+        try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
+        if (ev.error) throw Object.assign(new Error(ev.error), { status: 502 });
+        if (ev.t) { text += ev.t; if (onText) onText(ev.t, text); }
+        if (ev.done) fin = ev;
+      }
+    }
+    return { answer: text, model: fin.model || null, usage: fin.usage || null, fallback: false };
+  }
+
   /* 규칙 기반 답. 자료는 여기서 모아 넘긴다. */
   async function askRule(q, qs) {
     const b = basisFrom(qs || new URLSearchParams());
@@ -1191,8 +1249,26 @@
     }, true);
   }
 
+  /* ── 화면이 쓰는 «흘러나오는 질의» ───────────────────────────
+     화면(mes.html)은 이게 있으면 쓰고, 없으면 예전처럼 한 덩이로 받는다.
+     그래서 현장 파이썬 서버(스트리밍 없음)에서도 그대로 돌아간다.
+     문맥 만들기·기록 남기기는 여기서 한다 — 화면이 알 필요가 없다. */
+  async function askStream(q, qsStr, onText) {
+    if (!(await probeFn())) throw Object.assign(new Error('질의 미설정'), { status: 501 });
+    const qs = new URLSearchParams(String(qsStr || '').replace(/^\?/, ''));
+    const r = await askClaudeStream(q, askContext(qs), onText);
+    try { await log('질의', q.slice(0, 80)); } catch (e) { /* 기록은 곁다리다 */ }
+    return r;
+  }
+
+  /* 함수를 미리 깨워 둔다. Edge Function 은 한동안 안 부르면 잠들어서,
+     그날 첫 질문만 1~2초를 더 기다린다. 질의 탭을 여는 순간 깨우면
+     사람이 질문을 다 칠 때쯤엔 이미 일어나 있다. */
+  window.MES_WARM = () => { probeFn().catch(() => {}); };
+
   window.MES_SUPA = {
-    db, log, askClaude, runRebuild, listTemplates,
+    db, log, askClaude, askStream, runRebuild, listTemplates,
     session: () => SESSION, snapshot: () => SNAPSHOT, job: () => JOB,
   };
+  window.MES_ASK_STREAM = askStream;
 })();

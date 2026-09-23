@@ -695,6 +695,13 @@
   .qa{margin-bottom:14px}
   .qa .q{background:var(--accent);color:#fff;padding:9px 14px;
     border-radius:12px 12px 12px 3px;font-size:12.5px;display:inline-block;max-width:80%}
+  /* 글자가 흘러 들어오는 중 — 끝에 깜박이는 막대를 붙여 «아직 오는 중» 을
+     보여 준다. 다 오면 이 표시가 사라진다. */
+  .qa .a.flow::after{content:'';display:inline-block;width:2px;height:1em;
+    margin-left:2px;vertical-align:-2px;background:var(--accent);
+    animation:caret 1s steps(1) infinite}
+  @keyframes caret{50%{opacity:0}}
+  @media(prefers-reduced-motion:reduce){ .qa .a.flow::after{animation:none} }
   .qa .a{background:var(--surface);border:1px solid var(--line);padding:12px 15px;
     border-radius:12px 12px 3px 12px;font-size:12.5px;line-height:1.75;margin-top:8px;
     white-space:pre-wrap;box-shadow:var(--sh)}
@@ -789,10 +796,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="7d65515dee">
+<meta name="mes-build" content="dc46a24888">
 <script>
 (function(){
-  var mine = "7d65515dee";
+  var mine = "dc46a24888";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -840,7 +847,7 @@
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=3ffe07bc"></script>
+<script src="mes_supa.js?v=091cc54d"></script>
 <script src="mes_ui.js?v=06ee9ac5"></script>
 <script src="mes_dash.js?v=41565f90"></script>
 <script>
@@ -2647,7 +2654,19 @@ async function readAlert(id){
 
 // ═════ 질의
 let QA=[];
+/* 같은 질문·같은 기준이면 앞 답을 다시 쓴다. 화면을 새로 고치면 비워진다 —
+   자료가 새로 올라왔는데 옛 답을 계속 보여 주는 일이 없게, 일부러 오래
+   들고 있지 않는다. 스무 개까지만 둔다. */
+const ASK_CACHE = new Map();
+function askCache(key, val){
+  ASK_CACHE.set(key, {a: val.a, provider: val.provider, fallback: val.fallback});
+  if(ASK_CACHE.size > 20) ASK_CACHE.delete(ASK_CACHE.keys().next().value);
+}
 async function renderAsk(){
+  /* 함수를 미리 깨운다. Edge Function 은 한동안 안 부르면 잠들어서 그날
+     첫 질문만 1~2초를 더 기다린다. 탭을 여는 순간 깨우면 질문을 다 칠
+     때쯤엔 이미 일어나 있다. 실패해도 그냥 넘어간다 — 곁다리다. */
+  if(typeof window.MES_WARM === 'function'){ try{ window.MES_WARM(); }catch(e){} }
   const info = await api('/api/audit');
   const ex=['제일 많이 닳은 공구는?','8월 20일 가동시간 알려줘','현재 경보 요약해줘',
             'T33 상태는?','누가 발주했나?','과부하가 많은 프로그램은?'];
@@ -2678,9 +2697,9 @@ async function renderAsk(){
     </div>
     <div class="panel" id="qalog">
       <h4>대화</h4>
-      ${QA.length? QA.map(x=>`<div class="qa"><div class="q">${x.q}</div>
-        <div class="a">${x.a}</div>
-        <div class="src">${x.provider}${x.fallback?' · 오프라인으로 대체됨':''}${
+      ${QA.length? QA.map((x,i)=>`<div class="qa"><div class="q">${x.q}</div>
+        <div class="a${x.streaming?' flow':''}" id="qa-${i}">${x.a}</div>
+        <div class="src">${x.provider}${x.cached?' · 앞서 물어본 답':''}${x.fallback?' · 오프라인으로 대체됨':''}${
           x.context_size?` · 전송 ${(x.context_size/1024).toFixed(1)}KB`:''}</div></div>`).reverse().join('')
         : '<div class="muted">질문을 입력하면 여기에 표시됩니다</div>'}
     </div>`;
@@ -2689,6 +2708,43 @@ async function ask(preset){
   const q = (preset || $('askq').value).trim();
   if(!q) return;
   if(!preset) $('askq').value='';
+
+  /* 같은 질문을 같은 기준으로 다시 물으면 앞 답을 바로 보여 준다.
+     발표에서 예시 질문을 누르면 늘 같은 질문이라 특히 잘 듣는다.
+     기준(구간·수명·앵커…)이 바뀌면 답도 달라져야 하므로 열쇠에 같이 넣는다. */
+  const ckey = q + '\u0000' + qs();
+  if(ASK_CACHE.has(ckey)){
+    QA.push(Object.assign({}, ASK_CACHE.get(ckey), {q, cached:true}));
+    renderAsk();
+    return;
+  }
+
+  /* 흘러나오는 길이 있으면 그쪽으로. 답이 다 나올 때까지 빈 화면을 보여
+     주면 실제로 3초여도 훨씬 길게 느껴진다 — 첫 글자가 빨리 뜨면 그
+     기다림이 사라진다. 현장 파이썬 서버에는 이 길이 없어 아래로 내려간다. */
+  if(typeof window.MES_ASK_STREAM === 'function'){
+    const i = QA.length;
+    QA.push({q, a:'', provider:'', streaming:true});
+    renderAsk();
+    /* 조각마다 화면 전체를 다시 그리면 글 쓰던 칸에서 커서가 튄다.
+       답 칸 하나만 고쳐 넣는다. */
+    const paint = (_, all) => {
+      const el = $('qa-'+i);
+      if(el){ el.textContent = all; el.scrollIntoView({block:'nearest'}); }
+    };
+    try{
+      const r = await window.MES_ASK_STREAM(q, qs(), paint);
+      QA[i] = {q, a: r.answer || '응답 없음', provider: r.model||'', streaming:false};
+      if(r.answer) askCache(ckey, QA[i]);
+      renderAsk();
+      return;
+    }catch(e){
+      /* 501(아직 안 켜짐)이면 규칙 기반으로 내려간다. 그 밖의 오류도
+         마찬가지 — 한 덩이 길이 같은 오류를 더 친절하게 알려 준다. */
+      QA.splice(i, 1);
+    }
+  }
+
   QA.push({q, a:'답변 생성 중...', provider:''});
   renderAsk();
   try{
@@ -2698,6 +2754,7 @@ async function ask(preset){
     QA[QA.length-1] = {q, a: j.answer || j.error || '응답 없음',
                        provider: j.provider||'', fallback: j.fallback,
                        context_size: j.context_size};
+    if(j.answer) askCache(ckey, QA[QA.length-1]);
   }catch(e){ QA[QA.length-1] = {q, a:'요청 실패 — '+e, provider:''}; }
   renderAsk();
 }
