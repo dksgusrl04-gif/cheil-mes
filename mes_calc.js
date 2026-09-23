@@ -788,6 +788,13 @@
       shock: round(b.wear(t.f_s), 5),
       cond_change: round(b.wear(t.f_c), 5),
       progs: progs,
+      /* 날짜별 기록 — 화면의 「일별 절삭시간·마모 추이」가 이걸 쓴다.
+         목록(toolList)에는 안 싣는다. 공구 67종 × 43일이면 한 번 조회에
+         2,881줄이 따라와, 정작 안 보는 공구 것까지 나르게 된다. */
+      byday: (t.byday || []).map(d => ({
+        date: d.date, hours: d.hours, rows: d.rows,
+        wear: round(b.wear(d.raw), 5),
+      })),
       life: lf ? round(lf, 1) : null,
       life_basis: lf ? `${b.lifeDays.toFixed(0)}일 × (${b.anchorLabel} 기준) ÷ 사용강도 `
         + `${fi ? round(fi, 2) : '-'}배 (전 기간 누적 기준)`

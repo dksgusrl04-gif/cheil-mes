@@ -1,169 +1,26 @@
 /* ═══════════════════════════════════════════════════════════════
- * 화면 보강 — 알림 탭의 요약 카드를 눌러 걸러 보기
+ * 화면 보강 — 조회 기간(달력) · 되돌리기
  * ═══════════════════════════════════════════════════════════════
- * 상단 «위험 / 주의 / 안 읽은 알림» 카드를 누르면 그 종류만 남기고
- * 나머지를 감춘다. 다시 누르면 전체로 돌아온다.
+ * mes.html 을 고치지 않고 얹는 것들만 여기 둔다.
  *
- * mes.html 을 고치지 않는다. 화면이 다시 그려지는 것을 지켜보다가
- * 알림 탭이 뜨면 그때 손잡이만 달아 준다. 화면 코드가 바뀌어도
- * 클래스 이름(.al .danger .warn .unread)만 그대로면 계속 동작한다.
+ * 예전에는 «알림 카드를 눌러 걸러 보기» 도 여기 있었다. 그런데 화면
+ * 쪽(mes.html)이 ALERT_SEL 로 같은 일을 하게 되면서, 카드를 한 번 누르면
+ * 두 벌이 동시에 걸러 버렸다 — 이쪽은 항목을 감추고, 저쪽은 다시 그리고.
+ * 그 상태에서 「전체 보기」 를 눌러도 이쪽 거르개만 풀려 화면은 그대로였다.
+ * 거르개는 한 벌이어야 한다. 그래서 이 층을 통째로 걷어냈다.
  */
 (function () {
   'use strict';
-
-  const KIND = [
-    { key: 'danger', label: '위험', match: '위험' },
-    { key: 'warn', label: '주의', match: '주의' },
-    { key: 'unread', label: '안 읽은 알림', match: '안 읽' },
-  ];
-
-  let FILTER = null;      // null 이면 전체
 
   const $main = () => document.getElementById('main');
 
   /* 눌러도 되는 것처럼 보여야 사람이 누른다.
      화면 코드를 고치지 않으므로 필요한 모양만 여기서 얹는다. */
-  const CSS = `
-  #main .cards > [data-mes-wired]{
-    cursor:pointer; user-select:none; position:relative;
-    transition:box-shadow .12s ease, transform .12s ease, background .12s ease;
-  }
-  #main .cards > [data-mes-wired]:hover{
-    box-shadow:0 3px 10px rgba(27,54,93,.16); transform:translateY(-1px);
-  }
-  #main .cards > [data-mes-wired]:active{ transform:translateY(0); }
-  #main .cards > [data-mes-on]{
-    outline:2px solid #1b365d; outline-offset:-2px; background:#eef3fa;
-  }
-  #main .cards > [data-mes-wired]::after{
-    content:'클릭'; position:absolute; top:8px; right:10px;
-    font-size:10px; color:#94a3b0; letter-spacing:.5px;
-  }
-  #main .cards > [data-mes-on]::after{ content:'해제'; color:#1b365d; font-weight:600; }
-  `;
-  function addStyle() {
-    if (document.getElementById('mes-ui-style')) return;
-    const s = document.createElement('style');
-    s.id = 'mes-ui-style';
-    s.textContent = CSS;
-    (document.head || document.documentElement).appendChild(s);
-  }
-
-  /* 이 카드가 어떤 종류인가 — 카드에 적힌 글자로 알아낸다 */
-  function kindOf(card) {
-    const txt = (card.textContent || '').replace(/\s+/g, ' ');
-    for (const k of KIND) if (txt.indexOf(k.match) >= 0) return k;
-    return null;
-  }
-
-  function isAlertView(main) {
-    // 알림 탭인지 — 요약 카드와 알림 항목이 같이 있어야 한다
-    return main && main.querySelector('.cards') && main.querySelector('.al, .panel h4');
-  }
-
-  function apply() {
-    const main = $main();
-    if (!main) return;
-
-    /* 1) 항목 걸러내기 */
-    main.querySelectorAll('.panel').forEach(panel => {
-      const items = panel.querySelectorAll('.al');
-      if (!items.length) return;
-      let shown = 0;
-      items.forEach(el => {
-        const ok = !FILTER || (FILTER === 'unread'
-          ? el.classList.contains('unread') : el.classList.contains(FILTER));
-        el.style.display = ok ? '' : 'none';
-        if (ok) shown++;
-      });
-
-      /* 다 걸러졌으면 빈 채로 두지 않고 이유를 적어 준다 */
-      let empty = panel.querySelector('.mes-empty');
-      if (shown === 0) {
-        if (!empty) {
-          empty = document.createElement('div');
-          empty.className = 'muted mes-empty';
-          empty.style.cssText = 'padding:10px 2px;font-size:12.5px';
-          panel.appendChild(empty);
-        }
-        const k = KIND.find(x => x.key === FILTER);
-        empty.textContent = `${k ? k.label : ''}에 해당하는 항목이 없습니다`;
-        empty.style.display = '';
-      } else if (empty) empty.style.display = 'none';
-
-      /* 제목의 숫자를 걸러진 개수로 바꾼다 */
-      const h = panel.querySelector('h4');
-      if (h) {
-        if (!h.dataset.mesBase) h.dataset.mesBase = h.textContent.trim();
-        const base = h.dataset.mesBase.replace(/\s*\(\d+\)\s*$/, '');
-        h.textContent = FILTER
-          ? `${base} (${shown} / ${items.length})` : h.dataset.mesBase;
-      }
-    });
-
-    /* 2) 카드에 눌린 표시 */
-    main.querySelectorAll('.cards > *').forEach(card => {
-      const k = kindOf(card);
-      if (!k) return;
-      const on = FILTER === k.key;
-      if (on) card.setAttribute('data-mes-on', '1');
-      else card.removeAttribute('data-mes-on');
-      card.style.cursor = 'pointer';
-      card.title = on ? '다시 누르면 전체를 봅니다' : `${k.label}만 보기`;
-    });
-
-    /* 3) 걸러 보는 중이라는 표시 */
-    let bar = main.querySelector('.mes-filterbar');
-    if (FILTER) {
-      if (!bar) {
-        bar = document.createElement('div');
-        bar.className = 'mes-filterbar';
-        bar.style.cssText = 'display:flex;align-items:center;gap:10px;margin:-4px 0 12px;' +
-          'padding:7px 11px;background:#eef3fa;border:1px solid #c9d9ee;border-radius:6px;' +
-          'font-size:12.5px;color:#1b365d';
-        const cards = main.querySelector('.cards');
-        if (cards && cards.parentNode) cards.parentNode.insertBefore(bar, cards.nextSibling);
-      }
-      const k = KIND.find(x => x.key === FILTER);
-      bar.innerHTML = `<b>${k ? k.label : ''}</b> 만 보는 중` +
-        `<button type="button" class="mes-clear" style="margin-left:auto;background:#fff;` +
-        `border:1px solid #c9d9ee;color:#1b365d;border-radius:5px;padding:4px 12px;` +
-        `font-size:12px;cursor:pointer">전체 보기</button>`;
-      bar.querySelector('.mes-clear').onclick = () => { FILTER = null; apply(); };
-      bar.style.display = '';
-    } else if (bar) bar.style.display = 'none';
-  }
-
   function wire() {
     /* 화면이 다시 그려졌다는 것은 조회가 끝났다는 뜻이다.
        그때 BASIS 가 새로 채워지므로 달력의 범위·안내도 같이 맞춘다. */
     if (document.getElementById('mes-from')) updateDateBox();
     ensureUndo();
-
-    const main = $main();
-    if (!isAlertView(main)) { FILTER = null; return; }
-
-    let any = false;
-    main.querySelectorAll('.cards > *').forEach(card => {
-      const k = kindOf(card);
-      if (!k) return;
-      any = true;
-      if (card.dataset.mesWired) return;      // 두 번 달지 않는다
-      card.dataset.mesWired = '1';
-
-      /* 마우스뿐 아니라 키보드로도 눌리게 한다 */
-      card.setAttribute('role', 'button');
-      card.setAttribute('tabindex', '0');
-      const toggle = () => {
-        FILTER = (FILTER === k.key) ? null : k.key;   // 같은 걸 또 누르면 해제
-        apply();
-      };
-      card.addEventListener('click', toggle);
-      card.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-      });
-    });
-    if (any) { addStyle(); apply(); }
   }
 
   /* ── 되돌리기 버튼 ───────────────────────────────────────────
@@ -416,8 +273,9 @@
     setInterval(() => { if (document.getElementById('mes-from')) updateDateBox(); }, 700);
   }
 
+  /* 알림 거르개(filter/current)는 뺐다 — 화면 쪽 ALERT_SEL 이 그 일을 한다.
+     여기 남겨 두면 «거르는 곳이 두 군데» 라는 오해가 다시 생긴다. */
   window.MES_UI = {
-    filter: k => { FILTER = k; apply(); }, current: () => FILTER,
     from: () => FROM, to: () => TO, setFrom: applyFrom, setRange: applyRange,
   };
 })();
