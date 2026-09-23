@@ -497,6 +497,11 @@
   /* ── 「없습니다」 판 ───────────────────────────────────────
      빈 화면을 그냥 비워 두면 «안 뜬 건가» 하고 기다리게 된다.
      0건이라는 사실과 «무슨 기준으로 0인지» 를 같이 적는다. */
+  /* 자동 경보 칸 아래의 「경보 끄기」 줄 — 본문과 섞이지 않게 선으로 나눈다 */
+  .almute{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    margin-top:9px;padding-top:8px;border-top:1px solid var(--line-2)}
+  .almute .muted{font-size:11.5px}
+
   .none{text-align:center;padding:26px 18px}
   .none .t{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:8px}
   .none .b{font-size:13px;color:var(--muted);line-height:1.75;
@@ -784,10 +789,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="5df834f787">
+<meta name="mes-build" content="f0dbb2081e">
 <script>
 (function(){
-  var mine = "5df834f787";
+  var mine = "f0dbb2081e";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -835,7 +840,7 @@
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=8c8f7911"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=0a7a2a6e"></script>
+<script src="mes_supa.js?v=3e45e3fc"></script>
 <script src="mes_ui.js?v=06ee9ac5"></script>
 <script src="mes_dash.js?v=41565f90"></script>
 <script>
@@ -2309,6 +2314,80 @@ let DASH_TOOL = null;          // 대시보드가 지금 보고 있는 공구 �
 const today10 = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000)
   .toISOString().slice(0,10);
 
+/* ═════ 자동 경보 끄기 ════════════════════════════════════════
+   조건이 그대로면 다음 조회에도 또 뜨는 것이 자동 경보다. 그걸 덮어 두는 게
+   끄기인데, 덮어 두는 일은 조심해서 만들어야 한다. 세 가지를 지킨다.
+     · 끄는 단위는 «그 공구 + 그 규칙» — T33 의 마모 70% 를 껐다고 T33 의
+       파손형 경보까지 조용해지면 안 된다.
+     · 단계가 올라가면 다시 뜬다 — 주의로 꺼 둔 것이 위험이 되면 올라온다.
+     · 기한이 있다 — 기본 7일. 「계속」 은 사람이 그걸 골랐을 때만.
+   그리고 누가 언제 왜 껐는지 기록이 남는다. */
+function openMute(tool, rule, level, title){
+  if(ME.role!=='manager'){ alert('관리자만 경보를 끌 수 있습니다'); return; }
+  $('modal').classList.remove('hide');
+  $('modal').innerHTML = `
+    <div class="mbox">
+      <div class="mhead">
+        <h3>경보 끄기</h3>
+        <div class="s">${esc(title)}</div>
+      </div>
+      <div class="mbody">
+        <div class="note warn" style="margin:0 0 12px">
+          <b>끈다고 값이 달라지지는 않습니다</b> — 마모율도 계산도 그대로입니다.
+          이 경보만 목록에서 덮어 둡니다.
+        </div>
+        <div class="row"><span>끄는 범위</span>
+          <span class="mono">${tool==null?'설비 전체':'T'+tool} · 이 규칙 하나</span></div>
+        <div class="row"><span>지금 단계</span><span class="mono">${
+          {danger:'위험',warn:'주의',info:'안내'}[level]||level}</span></div>
+        <div class="row"><span>단계가 올라가면</span>
+          <span class="mono">꺼 둔 것과 무관하게 다시 뜹니다</span></div>
+        <div style="margin-top:12px">
+          <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px">
+            얼마나 꺼 둘까요</label>
+          <select id="mdays" class="msel" style="width:100%">
+            <option value="7" selected>7일</option>
+            <option value="14">14일</option>
+            <option value="30">30일</option>
+            <option value="0">계속 — 직접 켤 때까지</option>
+          </select>
+        </div>
+        <div style="margin-top:10px">
+          <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px">
+            왜 끄는지 (기록에 남습니다)</label>
+          <input id="mwhy" placeholder="예: 다음 주 정기 교체 때 같이 갈 예정"
+            style="width:100%;padding:8px 10px;border:1px solid var(--line-in);
+              border-radius:6px;font:inherit;font-size:12.5px">
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="act gray" onclick="closeOrder()">취소</button>
+        <button class="act" onclick="doMute(${tool==null?'null':tool},'${rule}','${level}',
+          '${String(title).replace(/'/g,"&#39;")}')">끄기</button>
+      </div>
+    </div>`;
+}
+/* api() 는 조회(GET) 전용이다. 끄기·켜기는 바꾸는 일이라 POST 로 보낸다. */
+const post = (p, body) => fetch(p, {method:'POST',
+  headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}).then(r=>r.json());
+
+async function doMute(tool, rule, level, title){
+  const days = parseInt(($('mdays')||{}).value, 10) || 0;
+  const why  = (($('mwhy')||{}).value || '').trim();
+  try{
+    const r = await post('/api/alert/mute', {tool, rule, level, title, why, days});
+    if(r && r.error) throw new Error(r.error);
+  }catch(e){ alert('끄지 못했습니다 — ' + e.message); return; }
+  closeOrder(); renderAlert();
+}
+async function doUnmute(id){
+  try{
+    const r = await post('/api/alert/unmute', {id});
+    if(r && r.error) throw new Error(r.error);
+  }catch(e){ alert('켜지 못했습니다 — ' + e.message); return; }
+  renderAlert();
+}
+
 function openReplace(tno){
   if(ME.role!=='manager'){ alert('관리자만 교체를 기록할 수 있습니다'); return; }
   /* 주문 탭이 아니라 대시보드에서 눌렀을 수도 있다. 그때는 상세 화면이
@@ -2384,9 +2463,17 @@ async function renderAlert(){
   const badge=$('badge'), n=a.counts.danger+a.counts.unread;
   if(n){ badge.textContent=n; badge.classList.remove('hide'); } else badge.classList.add('hide');
 
+  /* 자동 경보에는 「끄기」 를 단다. 자동 경보는 조회할 때마다 다시 판정해서
+     «읽음» 이 없다 — 조건이 그대로면 다음에도 또 뜬다. 관리자만 끌 수 있다. */
   const card = x => `<div class="al ${x.level}${x.unread?' unread':''}">
       <div class="t">${x.title}</div><div class="b">${x.body||''}</div>
       ${x.evidence?`<div class="e">근거 — ${x.evidence}</div>`:''}
+      ${(canManage && x.rule && !x.by)?`<div class="almute">
+        <button class="act sec" title="이 공구의 이 규칙 경보를 잠시 덮어 둡니다"
+          onclick="openMute(${x.tool==null?'null':x.tool},'${x.rule}','${x.level}',
+            '${esc(String(x.title)).replace(/'/g,'&#39;')}')">경보 끄기</button>
+        <span class="muted">단계가 올라가면 다시 뜹니다</span>
+      </div>`:''}
       ${x.by?`<div class="meta"><span>${x.by} · ${x.at} · 수신 ${
         {all:'전체',manager:'관리자',operator:'작업자'}[x.to]||x.to}</span>
         ${x.unread
@@ -2410,6 +2497,8 @@ async function renderAlert(){
              desc:'사람이 보낸 알림 중 아직 안 읽은 것 — 자동 경보에는 읽음 표시가 없습니다'},
     done:   {label:'확인한 알림', auto:()=>false, manual:x=>!x.unread,
              desc:'이미 확인 처리한 알림 — 확인하면 기본 목록에서는 내려갑니다'},
+    muted:  {label:'끈 경보', auto:()=>false, manual:()=>false, muted:true,
+             desc:'덮어 둔 자동 경보 — 기한이 지나거나 단계가 올라가면 다시 뜹니다'},
   };
   /* 규칙 하나하나도 눌러 볼 수 있어야 한다. 「마모율 70%」 가 목록에만 적혀
      있고 눌러도 아무 일이 없으면, 그 규칙에 걸린 게 없는 건지 규칙이 안 도는
@@ -2464,10 +2553,11 @@ async function renderAlert(){
      <div class="item ${V?'':'on'}" onclick="ALERT_SEL=null;renderAlert()">전체
        <span class="m">아래 항목을 누르면 그것만 봅니다</span></div>` +
     it('danger','위험',`${a.counts.danger}건`) +
-    (a.counts.breakage!==undefined? it('break','그중 파손형 즉시',`${a.counts.breakage}건`) : '') +
+    (a.counts.breakage!==undefined? it('break','파손형 즉시',`${a.counts.breakage}건`) : '') +
     it('warn','주의',`${a.counts.warn}건`) +
     it('unread','안 읽은 알림',`${a.counts.unread}건`) +
-    it('done','확인한 알림',`${a.manual.length - a.counts.unread}건`);
+    it('done','확인한 알림',`${a.manual.length - a.counts.unread}건`) +
+    it('muted','끈 경보',`${(a.counts.muted||0)}건`);
 
   $('main').innerHTML = `
     ${pageHead('알림' + (F?` — ${F.label}`:''),
@@ -2499,7 +2589,22 @@ async function renderAlert(){
       <button class="act" onclick="sendAlert()">전송</button>
     </div>`:''}
 
-    ${(F && !manual.length && !auto.length)?`<div class="panel">
+    ${(F && F.muted)?`<div class="panel">
+      <h4>끈 경보 ${(a.mutes||[]).length?`(${a.mutes.length})`:''}</h4>
+      ${(a.mutes||[]).length?(a.mutes.map(m=>`<div class="al info">
+        <div class="t">${esc(m.title||m.rule)}</div>
+        <div class="b">${m.tool==null?'설비 전체':'T'+m.tool} · 규칙 ${esc(m.rule||'')}
+          · ${m.until?`${esc(m.until.slice(0,16))} 까지`:'계속 (직접 켤 때까지)'}</div>
+        <div class="meta"><span>${esc(m.by||'')} · ${esc(m.at||'')} 에 끔</span>
+          ${canManage?`<button class="act sec" onclick="doUnmute('${m.id}')">다시 켜기</button>`
+            :'<span>관리자만 켤 수 있습니다</span>'}</div>
+      </div>`).join('')):`<div class="none">
+        <div class="t">꺼 둔 경보가 없습니다</div>
+        <div class="b">자동 경보 옆의 <b>경보 끄기</b> 를 누르면 여기에 모입니다.
+          끈다고 값이 달라지지는 않습니다 — 목록에서만 덮어 둡니다.</div></div>`}
+    </div>`:''}
+
+    ${(F && !F.muted && !manual.length && !auto.length)?`<div class="panel">
       <div class="none">
         <div class="t">해당하는 알림이 없습니다</div>
         <div class="b">${F.label}${F.rule?' 규칙':''}에 걸린 건이 지금 <b>0건</b>입니다.
@@ -2511,7 +2616,7 @@ async function renderAlert(){
           onclick="ALERT_SEL=null;renderAlert()">← 전체 알림으로</button>
       </div></div>`:''}
 
-    ${(!F || manual.length)?`<div class="panel">
+    ${(F && F.muted)?'':`${(!F || manual.length)?`<div class="panel">
       <h4>받은 알림 ${manual.length?`(${manual.length})`:''}
         ${(!F && doneN)?`<span class="muted" style="font-weight:400;font-size:12px">
           — 확인한 ${doneN}건은 내려 두었습니다
@@ -2522,7 +2627,7 @@ async function renderAlert(){
     ${(!F || auto.length)?`<div class="panel">
       <h4>자동 경보 ${auto.length?`(${auto.length})`:''}</h4>
       ${auto.length? auto.map(card).join('') : '<div class="muted">경보 없음</div>'}
-    </div>`:''}`;
+    </div>`:''}`}`;
 }
 
 async function sendAlert(){

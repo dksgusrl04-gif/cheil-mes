@@ -340,6 +340,45 @@
     return out;
   }
 
+  /* ── 경보 끄기 ────────────────────────────────────────────────
+     자동 경보는 조회할 때마다 규칙으로 다시 판정한다. 그래서 «읽음» 이
+     없다 — 조건이 그대로면 다음에도 또 뜬다. 그걸 덮어 두는 것이 끄기다.
+     세 가지를 지킨다.
+
+       1) 끄는 단위는 «그 공구 + 그 규칙» 이다. T33 의 마모 70% 를 껐다고
+          T33 의 파손형 경보까지 조용해지면 안 된다.
+       2) 단계가 올라가면 다시 뜬다. 주의로 꺼 둔 것이 위험이 되면 꺼 둔
+          것과 무관하게 올라온다 — 안 그러면 진짜 위험할 때 조용해진다.
+       3) 기한이 있다. 기본 7일. 「계속」 도 고를 수 있지만 사람이 그걸
+          눌렀을 때만이다.
+     끈 기록은 누가 언제 무엇을 껐는지 그대로 남는다. */
+  const MUTE_LV = { info: 0, warn: 1, danger: 2 };
+  const muteKeyOf = (tool, rule) => `${tool == null ? '-' : tool}|${rule || ''}`;
+
+  /* 살아 있는 끄기만 추린다 — 기한이 지난 것은 없는 셈 친다 */
+  function liveMutes(rows) {
+    const now = Date.now(), m = new Map();
+    (rows || []).forEach(x => {
+      if (x.kind !== 'mute') return;
+      if (x.until) {
+        const t = Date.parse(String(x.until).replace(' ', 'T'));
+        if (isFinite(t) && t < now) return;
+      }
+      m.set(muteKeyOf(x.tool, x.rule), x);
+    });
+    return m;
+  }
+
+  /* 끈 것을 걸러 낸다. 끌 때보다 단계가 올라갔으면 그냥 통과시킨다. */
+  function dropMuted(list, mutes) {
+    if (!mutes || !mutes.size) return list;
+    return list.filter(a => {
+      const m = mutes.get(muteKeyOf(a.tool, a.rule));
+      if (!m) return true;
+      return (MUTE_LV[a.level] ?? 0) > (MUTE_LV[m.level] ?? 0);   // 올라갔으면 다시 뜬다
+    });
+  }
+
   function autoAlerts(b) {
     const out = breakAlerts(b);       // 파손형 즉시 경보를 맨 위에 둔다
     const tools = MES.toolList(b);
@@ -687,19 +726,28 @@
       }
       case path === '/api/alerts': {
         const rows = await db('GET', '/mes_alerts?select=*&order=at.desc&limit=500');
+        /* 끈 기록은 «받은 알림» 이 아니다 — 같은 표에 살지만 받은함에서는 뺀다 */
         const inbox = rows.filter(x => {
+          if (x.kind === 'mute') return false;
           const t = x.to || 'all';
           return t === 'all' || t === u.role || t === u.id;
         }).map(x => Object.assign({}, x, { unread: !(x.read_by || []).includes(u.id) }));
-        const auto = autoAlerts(b);
+        const mutes = liveMutes(rows);
+        const auto = dropMuted(autoAlerts(b), mutes);
         return ok({
           auto, manual: inbox,
+          /* 지금 꺼 둔 것들 — 화면이 「끈 경보」 에서 보여 주고 다시 켤 수 있다 */
+          mutes: [...mutes.values()].map(x => ({
+            id: x.id, tool: x.tool, rule: x.rule, level: x.level,
+            title: x.title, by: x.by, at: x.at, until: x.until || '',
+          })),
           counts: {
             danger: auto.filter(a => a.level === 'danger').length,
             warn: auto.filter(a => a.level === 'warn').length,
             unread: inbox.filter(m => m.unread).length,
             /* 파손형 즉시 경보는 따로 센다 — 「며칠 뒤 발주」와 성격이 다르다 */
             breakage: auto.filter(a => a.kind === 'break').length,
+            muted: mutes.size,
           },
           rules: {
             wear: WEAR_LEVELS.map(([t, n]) => ({ threshold: t, name: n })),
@@ -908,6 +956,42 @@
     }
 
     if (u.role !== 'manager') return err({ error: '관리자만 사용할 수 있습니다' }, 403);
+
+    /* ── 자동 경보 끄기 / 다시 켜기 ─────────────────────────────
+       끈 기록도 mes_alerts 표에 남긴다. 표를 새로 만들면 DB 에 손을 대야
+       하는데, 그건 지금 건드릴 자리가 아니다. kind='mute' 로 구분한다. */
+    if (path === '/api/alert/mute') {
+      const tool = /^\d+$/.test(String(body.tool ?? '')) ? parseInt(body.tool, 10) : null;
+      const rule = String(body.rule || '').trim();
+      if (!rule) return err({ error: '무슨 규칙을 끌지 알 수 없습니다' }, 400);
+      const days = Math.max(0, parseInt(body.days, 10) || 0);   // 0 이면 «계속»
+      const until = days
+        ? new Date(Date.now() + days * 86400000).toISOString().slice(0, 19).replace('T', ' ')
+        : '';
+      const item = {
+        id: hex(4), kind: 'mute', level: String(body.level || 'warn'),
+        title: String(body.title || ''), body: String(body.why || ''),
+        tool: tool, rule: rule, until: until,
+        to: 'all', by: u.name, by_id: u.id, at: now(), read_by: [],
+      };
+      try {
+        await db('POST', '/mes_alerts', [item], 'return=minimal');
+        await log('경보 끄기', `${item.title || rule} · ${days ? days + '일' : '계속'}`);
+        return ok({ ok: true, mute: item });
+      } catch (e) { return err({ error: '끄기 저장 실패 — ' + e.message }, 500); }
+    }
+    if (path === '/api/alert/unmute') {
+      const id = String(body.id || '');
+      if (!id) return err({ error: '무엇을 켤지 알 수 없습니다' }, 400);
+      try {
+        /* 지우지 않고 기한을 «지금» 으로 당긴다 — 누가 껐다 언제 켰는지가
+           기록으로 남는다. 살아 있는 끄기만 세는 쪽(liveMutes)이 알아서 뺀다. */
+        await db('PATCH', `/mes_alerts?id=eq.${encodeURIComponent(id)}&kind=eq.mute`,
+                 { until: now() }, 'return=minimal');
+        await log('경보 다시 켜기', id);
+        return ok({ ok: true });
+      } catch (e) { return err({ error: '다시 켜기 실패 — ' + e.message }, 500); }
+    }
 
     if (path === '/api/alert/send') {
       if (!String(body.title || '').trim()) return err({ error: '제목을 입력하세요' }, 400);
