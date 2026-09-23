@@ -576,6 +576,24 @@
     }
     FN_OK = true;
 
+    /* 흘려보내기를 모르는 «옛» 함수가 깔려 있으면, ?stream=1 을 무시하고
+       평범한 JSON 을 돌려준다. 그걸 SSE 인 줄 알고 읽으면 «data:» 줄이
+       하나도 없어 빈 답이 나오고 — 오류도 안 나서 화면에 «응답 없음» 만
+       뜬다. 실제로 그렇게 겪었다. 무엇이 왔는지 먼저 보고 갈라 쓴다. */
+    const ct = r.headers.get('content-type') || '';
+    if (!/text\/event-stream/i.test(ct)) {
+      const j = await r.json().catch(() => ({}));
+      if (j.answer) {                      // 한 덩이로 온 답 — 그대로 쓴다
+        if (onText) onText(j.answer, j.answer);
+        return { answer: j.answer, model: j.model || null,
+                 usage: j.usage || null, fallback: false };
+      }
+      throw Object.assign(
+        new Error(j.error || '함수가 아직 옛 버전입니다 — 흘려보내기를 모릅니다'),
+        { status: 501,
+          hint: 'supabase functions deploy mes-ask 를 한 번 실행하면 켜집니다.' });
+    }
+
     const rd = r.body.getReader(), dec = new TextDecoder();
     let buf = '', text = '', fin = {};
     for (;;) {
@@ -593,6 +611,12 @@
         if (ev.t) { text += ev.t; if (onText) onText(ev.t, text); }
         if (ev.done) fin = ev;
       }
+    }
+    /* 한 글자도 못 받았으면 «성공했는데 빈 답» 으로 두지 않는다. 그렇게
+       두면 화면이 «응답 없음» 만 보여 주고, 무엇이 잘못됐는지 알 길이 없다.
+       오류로 올려 보내 규칙 기반 길로 떨어지게 한다. */
+    if (!text) {
+      throw Object.assign(new Error(fin.error || '답이 비어서 왔습니다'), { status: 502 });
     }
     return { answer: text, model: fin.model || null, usage: fin.usage || null, fallback: false };
   }
