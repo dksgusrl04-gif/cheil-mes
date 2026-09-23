@@ -355,16 +355,28 @@
   const MUTE_LV = { info: 0, warn: 1, danger: 2 };
   const muteKeyOf = (tool, rule) => `${tool == null ? '-' : tool}|${rule || ''}`;
 
+  /* 끄기 줄의 속살. 표에 rule·until 칸이 없으므로 body 안에 JSON 으로
+     담아 둔다 — 표를 새로 만들거나 칸을 더하는 건 쉽게 못 되돌리는 변경이라
+     안 한다. 옛 줄이나 깨진 값이 와도 화면이 죽지는 않게 한다. */
+  function muteBody(x) {
+    try {
+      const j = JSON.parse(x.body || '{}');
+      return (j && typeof j === 'object') ? j : {};
+    } catch (e) { return {}; }
+  }
+
   /* 살아 있는 끄기만 추린다 — 기한이 지난 것은 없는 셈 친다 */
   function liveMutes(rows) {
     const now = Date.now(), m = new Map();
     (rows || []).forEach(x => {
       if (x.kind !== 'mute') return;
-      if (x.until) {
-        const t = Date.parse(String(x.until).replace(' ', 'T'));
+      const j = muteBody(x);
+      if (!j.rule) return;                       // 무엇을 끈 건지 모르면 못 쓴다
+      if (j.until) {
+        const t = Date.parse(String(j.until).replace(' ', 'T'));
         if (isFinite(t) && t < now) return;
       }
-      m.set(muteKeyOf(x.tool, x.rule), x);
+      m.set(muteKeyOf(x.tool, j.rule), Object.assign({}, x, j));
     });
     return m;
   }
@@ -968,11 +980,13 @@
       const until = days
         ? new Date(Date.now() + days * 86400000).toISOString().slice(0, 19).replace('T', ' ')
         : '';
+      /* 표에 있는 칸만 쓴다. rule·until 은 body 안에 넣는다 — 새 칸을 쓰면
+         DB 가 «Could not find the column» 으로 거절한다. */
       const item = {
         id: hex(4), kind: 'mute', level: String(body.level || 'warn'),
-        title: String(body.title || ''), body: String(body.why || ''),
-        tool: tool, rule: rule, until: until,
-        to: 'all', by: u.name, by_id: u.id, at: now(), read_by: [],
+        title: String(body.title || ''),
+        body: JSON.stringify({ rule: rule, until: until, why: String(body.why || '') }),
+        tool: tool, to: 'all', by: u.name, by_id: u.id, at: now(), read_by: [],
       };
       try {
         await db('POST', '/mes_alerts', [item], 'return=minimal');
@@ -985,9 +999,15 @@
       if (!id) return err({ error: '무엇을 켤지 알 수 없습니다' }, 400);
       try {
         /* 지우지 않고 기한을 «지금» 으로 당긴다 — 누가 껐다 언제 켰는지가
-           기록으로 남는다. 살아 있는 끄기만 세는 쪽(liveMutes)이 알아서 뺀다. */
+           기록으로 남는다. 살아 있는 끄기만 세는 쪽(liveMutes)이 알아서 뺀다.
+           기한은 body 안에 있으므로 그 줄을 읽어 다시 써 넣는다. */
+        const rows = await db('GET',
+          `/mes_alerts?id=eq.${encodeURIComponent(id)}&kind=eq.mute&select=body&limit=1`);
+        if (!rows.length) return ok({ ok: false });
+        const j = muteBody(rows[0]);
+        j.until = now();
         await db('PATCH', `/mes_alerts?id=eq.${encodeURIComponent(id)}&kind=eq.mute`,
-                 { until: now() }, 'return=minimal');
+                 { body: JSON.stringify(j) }, 'return=minimal');
         await log('경보 다시 켜기', id);
         return ok({ ok: true });
       } catch (e) { return err({ error: '다시 켜기 실패 — ' + e.message }, 500); }
