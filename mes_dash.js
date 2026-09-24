@@ -275,21 +275,29 @@
         if (!(v > 0)) return '';
         const y0 = y(acc + v), h = Math.max(1, ih * (v / top));
         acc += v;
-        const sel = opt.pick && opt.pick.kind === 'week' && opt.pick.key === d.week;
-        return `<rect data-pick="week:${esc(d.week || '')}" class="pk${sel ? ' on' : ''}"
+        return `<rect
           x="${(cx(i) - bw / 2).toFixed(1)}" y="${y0.toFixed(1)}"
           width="${bw.toFixed(1)}" height="${h.toFixed(1)}"
           rx="${k === 2 ? 2 : 0}" fill="${FILL[k]}"
           ><title>${esc(d.label)} · ${ST_GROUP[k][0]} ${v.toFixed(1)}h
 전체 ${d.tot.toFixed(1)}h 중 ${(100 * v / d.tot).toFixed(1)}%</title></rect>`;
       }).join('');
+
+      /* 누르는 자리와 고른 표시는 «주 전체» 에 하나만 둔다. 쌓인 칸마다
+         테두리를 그리면 한 주에 네모가 셋 생겨, 무엇이 골라진 건지 오히려
+         헷갈린다. 속이 빈 네모 하나를 막대 위에 덮어 둔다. */
+      const sel = opt.pick && opt.pick.kind === 'week' && opt.pick.key === d.week;
+      const hit = `<rect data-pick="week:${esc(d.week || '')}" class="pk${sel ? ' on' : ''}"
+        x="${(cx(i) - bw / 2 - 3).toFixed(1)}" y="${(y(d.tot) - 3).toFixed(1)}"
+        width="${(bw + 6).toFixed(1)}" height="${(ih * (d.tot / top) + 6).toFixed(1)}"
+        rx="3" fill="transparent"/>`;
       /* 막대 위에는 «절삭 비율» — 이 그림에서 제일 알고 싶은 한 수다 */
       const pct = d.tot > 0 ? 100 * d.g[0] / d.tot : 0;
       const lab = d.tot > 0
         ? `<text x="${cx(i).toFixed(1)}" y="${(y(d.tot) - 8).toFixed(1)}"
             text-anchor="middle" font-size="11.5" font-weight="650"
             fill="${C['--accent']}">${pct.toFixed(0)}%</text>` : '';
-      return seg + lab;
+      return seg + hit + lab;
     }).join('');
 
     const labels = data.map((d, i) =>
@@ -433,20 +441,36 @@
     </svg>`;
   }
 
-  /* ── 일자별 — 중앙값 대비 편차 ────────────────────────────────
-     선으로 그렸더니 거의 직선이었다. 값이 367~391 로 6% 안에 모여 있는데
-     축은 0 부터라, 43일치가 전부 같은 높이에 붙어 버린 것이다. 선을
-     아무리 굵게 해도 «평평한 것을 평평하게» 그리는 한 안 읽힌다.
+  /* ── 눈금 잡기 (0 부터가 아닌 축) ─────────────────────────────
+     막대는 길이가 곧 값이라 0 부터 시작해야 한다. 그런데 선은 다르다 —
+     선은 «점의 자리» 로 읽히지 «길이» 로 읽히지 않아서, 자료가 모여 있는
+     구간만 잘라 봐도 속이는 그림이 되지 않는다. 오히려 0 부터 그리면
+     367~391 이 한 줄에 붙어 아무것도 안 보인다.
+     (Heckbert 의 «보기 좋은 눈금» 방식) */
+  function niceNum(x, round) {
+    if (!(x > 0) || !isFinite(x)) return 1;
+    const e = Math.floor(Math.log10(x)), f = x / Math.pow(10, e);
+    const nf = round ? (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10)
+                     : (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10);
+    return nf * Math.pow(10, e);
+  }
+  function niceScale(lo, hi, want) {
+    want = want || 5;
+    if (!(hi > lo)) { hi = lo + 1; }
+    /* 간격은 «실제 범위» 에서 낸다. 범위를 먼저 보기 좋은 수로 올린 뒤
+       나누면(112 → 200), 축이 자료보다 훨씬 넓어져 선이 다시 납작해진다. */
+    const step = niceNum((hi - lo) / (want - 1), true);
+    return { lo: Math.floor(lo / step) * step, hi: Math.ceil(hi / step) * step, step };
+  }
 
-     그래서 그리는 값을 바꾼다 — 값이 아니라 «판정 기준(중앙값)에서 얼마나
-     벗어났나» 를 0 을 가운데 두고 위아래로 그린다.
-       · 6% 차이가 화면에서 6% 가 아니라 «축 절반» 이 된다
-       · 위로 솟으면 평소보다 빨리 닳은 날, 아래면 덜 닳은 날 — 방향이 바로 보인다
-       · 급증 문턱(중앙값의 1.8배 = +80%)이 축 위의 한 자리로 표시된다
-       · 안 돌린 날은 막대가 아예 없다 — 0 과 구분된다 */
+  /* ── 일자별 시계열 ────────────────────────────────────────────
+     점을 찍고 선으로 잇는다. 축은 자료가 있는 구간에 맞춘다 —
+     0 부터 그리면 값이 6% 안에 모여 있어 43일치가 한 줄에 붙어 버린다.
+     안 돌린 날은 점을 안 찍고 선도 끊는다(0 이 아니라 «없음» 이다).
+     이상이 난 날만 색이 든 큰 점으로 표시한다. */
   function dailySVG(days, marks, opt) {
     opt = opt || {};
-    const W = opt.width || 1060, H = opt.height || 210;
+    const W = opt.width || 1060, H = opt.height || 230;
     const D = (days || []).slice().sort((a, b) => (a.date < b.date ? -1 : 1));
     if (D.length < 2) return empty(W, H, '일자가 부족합니다');
 
@@ -454,81 +478,95 @@
     const per = D.map(d => (d.cut_h > 0 ? val(d) / d.cut_h : null));
     const got = per.filter(v => v != null && v > 0);
     if (!got.length) return empty(W, H, '절삭한 날이 없습니다');
-    const mid = median(got);
-    if (!(mid > 0)) return empty(W, H, '기준을 낼 수 없습니다');
 
-    const dev = per.map(v => (v == null ? null : (v / mid - 1) * 100));
-    const got2 = dev.filter(v => v != null);
-    /* 축은 위아래 대칭. 한쪽만 맞추면 «위로 조금, 아래로 많이» 가 왜곡된다.
-       범위는 실제 값에만 맞춘다. 급증 문턱(+80%)이 항상 보이게 축을 넓혀
-       두었더니, 실제 편차가 ±21% 인데 축이 ±50% 가 되어 막대가 다시
-       납작해졌다 — 안 읽히게 만들면서까지 보여 줄 선은 없다.
-       문턱은 가까이 간 날이 있을 때만 그림에 들어온다. */
-    const spike = (RULES.spike - 1) * 100;
-    const lim = niceMax(Math.max(Math.max(...got2.map(Math.abs)) * 1.15, 1));
+    const sc = scaleOf(Math.max(...got));
+    const vals = per.map(v => (v == null ? null : v * sc.mul));
+    const gv = vals.filter(v => v != null);
+    const A = niceScale(Math.min(...gv), Math.max(...gv), 5);
+    const mid = median(got) * sc.mul;
 
-    const P = { t: 26, r: 16, b: 44, l: 52 };
+    const P = { t: 26, r: 18, b: 44, l: 58 };
     const iw = W - P.l - P.r, ih = H - P.t - P.b;
     const n = D.length;
-    const bw = Math.max(2, Math.min(18, iw / n * 0.7));
-    const cx = i => P.l + iw * (i + 0.5) / n;
-    const y = v => P.t + ih / 2 - (ih / 2) * (v / lim);
+    const x = i => P.l + iw * i / (n - 1);
+    const y = v => P.t + ih - ih * (v - A.lo) / (A.hi - A.lo);
     const M = new Map((marks || []).map(m => [m.date, m]));
 
-    const grid = [lim, lim / 2, 0, -lim / 2, -lim].map(v => {
-      const yy = y(v), zero = Math.abs(v) < 1e-9;
-      return `<line x1="${P.l}" y1="${yy.toFixed(1)}" x2="${(P.l + iw).toFixed(1)}"
-        y2="${yy.toFixed(1)}" stroke="${zero ? C['--chart-axis'] : C['--chart-grid']}"
-        stroke-width="1" ${zero ? 'opacity=".55"' : ''}/>
+    /* 그림틀 — 네 변을 두른다. 자료 구간만 잘라 본 축이므로, 틀이 있어야
+       «여기까지가 그림» 이 분명해진다. */
+    const frame = `<rect x="${P.l}" y="${P.t}" width="${iw}" height="${ih}"
+      fill="none" stroke="${C['--chart-axis']}" stroke-width="1" opacity=".45"/>`;
+
+    const ticks = [];
+    for (let v = A.lo; v <= A.hi + 1e-9; v += A.step) {
+      const yy = y(v);
+      ticks.push(`<line x1="${P.l}" y1="${yy.toFixed(1)}" x2="${(P.l + iw).toFixed(1)}"
+        y2="${yy.toFixed(1)}" stroke="${C['--chart-grid']}" stroke-width="1"/>
         <text x="${P.l - 9}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="11"
-          fill="${C['--chart-axis']}">${v > 0 ? '+' : ''}${v.toFixed(0)}%</text>`;
-    }).join('');
+          fill="${C['--chart-axis']}">${v.toFixed(A.step < 1 ? 2 : A.step < 10 ? 1 : 0)}</text>`);
+    }
 
-    /* 급증 문턱 — 이 선을 넘은 날이 경보가 난 날이다 */
-    const thr = spike <= lim ? `<line x1="${P.l}" y1="${y(spike).toFixed(1)}"
-      x2="${(P.l + iw).toFixed(1)}" y2="${y(spike).toFixed(1)}"
-      stroke="${C['--danger']}" stroke-width="1" stroke-dasharray="4 4" opacity=".5"/>
-      <text x="${(P.l + iw).toFixed(1)}" y="${(P.t - 10).toFixed(1)}" text-anchor="end"
-        font-size="10.5" fill="${C['--danger']}">---- 급증 문턱 +${spike.toFixed(0)}%</text>` : '';
+    const midLine = `<line x1="${P.l}" y1="${y(mid).toFixed(1)}"
+      x2="${(P.l + iw).toFixed(1)}" y2="${y(mid).toFixed(1)}"
+      stroke="${C['--chart-axis']}" stroke-width="1" stroke-dasharray="5 4" opacity=".7"/>
+      <text x="${(P.l + iw).toFixed(1)}" y="${(P.t - 9).toFixed(1)}" text-anchor="end"
+        font-size="10.5" fill="${C['--chart-axis']}">---- 판정 기준(중앙값) ${
+        mid.toFixed(A.step < 1 ? 2 : 1)}</text>`;
 
-    const bars = D.map((d, i) => {
-      if (dev[i] == null) {
-        /* 안 돌린 날 — 0 이 아니라 «없음». 바닥에 옅은 점만 남긴다 */
-        return `<rect x="${(cx(i) - 1.5).toFixed(1)}" y="${(y(0) - 1).toFixed(1)}"
-          width="3" height="2" rx="1" fill="${C['--chart-grid']}"
-          ><title>${esc(d.date)} · 절삭 없음</title></rect>`;
-      }
-      const v = Math.max(-lim, Math.min(lim, dev[i]));
-      const y0 = y(Math.max(v, 0)), h = Math.max(1.5, Math.abs(y(v) - y(0)));
+    /* 없는 날에서 선을 끊는다 */
+    const segs = []; let cur = [];
+    D.forEach((d, i) => {
+      if (vals[i] == null) { if (cur.length > 1) segs.push(cur); cur = []; return; }
+      cur.push(`${x(i).toFixed(1)},${y(vals[i]).toFixed(1)}`);
+    });
+    if (cur.length > 1) segs.push(cur);
+    const line = segs.map(pts =>
+      `<polyline points="${pts.join(' ')}" fill="none" stroke="${C['--accent']}"
+        stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+
+    /* 점 — 날마다 하나. 이상이 난 날만 크고 색이 든다. */
+    const dots = D.map((d, i) => {
+      if (vals[i] == null) return '';
       const m = M.get(d.date);
-      const col = (m && m.kind !== 'idle')
+      const bad = m && m.kind !== 'idle';
+      const col = bad
         ? (m.level === 'danger' ? C['--danger'] : m.level === 'warn' ? C['--warn'] : C['--accent'])
-        : (v >= 0 ? '#9FB8D4' : '#DFE5EC');
+        : C['--accent'];
       const sel = opt.pick && opt.pick.kind === 'day' && opt.pick.key === d.date;
-      return `<rect data-pick="day:${esc(d.date)}" class="pk${sel ? ' on' : ''}"
-        x="${(cx(i) - bw / 2).toFixed(1)}" y="${y0.toFixed(1)}"
-        width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${col}"
-        ><title>${esc(d.date)}
-중앙값 대비 ${v >= 0 ? '+' : ''}${dev[i].toFixed(1)}%
-시간당 마모 ${per[i].toFixed(6)} · 절삭 ${f2(d.cut_h)}h${
-        m && m.kind !== 'idle' ? `
-${esc(m.title)} — ${esc(m.why)}` : ''}</title></rect>`;
+      return `<circle data-pick="day:${esc(d.date)}" class="pk${sel ? ' on' : ''}"
+        cx="${x(i).toFixed(1)}" cy="${y(vals[i]).toFixed(1)}" r="${bad ? 5 : 3.2}"
+        fill="${bad ? col : C['--surface']}" stroke="${col}"
+        stroke-width="${bad ? 1.8 : 1.6}"><title>${esc(d.date)}
+시간당 마모 ${per[i].toFixed(6)} · 절삭 ${f2(d.cut_h)}h
+중앙값 대비 ${(vals[i] / mid - 1) * 100 >= 0 ? '+' : ''}${((vals[i] / mid - 1) * 100).toFixed(1)}%${
+        bad ? `
+${esc(m.title)} — ${esc(m.why)}` : ''}</title></circle>`;
     }).join('');
+
+    /* 안 돌린 날은 축 아래에 옅은 점으로만 — 0 이 아니라 «없음» 이다 */
+    const gaps = D.map((d, i) => vals[i] == null
+      ? `<circle cx="${x(i).toFixed(1)}" cy="${(P.t + ih + 7).toFixed(1)}" r="1.8"
+          fill="${C['--chart-grid']}"><title>${esc(d.date)} · 절삭 없음</title></circle>` : '')
+      .join('');
 
     const step = Math.max(1, Math.round((n - 1) / 6));
-    const ticks = D.map((d, i) =>
+    const xlab = D.map((d, i) =>
       (i % step === 0 || i === n - 1)
-        ? `<text x="${cx(i).toFixed(1)}" y="${H - 16}" text-anchor="middle" font-size="11"
+        ? `<line x1="${x(i).toFixed(1)}" y1="${(P.t + ih).toFixed(1)}"
+             x2="${x(i).toFixed(1)}" y2="${(P.t + ih + 4).toFixed(1)}"
+             stroke="${C['--chart-axis']}" stroke-width="1" opacity=".5"/>
+           <text x="${x(i).toFixed(1)}" y="${H - 16}" text-anchor="middle" font-size="11"
             fill="${C['--chart-label']}">${esc(d.date.slice(5))}</text>` : '').join('');
 
-    const cap = `<text x="${P.l - 9}" y="${(P.t - 10).toFixed(1)}" text-anchor="end"
-      font-size="10.5" fill="${C['--chart-axis']}">기준 대비</text>`;
+    const unit = `<text x="${P.l - 9}" y="${(P.t - 9).toFixed(1)}" text-anchor="end"
+      font-size="10.5" fill="${C['--chart-axis']}">${sc.unit ? '단위 ' + sc.unit : ''}</text>`;
 
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img"
-      aria-label="일자별 시간당 마모량 — 중앙값 대비 편차">
-      ${grid}${thr}${cap}${bars}${ticks}
+      aria-label="일자별 시간당 마모량">
+      ${ticks.join('')}${frame}${unit}${midLine}${line}${gaps}${dots}${xlab}
     </svg>`;
   }
+
   /* 옛 이름으로 부르던 곳이 있으면 그대로 받는다 */
   const sparkSVG = dailySVG;
 
@@ -779,12 +817,11 @@ ${esc(m.title)} — ${esc(m.why)}` : ''}</title></rect>`;
         <div class="box grow">
           <h4>일자별 시간당 마모량 <span class="sub">점 = 이상 징후</span></h4>
           ${dailySVG(days, A, { width: 1060, height: 210, pick: PICK })}
-          <div class="hint">값이 아니라 <b>판정 기준(중앙값)에서 얼마나 벗어났는지</b>를
-            그립니다 — 날마다 값이 6% 안에 모여 있어, 값 그대로 그리면 43일이
-            전부 같은 높이에 붙어 버립니다.
-            위로 솟으면 <b>평소보다 빨리 닳은 날</b>, 아래면 덜 닳은 날입니다.
-            색이 든 막대는 경보가 난 날이고, 바닥의 옅은 점은 <b>안 돌린 날</b>입니다.
-            막대를 누르면 그 날만 봅니다.</div>
+          <div class="hint">세로축을 <b>0 이 아니라 자료가 있는 구간</b>에 맞췄습니다 —
+            값이 6% 안에 모여 있어 0 부터 그리면 43일이 한 줄에 붙습니다.
+            점선은 <b>판정 기준(중앙값)</b>, 색이 든 큰 점은 경보가 난 날,
+            축 아래 옅은 점은 <b>안 돌린 날</b>이라 선을 끊어 둔 자리입니다.
+            점을 누르면 그 날만 봅니다.</div>
         </div>
       </div>
 
