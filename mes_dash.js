@@ -196,11 +196,15 @@
     return { mul: Math.pow(10, k), unit: `10${sup(-k)}` };
   }
 
-  /* 축 끝을 «보기 좋은 수» 로 올린다 — 0.42 대신 0.5 에서 끝나게 */
+  /* 축 끝을 «보기 좋은 수» 로 올린다 — 0.42 대신 0.5 에서 끝나게.
+     사다리를 촘촘히 둔다. 1·2·2.5·5·10 만 쓰면 2.5 에서 5 로 건너뛰어,
+     25.2 를 올리려다 축이 50 이 된다 — 값이 절반 높이로 납작해진다.
+     실제로 일자별 그림에서 그 일이 났다. */
+  const NICE = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
   function niceMax(v) {
     if (!(v > 0) || !isFinite(v)) return 1;
     const e = Math.pow(10, Math.floor(Math.log10(v))), m = v / e;
-    return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * e;
+    return (NICE.find(x => m <= x + 1e-9) || 10) * e;
   }
 
   const empty = (W, H, msg) =>
@@ -244,7 +248,7 @@
           if (i >= 0) g[i] += st[k] || 0;
         });
       });
-      return { label: r.label, g, tot: g[0] + g[1] + g[2] };
+      return { week: r.week, label: r.label, g, tot: g[0] + g[1] + g[2] };
     });
     const maxT = Math.max(...data.map(d => d.tot), 1e-9);
     if (!(maxT > 1e-6)) return empty(W, H, '가동 기록이 없습니다');
@@ -271,7 +275,9 @@
         if (!(v > 0)) return '';
         const y0 = y(acc + v), h = Math.max(1, ih * (v / top));
         acc += v;
-        return `<rect x="${(cx(i) - bw / 2).toFixed(1)}" y="${y0.toFixed(1)}"
+        const sel = opt.pick && opt.pick.kind === 'week' && opt.pick.key === d.week;
+        return `<rect data-pick="week:${esc(d.week || '')}" class="pk${sel ? ' on' : ''}"
+          x="${(cx(i) - bw / 2).toFixed(1)}" y="${y0.toFixed(1)}"
           width="${bw.toFixed(1)}" height="${h.toFixed(1)}"
           rx="${k === 2 ? 2 : 0}" fill="${FILL[k]}"
           ><title>${esc(d.label)} · ${ST_GROUP[k][0]} ${v.toFixed(1)}h
@@ -375,7 +381,8 @@
       /* 안 돌린 주는 «0» 이 아니라 «없음» 이다. 0 짜리 막대에 «0.0» 을 적으면
          «아주 조금 닳았다» 로 읽히는데, 실제로는 잰 적이 없는 주다. */
       if (!(r.cut_h > 0)) {
-        return `<rect x="${(cx(i) - bw / 2).toFixed(1)}" y="${(P.t + ih - 3).toFixed(1)}"
+        return `<rect data-pick="week:${esc(r.week)}" class="pk"
+          x="${(cx(i) - bw / 2).toFixed(1)}" y="${(P.t + ih - 3).toFixed(1)}"
           width="${bw.toFixed(1)}" height="3" rx="1.5" fill="${C['--chart-grid']}"
           ><title>${esc(r.label)}
 절삭 없음 — 안 돌린 주입니다</title></rect>
@@ -387,7 +394,9 @@
       const hot = opt.hot && opt.hot.has(r.week);
       const last = i === n - 1;
       const fill = hot ? C['--danger'] : (last ? C['--accent'] : '#C8D3DF');
-      return `<rect x="${(cx(i) - bw / 2).toFixed(1)}" y="${(P.t + ih - h).toFixed(1)}"
+      const sel = opt.pick && opt.pick.kind === 'week' && opt.pick.key === r.week;
+      return `<rect data-pick="week:${esc(r.week)}" class="pk${sel ? ' on' : ''}"
+        x="${(cx(i) - bw / 2).toFixed(1)}" y="${(P.t + ih - h).toFixed(1)}"
         width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${fill}"
         ><title>${esc(r.label)}
 시간당 마모 ${r.perH.toFixed(6)}
@@ -424,92 +433,104 @@
     </svg>`;
   }
 
-  /* ── 일자별 시간당 마모량 ─────────────────────────────────────
-     면을 칠하지 않는다. 채워도 새로 알게 되는 것이 없고, 점(이상 징후)이
-     묻힌다. 대신 판정 기준인 «중앙값» 을 점선으로 같이 그린다 — 점이 왜
-     찍혔는지가 그림 안에서 설명된다. */
-  function sparkSVG(days, marks, opt) {
+  /* ── 일자별 — 중앙값 대비 편차 ────────────────────────────────
+     선으로 그렸더니 거의 직선이었다. 값이 367~391 로 6% 안에 모여 있는데
+     축은 0 부터라, 43일치가 전부 같은 높이에 붙어 버린 것이다. 선을
+     아무리 굵게 해도 «평평한 것을 평평하게» 그리는 한 안 읽힌다.
+
+     그래서 그리는 값을 바꾼다 — 값이 아니라 «판정 기준(중앙값)에서 얼마나
+     벗어났나» 를 0 을 가운데 두고 위아래로 그린다.
+       · 6% 차이가 화면에서 6% 가 아니라 «축 절반» 이 된다
+       · 위로 솟으면 평소보다 빨리 닳은 날, 아래면 덜 닳은 날 — 방향이 바로 보인다
+       · 급증 문턱(중앙값의 1.8배 = +80%)이 축 위의 한 자리로 표시된다
+       · 안 돌린 날은 막대가 아예 없다 — 0 과 구분된다 */
+  function dailySVG(days, marks, opt) {
     opt = opt || {};
-    const W = opt.width || 720, H = opt.height || 236;
+    const W = opt.width || 1060, H = opt.height || 210;
     const D = (days || []).slice().sort((a, b) => (a.date < b.date ? -1 : 1));
     if (D.length < 2) return empty(W, H, '일자가 부족합니다');
 
     const C = pal();
-    const P = { t: 30, r: 16, b: 48, l: 54 };
-    const iw = W - P.l - P.r, ih = H - P.t - P.b;
-
-    /* 안 돌린 날은 «0» 이 아니라 «없음» 이다. 0 으로 찍어 이으면 선이 매주
-       바닥까지 내려갔다 올라오는 톱니가 되어, 정작 추세가 안 보인다.
-       43일 중 17일이 주말이라 절반 가까이가 그런 날이었다. */
     const per = D.map(d => (d.cut_h > 0 ? val(d) / d.cut_h : null));
     const got = per.filter(v => v != null && v > 0);
     if (!got.length) return empty(W, H, '절삭한 날이 없습니다');
-    const sc = scaleOf(Math.max(...got));
-    const top = niceMax(Math.max(...got) * sc.mul);
-    const mid = median(got) * sc.mul;
+    const mid = median(got);
+    if (!(mid > 0)) return empty(W, H, '기준을 낼 수 없습니다');
 
-    const x = i => P.l + iw * i / (D.length - 1);
-    const y = v => P.t + ih - ih * (v / top);
+    const dev = per.map(v => (v == null ? null : (v / mid - 1) * 100));
+    const got2 = dev.filter(v => v != null);
+    /* 축은 위아래 대칭. 한쪽만 맞추면 «위로 조금, 아래로 많이» 가 왜곡된다.
+       범위는 실제 값에만 맞춘다. 급증 문턱(+80%)이 항상 보이게 축을 넓혀
+       두었더니, 실제 편차가 ±21% 인데 축이 ±50% 가 되어 막대가 다시
+       납작해졌다 — 안 읽히게 만들면서까지 보여 줄 선은 없다.
+       문턱은 가까이 간 날이 있을 때만 그림에 들어온다. */
+    const spike = (RULES.spike - 1) * 100;
+    const lim = niceMax(Math.max(Math.max(...got2.map(Math.abs)) * 1.15, 1));
+
+    const P = { t: 26, r: 16, b: 44, l: 52 };
+    const iw = W - P.l - P.r, ih = H - P.t - P.b;
+    const n = D.length;
+    const bw = Math.max(2, Math.min(18, iw / n * 0.7));
+    const cx = i => P.l + iw * (i + 0.5) / n;
+    const y = v => P.t + ih / 2 - (ih / 2) * (v / lim);
     const M = new Map((marks || []).map(m => [m.date, m]));
 
-    const grid = [0, 0.5, 1].map(f => {
-      const yy = y(top * f);
+    const grid = [lim, lim / 2, 0, -lim / 2, -lim].map(v => {
+      const yy = y(v), zero = Math.abs(v) < 1e-9;
       return `<line x1="${P.l}" y1="${yy.toFixed(1)}" x2="${(P.l + iw).toFixed(1)}"
-        y2="${yy.toFixed(1)}" stroke="${C['--chart-grid']}" stroke-width="1"/>
+        y2="${yy.toFixed(1)}" stroke="${zero ? C['--chart-axis'] : C['--chart-grid']}"
+        stroke-width="1" ${zero ? 'opacity=".55"' : ''}/>
         <text x="${P.l - 9}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="11"
-          fill="${C['--chart-axis']}">${(top * f).toFixed(top < 10 ? 1 : 0)}</text>`;
+          fill="${C['--chart-axis']}">${v > 0 ? '+' : ''}${v.toFixed(0)}%</text>`;
     }).join('');
 
-    const midLine = mid > 0 ? `<line x1="${P.l}" y1="${y(mid).toFixed(1)}"
-      x2="${(P.l + iw).toFixed(1)}" y2="${y(mid).toFixed(1)}"
-      stroke="${C['--chart-axis']}" stroke-width="1" stroke-dasharray="4 4" opacity=".65"/>
-      <text x="${(P.l + iw).toFixed(1)}" y="${(P.t - 12).toFixed(1)}" text-anchor="end"
-        font-size="10.5" fill="${C['--chart-axis']}">---- 판정 기준(중앙값) ${
-        mid.toFixed(top < 10 ? 2 : 1)}</text>` : '';
+    /* 급증 문턱 — 이 선을 넘은 날이 경보가 난 날이다 */
+    const thr = spike <= lim ? `<line x1="${P.l}" y1="${y(spike).toFixed(1)}"
+      x2="${(P.l + iw).toFixed(1)}" y2="${y(spike).toFixed(1)}"
+      stroke="${C['--danger']}" stroke-width="1" stroke-dasharray="4 4" opacity=".5"/>
+      <text x="${(P.l + iw).toFixed(1)}" y="${(P.t - 10).toFixed(1)}" text-anchor="end"
+        font-size="10.5" fill="${C['--danger']}">---- 급증 문턱 +${spike.toFixed(0)}%</text>` : '';
 
-    /* 없는 날에서 선을 끊는다 — 이어진 구간마다 polyline 을 따로 그린다 */
-    const segs = [];
-    let cur = [];
-    D.forEach((d, i) => {
-      if (per[i] == null) { if (cur.length > 1) segs.push(cur); cur = []; return; }
-      cur.push(`${x(i).toFixed(1)},${y(per[i] * sc.mul).toFixed(1)}`);
-    });
-    if (cur.length > 1) segs.push(cur);
-    const line = segs.map(pts =>
-      `<polyline points="${pts.join(' ')}" fill="none" stroke="${C['--accent']}"
-        stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
-    /* 끊긴 자리가 «자료가 없다» 는 뜻임을 알 수 있게 바닥에 옅은 띠를 깐다 */
-    const gaps = D.map((d, i) => per[i] == null
-      ? `<rect x="${(x(i) - 2).toFixed(1)}" y="${(P.t + ih - 3).toFixed(1)}" width="4" height="3"
-          rx="1" fill="${C['--chart-grid']}"><title>${esc(d.date)} · 절삭 없음</title></rect>` : '')
-      .join('');
-
-    /* 안 돌린 날(idle)은 점으로 안 찍는다 — 주말이 점으로 도배되면 진짜
-       급증한 날이 그 사이에 묻힌다. 목록에는 구간으로 묶여 남아 있다. */
-    const dots = D.map((d, i) => {
+    const bars = D.map((d, i) => {
+      if (dev[i] == null) {
+        /* 안 돌린 날 — 0 이 아니라 «없음». 바닥에 옅은 점만 남긴다 */
+        return `<rect x="${(cx(i) - 1.5).toFixed(1)}" y="${(y(0) - 1).toFixed(1)}"
+          width="3" height="2" rx="1" fill="${C['--chart-grid']}"
+          ><title>${esc(d.date)} · 절삭 없음</title></rect>`;
+      }
+      const v = Math.max(-lim, Math.min(lim, dev[i]));
+      const y0 = y(Math.max(v, 0)), h = Math.max(1.5, Math.abs(y(v) - y(0)));
       const m = M.get(d.date);
-      if (!m || m.kind === 'idle' || per[i] == null) return '';
-      const col = m.level === 'danger' ? C['--danger']
-        : m.level === 'warn' ? C['--warn'] : C['--accent'];
-      return `<circle cx="${x(i).toFixed(1)}" cy="${y(per[i] * sc.mul).toFixed(1)}" r="5"
-        fill="${col}" stroke="${C['--surface']}" stroke-width="2"><title>${esc(d.date)} · ${esc(m.title)}
-${esc(m.why)}</title></circle>`;
+      const col = (m && m.kind !== 'idle')
+        ? (m.level === 'danger' ? C['--danger'] : m.level === 'warn' ? C['--warn'] : C['--accent'])
+        : (v >= 0 ? '#9FB8D4' : '#DFE5EC');
+      const sel = opt.pick && opt.pick.kind === 'day' && opt.pick.key === d.date;
+      return `<rect data-pick="day:${esc(d.date)}" class="pk${sel ? ' on' : ''}"
+        x="${(cx(i) - bw / 2).toFixed(1)}" y="${y0.toFixed(1)}"
+        width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${col}"
+        ><title>${esc(d.date)}
+중앙값 대비 ${v >= 0 ? '+' : ''}${dev[i].toFixed(1)}%
+시간당 마모 ${per[i].toFixed(6)} · 절삭 ${f2(d.cut_h)}h${
+        m && m.kind !== 'idle' ? `
+${esc(m.title)} — ${esc(m.why)}` : ''}</title></rect>`;
     }).join('');
 
-    /* 날짜 눈금 — 처음·끝만 적으면 가운데가 어디인지 모른다. 네댓 개로. */
-    const step = Math.max(1, Math.round((D.length - 1) / 4));
+    const step = Math.max(1, Math.round((n - 1) / 6));
     const ticks = D.map((d, i) =>
-      (i % step === 0 || i === D.length - 1)
-        ? `<text x="${x(i).toFixed(1)}" y="${H - 20}" text-anchor="middle" font-size="11"
+      (i % step === 0 || i === n - 1)
+        ? `<text x="${cx(i).toFixed(1)}" y="${H - 16}" text-anchor="middle" font-size="11"
             fill="${C['--chart-label']}">${esc(d.date.slice(5))}</text>` : '').join('');
 
-    const unit = `<text x="${P.l - 9}" y="${P.t - 12}" text-anchor="end" font-size="10.5"
-      fill="${C['--chart-axis']}">${sc.unit ? '단위 ' + sc.unit : ''}</text>`;
+    const cap = `<text x="${P.l - 9}" y="${(P.t - 10).toFixed(1)}" text-anchor="end"
+      font-size="10.5" fill="${C['--chart-axis']}">기준 대비</text>`;
 
-    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="일자별 시간당 마모량">
-      ${grid}${unit}${midLine}${gaps}${line}${dots}${ticks}
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img"
+      aria-label="일자별 시간당 마모량 — 중앙값 대비 편차">
+      ${grid}${thr}${cap}${bars}${ticks}
     </svg>`;
   }
+  /* 옛 이름으로 부르던 곳이 있으면 그대로 받는다 */
+  const sparkSVG = dailySVG;
 
   /* ═══════════════════════════════════════════════════════════════
    * 화면 — 왼쪽 메뉴에 «종합» 을 붙이고 눌리면 여기서 그린다
@@ -528,6 +549,20 @@ ${esc(m.why)}</title></circle>`;
   #mesdash h4 .sub{font-weight:400;color:var(--faint,#94A3B8);margin-left:6px}
   #mesdash h4{font-size:12.5px;color:var(--ink,#0F172A);margin:0 0 12px;font-weight:650}
   #mesdash .hint{font-size:11.5px;color:var(--faint,#94A3B8);margin-top:10px;line-height:1.65}
+  /* 고를 수 있는 막대 — 누를 수 있다는 걸 커서와 손맛으로 알린다 */
+  #mesdash [data-pick]{cursor:pointer;transition:opacity .12s}
+  #mesdash [data-pick]:hover{opacity:.72}
+  #mesdash [data-pick].on{stroke:var(--warn,#EC6E00);stroke-width:2;paint-order:stroke}
+  /* 고른 채로 보는 중이라는 띠. 안 적어 두면 «왜 숫자가 다르지» 가 된다 */
+  #mesdash .pickbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:var(--warn-soft,#FFF5EB);border:1px solid var(--warn-line,#FBD9B9);
+    color:var(--warn-ink,#9A4700);border-radius:var(--r-sm,7px);
+    padding:8px 13px;margin-bottom:12px;font-size:12.5px}
+  #mesdash .pickbar b{font-weight:700}
+  #mesdash .pkclr{margin-left:auto;background:#fff;
+    border:1px solid var(--warn-line,#FBD9B9);color:var(--warn-ink,#9A4700);
+    border-radius:6px;padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
+  #mesdash .pkclr:hover{background:var(--warn-soft,#FFF5EB)}
   #mesdash .an{display:flex;gap:10px;align-items:flex-start;padding:9px 0;
     border-bottom:1px solid var(--line-2,#f0f3f6)}
   #mesdash .an:last-child{border-bottom:0}
@@ -611,6 +646,11 @@ ${esc(m.why)}</title></circle>`;
     wireSegButtons(basis);
   }
 
+  /* 그림에서 고른 것. {kind:'week'|'day', key} — 아무것도 안 고르면 null.
+     고르면 위 카드가 그 주(그 날)의 값으로 바뀐다. 그림이 세 개인데 숫자는
+     늘 전체 것이면, 막대를 눌러 봐도 무엇이 달라졌는지 알 수가 없다. */
+  let PICK = null;
+
   async function draw() {
     const main = $('main'), side = $('side');
     if (!main) return;
@@ -641,6 +681,68 @@ ${esc(m.why)}</title></circle>`;
       `<div class="card ${cls || ''}"><div class="k">${esc(k)}</div>
         <div class="v">${esc(v)}<span class="u">${esc(u || '')}</span></div></div>`;
 
+    /* 고른 것이 아직 자료에 있나 — 구간을 바꾸면 없어질 수 있다 */
+    if (PICK && PICK.kind === 'week' && !W.some(w => w.week === PICK.key)) PICK = null;
+    if (PICK && PICK.kind === 'day' && !days.some(d => d.date === PICK.key)) PICK = null;
+
+    /* 상태 시간을 세 갈래로 더한다 (가동 상태 그림과 같은 묶음) */
+    const stSum = list => {
+      const g = [0, 0, 0];
+      (list || []).forEach(st => Object.keys(st || {}).forEach(k => {
+        const i = ST_GROUP.findIndex(x => x[1].indexOf(k) >= 0);
+        if (i >= 0) g[i] += st[k] || 0;
+      }));
+      return g;
+    };
+
+    let cards, pickBar = '';
+    if (PICK) {
+      const isW = PICK.kind === 'week';
+      const w = isW ? W.find(x => x.week === PICK.key) : null;
+      const d = isW ? null : days.find(x => x.date === PICK.key);
+      const label = isW ? w.label : PICK.key;
+      const cutH = isW ? w.cut_h : (d.cut_h || 0);
+      const perH = isW ? w.perH : (cutH > 0 ? val(d) / cutH : 0);
+      const g = stSum(isW ? w.states : [d.states]);
+      const tot = g[0] + g[1] + g[2];
+      /* 그 범위에 걸린 이상 징후만 */
+      const mine = A.filter(a => isW ? weekKey(a.date) === PICK.key : a.date === PICK.key);
+      /* 앞선 주와 견준다 — 안 돌린 주는 건너뛴다 */
+      let dl = null;
+      if (isW) {
+        let j = W.findIndex(x => x.week === PICK.key) - 1;
+        while (j >= 0 && !(W[j].cut_h > 0)) j--;
+        if (j >= 0 && W[j].perH > 0 && perH > 0) dl = (perH / W[j].perH - 1) * 100;
+      }
+      cards = [
+        card(isW ? '이 주 시간당 마모' : '이 날 시간당 마모',
+          perH > 0 ? perH.toFixed(5) : '-', ''),
+        isW ? card('앞 주 대비', dl == null ? '-' : (dl >= 0 ? '+' : '') + dl.toFixed(1), '%',
+          dl != null && dl > 20 ? 'warn' : '') : '',
+        card('절삭 시간', f2(cutH), 'h'),
+        card('공회전', f2(g[1]), 'h', g[1] > g[0] ? 'warn' : ''),
+        card('절삭 비율', tot > 0 ? (100 * g[0] / tot).toFixed(0) : '-', '%',
+          tot > 0 && g[0] / tot < 0.5 ? 'warn' : ''),
+        card('이상 징후', mine.filter(a => a.level !== 'info').length, '건',
+          mine.some(a => a.level === 'danger') ? 'warn' : 'ok'),
+      ].join('');
+      pickBar = `<div class="pickbar">
+        <b>${esc(label)}</b> 만 보는 중 — 위 숫자는 이 ${isW ? '주' : '날'}의 값입니다
+        <button type="button" class="pkclr">전체로</button></div>`;
+    } else {
+      cards = [
+        card('이상 징후', A.filter(a => a.level !== 'info').length, '건',
+          A.some(a => a.level === 'danger') ? 'warn' : (A.length ? '' : 'ok')),
+        card('마모율 70% 이상', over.length, '종', over.length ? 'warn' : 'ok'),
+        card('최근 주 시간당 마모', lastW ? lastW.perH.toFixed(5) : '-', '',
+          trend != null && trend > 20 ? 'warn' : ''),
+        card('전주 대비', trend == null ? '-' : (trend >= 0 ? '+' : '') + trend.toFixed(1), '%',
+          trend != null && trend > 20 ? 'warn' : ''),
+        card('절삭 시간', f2(B.observed_hours), 'h'),
+        card('공구', tools.length, '종'),
+      ].join('');
+    }
+
     main.innerHTML = `<div id="mesdash">
       <h2>종합 대시보드</h2>
       <div class="desc">${esc(B.segment_label || '')} · ${esc(B.segment_period || '')}
@@ -648,36 +750,27 @@ ${esc(m.why)}</title></circle>`;
 
       <div class="row">${segButtons('main', B)}</div>
 
-      <div class="cards" style="margin-bottom:14px">
-        ${card('이상 징후', A.filter(a => a.level !== 'info').length, '건',
-          A.some(a => a.level === 'danger') ? 'warn' : (A.length ? '' : 'ok'))}
-        ${card('마모율 70% 이상', over.length, '종', over.length ? 'warn' : 'ok')}
-        ${card('최근 주 시간당 마모', lastW ? lastW.perH.toFixed(5) : '-', '',
-          trend != null && trend > 20 ? 'warn' : '')}
-        ${card('전주 대비', trend == null ? '-' : (trend >= 0 ? '+' : '') + trend.toFixed(1), '%',
-          trend != null && trend > 20 ? 'warn' : '')}
-        ${card('절삭 시간', f2(B.observed_hours), 'h')}
-        ${card('공구', tools.length, '종')}
-      </div>
+      ${pickBar}
+      <div class="cards" style="margin-bottom:14px">${cards}</div>
 
       <div class="row two">
         <div class="box grow">
           <h4>주차별 가동 상태
             <span class="sub">막대 위 = 절삭 비율</span></h4>
-          ${statesSVG(W, { width: 520, height: 236 })}
+          ${statesSVG(W, { width: 520, height: 236, pick: PICK })}
           <div class="hint">설비가 그 주에 <b>무엇을 했는지</b>입니다 —
             깎았나(절삭), 돌기만 했나(공회전), 서 있었나(멈춤).
             <b>공구는 절삭 시간에만 닳습니다.</b>
-            공회전이 길면 전기는 쓰는데 일은 안 한 것입니다.</div>
+            공회전이 길면 전기는 쓰는데 일은 안 한 것입니다.
+            <b>막대를 누르면 그 주만 봅니다.</b></div>
         </div>
         <div class="box grow">
           <h4>주차별 시간당 마모량
             <span class="sub">파랑 = 최근 주 · 빨강 = 이상 있던 주</span></h4>
-          ${chartSVG(W, { hot, width: 520, height: 236 })}
+          ${chartSVG(W, { hot, width: 520, height: 236, pick: PICK })}
           <div class="hint"><b>시간으로 나눈 값</b>이라 «많이 돌려서» 는 이미 걷혔습니다.
-            높은 주는 그냥 <b>빨리 닳은 주</b>입니다. 점선은 평균 —
-            막대가 그 위로 올라간 주를 보시면 됩니다.
-            축 아래 숫자는 그 주의 절삭시간입니다.</div>
+            높은 주는 그냥 <b>빨리 닳은 주</b>입니다. 값 아래 세모는 앞 주 대비 변화 —
+            수준은 비슷해도 변화는 보입니다. <b>막대를 누르면 그 주만 봅니다.</b></div>
         </div>
       </div>
 
@@ -685,10 +778,13 @@ ${esc(m.why)}</title></circle>`;
       <div class="row">
         <div class="box grow">
           <h4>일자별 시간당 마모량 <span class="sub">점 = 이상 징후</span></h4>
-          ${sparkSVG(days, A, { width: 1060, height: 210 })}
-          <div class="hint">점선이 <b>판정 기준(중앙값)</b>입니다 — 점이 왜 찍혔는지가
-            그림 안에 같이 있습니다. 점에 마우스를 올리면 근거가 나옵니다.
-            바닥의 옅은 점은 <b>안 돌린 날</b>이라 선을 끊어 둔 자리입니다.</div>
+          ${dailySVG(days, A, { width: 1060, height: 210, pick: PICK })}
+          <div class="hint">값이 아니라 <b>판정 기준(중앙값)에서 얼마나 벗어났는지</b>를
+            그립니다 — 날마다 값이 6% 안에 모여 있어, 값 그대로 그리면 43일이
+            전부 같은 높이에 붙어 버립니다.
+            위로 솟으면 <b>평소보다 빨리 닳은 날</b>, 아래면 덜 닳은 날입니다.
+            색이 든 막대는 경보가 난 날이고, 바닥의 옅은 점은 <b>안 돌린 날</b>입니다.
+            막대를 누르면 그 날만 봅니다.</div>
         </div>
       </div>
 
@@ -721,6 +817,7 @@ ${esc(m.why)}</title></circle>`;
           : '<div class="item muted">자료 없음</div>');
     }
 
+    wirePick(main);
     wireSegButtons(main);
     ensureBasisSegButtons(B);
   }
@@ -759,6 +856,21 @@ ${esc(m.why)}</title></circle>`;
     });
   }
 
+  /* 막대를 누르면 그 주(그 날)만 본다. 같은 것을 또 누르면 전체로 돌아온다.
+     SVG 안의 <rect> 에도 손잡이가 그대로 붙는다. */
+  function wirePick(main) {
+    main.querySelectorAll('[data-pick]').forEach(el => {
+      el.addEventListener('click', () => {
+        const [kind, key] = String(el.getAttribute('data-pick')).split(':');
+        if (!key) return;
+        PICK = (PICK && PICK.kind === kind && PICK.key === key) ? null : { kind, key };
+        draw();
+      });
+    });
+    const clr = main.querySelector('.pkclr');
+    if (clr) clr.addEventListener('click', () => { PICK = null; draw(); });
+  }
+
   let tries = 0;
   function start() {
     addTab();
@@ -777,7 +889,7 @@ ${esc(m.why)}</title></circle>`;
   }
 
   const api = {
-    weeks, anomalies, chartSVG, sparkSVG, statesSVG, weekKey, median, RULES, pal, resetPal,
+    weeks, anomalies, chartSVG, sparkSVG, dailySVG, statesSVG, weekKey, median, RULES, pal, resetPal,
     draw, active: () => ACTIVE,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
