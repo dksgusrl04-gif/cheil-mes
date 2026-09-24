@@ -70,7 +70,11 @@
       w.perH = w.cut_h > 0 ? w.raw / w.cut_h : 0;
       w.from = w.days[0];
       w.to = w.days[w.days.length - 1];
-      w.label = `${w.from.slice(5)}~${w.to.slice(5)}`;
+      /* 08-06~08-09 처럼 길게 적으면 주가 예닐곱 개만 돼도 축에서 겹친다.
+         끝 날짜는 «일» 만 적는다 — 같은 달인 경우가 대부분이다. */
+      w.label = w.from.slice(0, 2) === w.to.slice(0, 2) || w.from.slice(5, 7) === w.to.slice(5, 7)
+        ? `${w.from.slice(5)}~${w.to.slice(8)}`
+        : `${w.from.slice(5)}~${w.to.slice(5)}`;
     });
     return out;
   }
@@ -84,21 +88,37 @@
     const D = (days || []).slice().sort((a, b) => (a.date < b.date ? -1 : 1));
     const out = [];
 
+    /* 안 돌린 날을 모았다가 끊길 때 한 건으로 내놓는다 */
+    let idle = [];
+    const flushIdle = () => {
+      if (!idle.length) return;
+      const a = idle[0], z = idle[idle.length - 1];
+      const rows = idle.reduce((t, x) => t + (x.rows || 0), 0);
+      out.push({
+        date: z.date, kind: 'idle', level: 'info',
+        days: idle.length,
+        title: idle.length > 1 ? `절삭 없음 ${idle.length}일` : '절삭 없음',
+        why: (idle.length > 1 ? `${a.date} ~ ${z.date} ` : `${z.date} `)
+          + `수집은 ${rows.toLocaleString()}행 되었는데 절삭 시간이 0입니다. `
+          + '주말·휴무이거나, 설비가 섰거나, 공구 정보가 안 잡힌 날입니다.',
+        value: 0, base: null, ratio: null,
+      });
+      idle = [];
+    };
+
     for (let i = 0; i < D.length; i++) {
       const d = D[i];
       const perH = d.cut_h > 0 ? val(d) / d.cut_h : 0;
 
-      /* 돌긴 돌았는데 절삭이 없는 날 — 설비가 섰거나 수집이 끊긴 것이다 */
+      /* 돌긴 돌았는데 절삭이 없는 날. 낱개로 올리지 않는다 — 43일 중 17일이
+         주말·휴무라, 하루씩 올리면 경보 열일곱 건이 전부 «주말» 이 되고
+         진짜 급증이 그 사이에 묻힌다. 연속 구간을 하나로 묶어 «며칠간» 으로
+         보고하고, 단계도 «안내» 로 둔다. 안 돌린 것은 이상이 아니다. */
       if ((d.rows || 0) > 0 && !(d.cut_h > 0)) {
-        out.push({
-          date: d.date, kind: 'idle', level: 'warn',
-          title: '절삭 없음',
-          why: `수집은 ${(d.rows || 0).toLocaleString()}행 되었는데 절삭 시간이 0입니다. `
-            + '설비가 섰거나 공구 정보가 안 잡힌 날입니다.',
-          value: 0, base: null, ratio: null,
-        });
+        idle.push(d);
         continue;
       }
+      flushIdle();
       if (!(d.cut_h >= R.minHours)) continue;      // 너무 짧게 돈 날은 판정 보류
 
       const prev = D.slice(Math.max(0, i - R.lookback), i)
@@ -127,6 +147,7 @@
         });
       }
     }
+    flushIdle();                                   // 마지막까지 안 돌았으면
     return out.reverse();                          // 최근 것을 위로
   }
 
@@ -159,116 +180,212 @@
   /* 화면 색이 바뀌면(테마 교체 등) 다시 읽는다 */
   function resetPal() { _pal = null; }
 
-  /* ── 막대 + 꺾은선 그림 ──────────────────────────────────────
-     주차별 마모량(막대)과 절삭시간(선)을 겹쳐 본다.
-     마모가 늘었을 때 '많이 돌려서' 인지 '빨리 닳아서' 인지 갈라 보려는 것이다. */
+  /* ── 눈금 읽기 좋게 ──────────────────────────────────────────
+     0.00042 같은 값을 축에 그대로 적으면 아무도 못 읽는다. 10의 거듭제곱을
+     뽑아 «0.42» 로 적고 단위를 따로 밝힌다. 공학 표기(3의 배수)로 맞춘다. */
+  const SUP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴',
+                5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+  const sup = n => String(n).split('').map(c => SUP[c] || c).join('');
+
+  function scaleOf(max) {
+    if (!(max > 0) || !isFinite(max)) return { mul: 1, unit: '' };
+    const e = Math.floor(Math.log10(max));
+    if (e >= 0) return { mul: 1, unit: '' };
+    const k = Math.ceil(-e / 3) * 3;          // 3, 6, 9 …
+    return { mul: Math.pow(10, k), unit: `10${sup(-k)}` };
+  }
+
+  /* 축 끝을 «보기 좋은 수» 로 올린다 — 0.42 대신 0.5 에서 끝나게 */
+  function niceMax(v) {
+    if (!(v > 0) || !isFinite(v)) return 1;
+    const e = Math.pow(10, Math.floor(Math.log10(v))), m = v / e;
+    return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * e;
+  }
+
+  const empty = (W, H, msg) =>
+    `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img">
+      <text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="${pal()['--chart-axis']}"
+        font-size="13">${esc(msg)}</text></svg>`;
+
+  /* ── 주차별 시간당 마모량 ─────────────────────────────────────
+     예전에는 «막대 = 마모량, 선 = 절삭시간» 두 축을 한 그림에 겹쳐 놨다.
+     두 축을 겹치면 눈금을 어떻게 잡느냐에 따라 선이 막대 위로도 아래로도
+     가서, 교차점이 아무 뜻이 없다. 보고서에서 제일 먼저 지적받는 형식이다.
+
+     그런데 애초에 알고 싶은 것은 «많이 돌려서인가, 빨리 닳아서인가» 였고,
+     그건 시간당 마모량 하나가 이미 답한다 — 시간으로 나눠 놨으니
+     «많이 돌렸다» 는 걷혀 있다. 그래서 축을 하나로 줄이고 그 값만 그린다.
+     절삭시간은 비교 대상이 아니라 맥락이라 축 아래 글자로 내렸다.
+
+     색은 하나만 쓴다 — 평상시는 회색, 최근 주만 파랑, 이상 있던 주만 빨강.
+     전부 칠하면 어디를 봐야 할지가 사라진다. */
   function chartSVG(rows, opt) {
     opt = opt || {};
-    const W = opt.width || 720, H = opt.height || 210;
-    const P = { t: 14, r: 46, b: 34, l: 48 };
-    const iw = W - P.l - P.r, ih = H - P.t - P.b;
-    if (!rows.length) {
-      return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img">
-        <text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="${pal()['--chart-axis']}"
-          font-size="13">표시할 자료가 없습니다</text></svg>`;
-    }
+    const W = opt.width || 720, H = opt.height || 236;
+    if (!rows.length) return empty(W, H, '표시할 자료가 없습니다');
+
     const C = pal();
-    const maxRaw = Math.max(...rows.map(r => r.raw), 1e-12);
-    const maxH = Math.max(...rows.map(r => r.cut_h), 1e-12);
+    const P = { t: 30, r: 16, b: 48, l: 54 };
+    const iw = W - P.l - P.r, ih = H - P.t - P.b;
     const n = rows.length;
-    const bw = Math.min(52, iw / n * 0.62);
+
+    /* 안 돌린 주를 평균에 넣으면 평균이 내려가 «이번 주가 높다» 가 부풀려진다 */
+    const ran = rows.filter(r => r.cut_h > 0);
+    if (!ran.length) return empty(W, H, '절삭한 주가 없습니다');
+    const sc = scaleOf(Math.max(...ran.map(r => r.perH)));
+    const top = niceMax(Math.max(...ran.map(r => r.perH)) * sc.mul);
+    const avg = ran.reduce((a, r) => a + r.perH, 0) / ran.length * sc.mul;
+
+    const bw = Math.min(46, iw / n * 0.58);
     const cx = i => P.l + iw * (i + 0.5) / n;
-    const by = v => P.t + ih - ih * (v / maxRaw);
-    const ly = v => P.t + ih - ih * (v / maxH);
+    const y = v => P.t + ih - ih * (v / top);
+
+    /* 가로 눈금선만. 세로선·축선·테두리는 잉크만 먹고 읽는 데 도움이 안 된다 */
+    const grid = [0, 0.5, 1].map(f => {
+      const yy = y(top * f);
+      return `<line x1="${P.l}" y1="${yy.toFixed(1)}" x2="${(P.l + iw).toFixed(1)}"
+        y2="${yy.toFixed(1)}" stroke="${C['--chart-grid']}" stroke-width="1"/>
+        <text x="${P.l - 9}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="11"
+          fill="${C['--chart-axis']}">${(top * f).toFixed(top < 10 ? 1 : 0)}</text>`;
+    }).join('');
 
     const bars = rows.map((r, i) => {
-      const h = Math.max(1, ih * (r.raw / maxRaw));
+      /* 안 돌린 주는 «0» 이 아니라 «없음» 이다. 0 짜리 막대에 «0.0» 을 적으면
+         «아주 조금 닳았다» 로 읽히는데, 실제로는 잰 적이 없는 주다. */
+      if (!(r.cut_h > 0)) {
+        return `<rect x="${(cx(i) - bw / 2).toFixed(1)}" y="${(P.t + ih - 3).toFixed(1)}"
+          width="${bw.toFixed(1)}" height="3" rx="1.5" fill="${C['--chart-grid']}"
+          ><title>${esc(r.label)}
+절삭 없음 — 안 돌린 주입니다</title></rect>
+          <text x="${cx(i).toFixed(1)}" y="${(P.t + ih - 11).toFixed(1)}"
+            text-anchor="middle" font-size="11.5" fill="${C['--chart-axis']}">—</text>`;
+      }
+      const v = r.perH * sc.mul;
+      const h = Math.max(2, ih * (v / top));
       const hot = opt.hot && opt.hot.has(r.week);
+      const last = i === n - 1;
+      const fill = hot ? C['--danger'] : (last ? C['--accent'] : '#C8D3DF');
       return `<rect x="${(cx(i) - bw / 2).toFixed(1)}" y="${(P.t + ih - h).toFixed(1)}"
-        width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3"
-        fill="${hot ? C['--danger-soft'] : C['--chart-bar']}"
-        fill-opacity="${hot ? 1 : .85}"
-        stroke="${hot ? C['--danger'] : C['--accent']}"
-        stroke-width="${hot ? 1.4 : 0.8}"><title>${esc(r.label)}
+        width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${fill}"
+        ><title>${esc(r.label)}
+시간당 마모 ${r.perH.toFixed(6)}
 마모량 ${r.raw.toFixed(6)}
-절삭 ${f2(r.cut_h)}h
-시간당 ${r.perH.toFixed(6)}</title></rect>`;
+절삭 ${f2(r.cut_h)}h</title></rect>
+        <text x="${cx(i).toFixed(1)}" y="${(P.t + ih - h - 8).toFixed(1)}"
+          text-anchor="middle" font-size="11.5" font-weight="650"
+          fill="${hot ? C['--danger'] : (last ? C['--accent'] : C['--chart-label'])}"
+          >${v.toFixed(top < 10 ? 2 : 1)}</text>`;
     }).join('');
 
-    const pts = rows.map((r, i) => `${cx(i).toFixed(1)},${ly(r.cut_h).toFixed(1)}`).join(' ');
-    const dots = rows.map((r, i) =>
-      `<circle cx="${cx(i).toFixed(1)}" cy="${ly(r.cut_h).toFixed(1)}" r="3.2"
-        fill="${C['--surface']}" stroke="${C['--accent']}" stroke-width="1.6"/>`).join('');
+    /* 평균선 — 「이번 주가 평소보다 높은가」 를 눈으로 바로 답하게.
+       값 설명은 선 옆이 아니라 그림 위에 둔다. 선 옆에 두면 막대와 겹친다. */
+    const ay = y(avg);
+    const avgLine = `<line x1="${P.l}" y1="${ay.toFixed(1)}" x2="${(P.l + iw).toFixed(1)}"
+      y2="${ay.toFixed(1)}" stroke="${C['--chart-axis']}" stroke-width="1"
+      stroke-dasharray="4 4" opacity=".65"/>
+      <text x="${(P.l + iw).toFixed(1)}" y="${(P.t - 12).toFixed(1)}" text-anchor="end"
+        font-size="10.5" fill="${C['--chart-axis']}">---- 평균 ${avg.toFixed(top < 10 ? 2 : 1)}</text>`;
 
-    const grid = [0, 0.5, 1].map(f => {
-      const y = P.t + ih - ih * f;
-      return `<line x1="${P.l}" y1="${y}" x2="${P.l + iw}" y2="${y}"
-        stroke="${C['--chart-grid']}" stroke-width="1"/>
-        <text x="${P.l - 7}" y="${y + 3.5}" text-anchor="end" font-size="9.5"
-          fill="${C['--chart-axis']}">${(maxRaw * f).toFixed(3)}</text>
-        <text x="${P.l + iw + 7}" y="${y + 3.5}" font-size="9.5"
-          fill="${C['--accent']}" opacity=".7">${(maxH * f).toFixed(1)}h</text>`;
-    }).join('');
-
+    /* 축 아래 — 주차와 그 주의 절삭시간(맥락) */
     const labels = rows.map((r, i) =>
-      `<text x="${cx(i).toFixed(1)}" y="${H - 12}" text-anchor="middle" font-size="9.5"
-        fill="${C['--chart-label']}">${esc(r.label)}</text>`).join('');
+      `<text x="${cx(i).toFixed(1)}" y="${H - 26}" text-anchor="middle" font-size="11"
+        fill="${C['--chart-label']}">${esc(r.label)}</text>
+       <text x="${cx(i).toFixed(1)}" y="${H - 11}" text-anchor="middle" font-size="10.5"
+        fill="${C['--chart-axis']}">${f2(r.cut_h)}h</text>`).join('');
+
+    const unit = `<text x="${P.l - 9}" y="${P.t - 12}" text-anchor="end" font-size="10.5"
+      fill="${C['--chart-axis']}">${sc.unit ? '단위 ' + sc.unit : ''}</text>`;
 
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img"
-      aria-label="주차별 마모량과 절삭시간">
-      ${grid}${bars}
-      <polyline points="${pts}" fill="none" stroke="${C['--accent']}" stroke-width="1.8"
-        stroke-linejoin="round" stroke-linecap="round"/>
-      ${dots}${labels}
+      aria-label="주차별 시간당 마모량">
+      ${grid}${unit}${avgLine}${bars}${labels}
     </svg>`;
   }
 
-  /* ── 일자별 잔선 — 이상한 날에 표시를 찍는다 ───────────────── */
+  /* ── 일자별 시간당 마모량 ─────────────────────────────────────
+     면을 칠하지 않는다. 채워도 새로 알게 되는 것이 없고, 점(이상 징후)이
+     묻힌다. 대신 판정 기준인 «중앙값» 을 점선으로 같이 그린다 — 점이 왜
+     찍혔는지가 그림 안에서 설명된다. */
   function sparkSVG(days, marks, opt) {
     opt = opt || {};
-    const W = opt.width || 720, H = opt.height || 116;
-    /* 높이를 넉넉히 주면 위아래 여백도 같이 키운다. 안 그러면 선만 늘어나
-       옆 그래프와 나란히 뒀을 때 눈금이 붕 떠 보인다. */
-    const pad = H > 160 ? 22 : 12;
-    const P = { t: pad, r: 12, b: pad + 10, l: 48 };
-    const iw = W - P.l - P.r, ih = H - P.t - P.b;
+    const W = opt.width || 720, H = opt.height || 236;
     const D = (days || []).slice().sort((a, b) => (a.date < b.date ? -1 : 1));
-    if (D.length < 2) {
-      return `<svg viewBox="0 0 ${W} ${H}" width="100%"><text x="${W / 2}" y="${H / 2}"
-        text-anchor="middle" fill="${pal()['--chart-axis']}" font-size="13">일자가 부족합니다</text></svg>`;
-    }
+    if (D.length < 2) return empty(W, H, '일자가 부족합니다');
+
     const C = pal();
-    const per = D.map(d => (d.cut_h > 0 ? val(d) / d.cut_h : 0));
-    const mx = Math.max(...per, 1e-12);
+    const P = { t: 30, r: 16, b: 48, l: 54 };
+    const iw = W - P.l - P.r, ih = H - P.t - P.b;
+
+    /* 안 돌린 날은 «0» 이 아니라 «없음» 이다. 0 으로 찍어 이으면 선이 매주
+       바닥까지 내려갔다 올라오는 톱니가 되어, 정작 추세가 안 보인다.
+       43일 중 17일이 주말이라 절반 가까이가 그런 날이었다. */
+    const per = D.map(d => (d.cut_h > 0 ? val(d) / d.cut_h : null));
+    const got = per.filter(v => v != null && v > 0);
+    if (!got.length) return empty(W, H, '절삭한 날이 없습니다');
+    const sc = scaleOf(Math.max(...got));
+    const top = niceMax(Math.max(...got) * sc.mul);
+    const mid = median(got) * sc.mul;
+
     const x = i => P.l + iw * i / (D.length - 1);
-    const y = v => P.t + ih - ih * (v / mx);
+    const y = v => P.t + ih - ih * (v / top);
     const M = new Map((marks || []).map(m => [m.date, m]));
 
-    const line = D.map((d, i) => `${x(i).toFixed(1)},${y(per[i]).toFixed(1)}`).join(' ');
-    const area = `${P.l},${P.t + ih} ${line} ${(P.l + iw).toFixed(1)},${P.t + ih}`;
+    const grid = [0, 0.5, 1].map(f => {
+      const yy = y(top * f);
+      return `<line x1="${P.l}" y1="${yy.toFixed(1)}" x2="${(P.l + iw).toFixed(1)}"
+        y2="${yy.toFixed(1)}" stroke="${C['--chart-grid']}" stroke-width="1"/>
+        <text x="${P.l - 9}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="11"
+          fill="${C['--chart-axis']}">${(top * f).toFixed(top < 10 ? 1 : 0)}</text>`;
+    }).join('');
+
+    const midLine = mid > 0 ? `<line x1="${P.l}" y1="${y(mid).toFixed(1)}"
+      x2="${(P.l + iw).toFixed(1)}" y2="${y(mid).toFixed(1)}"
+      stroke="${C['--chart-axis']}" stroke-width="1" stroke-dasharray="4 4" opacity=".65"/>
+      <text x="${(P.l + iw).toFixed(1)}" y="${(P.t - 12).toFixed(1)}" text-anchor="end"
+        font-size="10.5" fill="${C['--chart-axis']}">---- 판정 기준(중앙값) ${
+        mid.toFixed(top < 10 ? 2 : 1)}</text>` : '';
+
+    /* 없는 날에서 선을 끊는다 — 이어진 구간마다 polyline 을 따로 그린다 */
+    const segs = [];
+    let cur = [];
+    D.forEach((d, i) => {
+      if (per[i] == null) { if (cur.length > 1) segs.push(cur); cur = []; return; }
+      cur.push(`${x(i).toFixed(1)},${y(per[i] * sc.mul).toFixed(1)}`);
+    });
+    if (cur.length > 1) segs.push(cur);
+    const line = segs.map(pts =>
+      `<polyline points="${pts.join(' ')}" fill="none" stroke="${C['--accent']}"
+        stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+    /* 끊긴 자리가 «자료가 없다» 는 뜻임을 알 수 있게 바닥에 옅은 띠를 깐다 */
+    const gaps = D.map((d, i) => per[i] == null
+      ? `<rect x="${(x(i) - 2).toFixed(1)}" y="${(P.t + ih - 3).toFixed(1)}" width="4" height="3"
+          rx="1" fill="${C['--chart-grid']}"><title>${esc(d.date)} · 절삭 없음</title></rect>` : '')
+      .join('');
+
+    /* 안 돌린 날(idle)은 점으로 안 찍는다 — 주말이 점으로 도배되면 진짜
+       급증한 날이 그 사이에 묻힌다. 목록에는 구간으로 묶여 남아 있다. */
     const dots = D.map((d, i) => {
       const m = M.get(d.date);
-      if (!m) return '';
+      if (!m || m.kind === 'idle' || per[i] == null) return '';
       const col = m.level === 'danger' ? C['--danger']
         : m.level === 'warn' ? C['--warn'] : C['--accent'];
-      return `<circle cx="${x(i).toFixed(1)}" cy="${y(per[i]).toFixed(1)}" r="4.5"
-        fill="${col}" stroke="${C['--surface']}" stroke-width="1.8"><title>${esc(d.date)} · ${esc(m.title)}
+      return `<circle cx="${x(i).toFixed(1)}" cy="${y(per[i] * sc.mul).toFixed(1)}" r="5"
+        fill="${col}" stroke="${C['--surface']}" stroke-width="2"><title>${esc(d.date)} · ${esc(m.title)}
 ${esc(m.why)}</title></circle>`;
     }).join('');
 
+    /* 날짜 눈금 — 처음·끝만 적으면 가운데가 어디인지 모른다. 네댓 개로. */
+    const step = Math.max(1, Math.round((D.length - 1) / 4));
+    const ticks = D.map((d, i) =>
+      (i % step === 0 || i === D.length - 1)
+        ? `<text x="${x(i).toFixed(1)}" y="${H - 20}" text-anchor="middle" font-size="11"
+            fill="${C['--chart-label']}">${esc(d.date.slice(5))}</text>` : '').join('');
+
+    const unit = `<text x="${P.l - 9}" y="${P.t - 12}" text-anchor="end" font-size="10.5"
+      fill="${C['--chart-axis']}">${sc.unit ? '단위 ' + sc.unit : ''}</text>`;
+
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="일자별 시간당 마모량">
-      <polygon points="${area}" fill="${C['--chart-area']}"/>
-      <polyline points="${line}" fill="none" stroke="${C['--accent']}" stroke-width="1.7"
-        stroke-linejoin="round" stroke-linecap="round"/>
-      ${dots}
-      <text x="${P.l - 7}" y="${P.t + 4}" text-anchor="end" font-size="9.5"
-        fill="${C['--chart-axis']}">${mx.toFixed(4)}</text>
-      <text x="${P.l - 7}" y="${P.t + ih + 3}" text-anchor="end" font-size="9.5"
-        fill="${C['--chart-axis']}">0</text>
-      <text x="${P.l}" y="${H - 7}" font-size="9.5"
-        fill="${C['--chart-label']}">${esc(D[0].date)}</text>
-      <text x="${P.l + iw}" y="${H - 7}" text-anchor="end" font-size="9.5"
-        fill="${C['--chart-label']}">${esc(D[D.length - 1].date)}</text>
+      ${grid}${unit}${midLine}${gaps}${line}${dots}${ticks}
     </svg>`;
   }
 
@@ -423,17 +540,19 @@ ${esc(m.why)}</title></circle>`;
 
       <div class="row two">
         <div class="box grow">
-          <h4>주차별 추이 <span class="sub">막대 = 마모량 · 선 = 절삭시간</span></h4>
+          <h4>주차별 시간당 마모량
+            <span class="sub">파랑 = 최근 주 · 빨강 = 이상 있던 주</span></h4>
           ${chartSVG(W, { hot, width: 520, height: 236 })}
-          <div class="hint">막대만 높으면 <b>많이 돌려서</b>, 선은 그대로인데 막대가 솟으면
-            <b>같은 시간에 더 빨리</b> 닳은 것입니다. 후자가 의심할 자리입니다.
-            붉은 막대는 이상 징후가 있던 주입니다.</div>
+          <div class="hint"><b>시간으로 나눈 값</b>이라 «많이 돌려서» 는 이미 걷혔습니다.
+            높은 주는 그냥 <b>빨리 닳은 주</b>입니다. 점선은 평균 —
+            막대가 그 위로 올라간 주를 보시면 됩니다.
+            축 아래 숫자는 그 주의 절삭시간입니다.</div>
         </div>
         <div class="box grow">
           <h4>일자별 시간당 마모량 <span class="sub">점 = 이상 징후</span></h4>
           ${sparkSVG(days, A, { width: 520, height: 236 })}
-          <div class="hint">시간당으로 보는 이유는 오래 돌린 날이 무조건 커 보이는 것을
-            걷어내기 위해서입니다. 점에 마우스를 올리면 판정 근거가 나옵니다.</div>
+          <div class="hint">점선이 <b>판정 기준(중앙값)</b>입니다 — 점이 왜 찍혔는지가
+            그림 안에 같이 있습니다. 점에 마우스를 올리면 근거가 나옵니다.</div>
         </div>
       </div>
 
