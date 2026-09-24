@@ -58,8 +58,9 @@
     for (const d of (days || [])) {
       const k = weekKey(d.date);
       let w = m.get(k);
-      if (!w) { w = { week: k, days: [], raw: 0, cut_h: 0, rows: 0, parts: 0 }; m.set(k, w); }
+      if (!w) { w = { week: k, days: [], states: [], raw: 0, cut_h: 0, rows: 0, parts: 0 }; m.set(k, w); }
       w.days.push(d.date);
+      if (d.states) w.states.push(d.states);   // 가동 상태 그림이 쓴다
       w.raw += val(d);
       w.cut_h += d.cut_h || 0;
       w.rows += d.rows || 0;
@@ -207,6 +208,109 @@
       <text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="${pal()['--chart-axis']}"
         font-size="13">${esc(msg)}</text></svg>`;
 
+
+  /* ── 주차별 가동 상태 ─────────────────────────────────────────
+     시간당 마모량 막대는 주마다 값이 367~391 로 거의 같아서, 막대 예닐곱
+     개가 전부 같은 높이로 보였다. 값이 안 변하는 것을 막대로 그리면
+     «다 통합돼 보이는» 그림이 된다.
+
+     그래서 잘라 본다. 설비가 그 주에 무엇을 했는지 — 깎았나, 돌기만 했나,
+     서 있었나 — 는 주마다 크게 다르고, 그게 마모량보다 먼저 알고 싶은 것이다.
+     누적 막대 한 칸이 곧 그 주의 하루 구성이 된다.
+
+     세 갈래로 묶는다. 여섯 갈래를 다 그리면 얇은 띠가 넷 생겨 안 읽힌다.
+       절삭   — 실제로 깎은 시간 (여기서만 공구가 닳는다)
+       공회전 — 돌고는 있는데 안 깎는 시간
+       멈춤   — 정지·일시정지·비상정지·미연결 */
+  const ST_GROUP = [
+    ['절삭', ['가동중·절삭'], '--accent'],
+    ['공회전', ['가동중·공회전'], null],          // 중간색은 아래에서 만든다
+    ['멈춤', ['정지', '일시정지', '비상정지', '미연결'], null],
+  ];
+
+  function statesSVG(rows, opt) {
+    opt = opt || {};
+    const W = opt.width || 720, H = opt.height || 236;
+    if (!rows.length) return empty(W, H, '표시할 자료가 없습니다');
+    const C = pal();
+    const FILL = [C['--accent'], '#9FB8D4', '#DFE5EC'];
+
+    /* 주차마다 세 갈래 시간을 더한다 */
+    const data = rows.map(r => {
+      const g = [0, 0, 0];
+      (r.states || []).forEach(st => {
+        Object.keys(st || {}).forEach(k => {
+          const i = ST_GROUP.findIndex(x => x[1].indexOf(k) >= 0);
+          if (i >= 0) g[i] += st[k] || 0;
+        });
+      });
+      return { label: r.label, g, tot: g[0] + g[1] + g[2] };
+    });
+    const maxT = Math.max(...data.map(d => d.tot), 1e-9);
+    if (!(maxT > 1e-6)) return empty(W, H, '가동 기록이 없습니다');
+
+    const P = { t: 34, r: 16, b: 48, l: 54 };
+    const iw = W - P.l - P.r, ih = H - P.t - P.b;
+    const n = data.length;
+    const top = niceMax(maxT);
+    const bw = Math.min(46, iw / n * 0.58);
+    const cx = i => P.l + iw * (i + 0.5) / n;
+    const y = v => P.t + ih - ih * (v / top);
+
+    const grid = [0, 0.5, 1].map(f => {
+      const yy = y(top * f);
+      return `<line x1="${P.l}" y1="${yy.toFixed(1)}" x2="${(P.l + iw).toFixed(1)}"
+        y2="${yy.toFixed(1)}" stroke="${C['--chart-grid']}" stroke-width="1"/>
+        <text x="${P.l - 9}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="11"
+          fill="${C['--chart-axis']}">${(top * f).toFixed(0)}</text>`;
+    }).join('');
+
+    const bars = data.map((d, i) => {
+      let acc = 0;
+      const seg = d.g.map((v, k) => {
+        if (!(v > 0)) return '';
+        const y0 = y(acc + v), h = Math.max(1, ih * (v / top));
+        acc += v;
+        return `<rect x="${(cx(i) - bw / 2).toFixed(1)}" y="${y0.toFixed(1)}"
+          width="${bw.toFixed(1)}" height="${h.toFixed(1)}"
+          rx="${k === 2 ? 2 : 0}" fill="${FILL[k]}"
+          ><title>${esc(d.label)} · ${ST_GROUP[k][0]} ${v.toFixed(1)}h
+전체 ${d.tot.toFixed(1)}h 중 ${(100 * v / d.tot).toFixed(1)}%</title></rect>`;
+      }).join('');
+      /* 막대 위에는 «절삭 비율» — 이 그림에서 제일 알고 싶은 한 수다 */
+      const pct = d.tot > 0 ? 100 * d.g[0] / d.tot : 0;
+      const lab = d.tot > 0
+        ? `<text x="${cx(i).toFixed(1)}" y="${(y(d.tot) - 8).toFixed(1)}"
+            text-anchor="middle" font-size="11.5" font-weight="650"
+            fill="${C['--accent']}">${pct.toFixed(0)}%</text>` : '';
+      return seg + lab;
+    }).join('');
+
+    const labels = data.map((d, i) =>
+      `<text x="${cx(i).toFixed(1)}" y="${H - 26}" text-anchor="middle" font-size="11"
+        fill="${C['--chart-label']}">${esc(d.label)}</text>
+       <text x="${cx(i).toFixed(1)}" y="${H - 11}" text-anchor="middle" font-size="10.5"
+        fill="${C['--chart-axis']}">${d.tot.toFixed(0)}h</text>`).join('');
+
+    /* 범례는 그림 위에. 색이 셋뿐이라 옆에 두면 자리만 먹는다 */
+    let lx = P.l;
+    const legend = ST_GROUP.map(([nm], k) => {
+      const t = `<rect x="${lx}" y="${P.t - 22}" width="9" height="9" rx="2" fill="${FILL[k]}"/>
+        <text x="${lx + 13}" y="${P.t - 14}" font-size="10.5"
+          fill="${C['--chart-label']}">${nm}</text>`;
+      lx += 13 + nm.length * 11 + 14;
+      return t;
+    }).join('');
+
+    const yl = `<text x="${(P.l + iw).toFixed(1)}" y="${P.t - 14}" text-anchor="end"
+      font-size="10.5" fill="${C['--chart-axis']}">시간 · 막대 위는 절삭 비율</text>`;
+
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img"
+      aria-label="주차별 가동 상태">
+      ${grid}${legend}${yl}${bars}${labels}
+    </svg>`;
+  }
+
   /* ── 주차별 시간당 마모량 ─────────────────────────────────────
      예전에는 «막대 = 마모량, 선 = 절삭시간» 두 축을 한 그림에 겹쳐 놨다.
      두 축을 겹치면 눈금을 어떻게 잡느냐에 따라 선이 막대 위로도 아래로도
@@ -249,6 +353,24 @@
           fill="${C['--chart-axis']}">${(top * f).toFixed(top < 10 ? 1 : 0)}</text>`;
     }).join('');
 
+    /* 값이 367~391 로 거의 같으면 막대 높이로는 차이가 안 보인다.
+       그래서 «앞 주 대비 몇 %» 를 값 아래에 같이 적는다 — 수준이 아니라
+       변화를 보여 주면, 같은 자료에서도 읽을 것이 생긴다.
+       바로 앞에 «안 돌린 주» 가 끼면 그 주를 건너뛰고 견준다. */
+    const dlt = (i, r) => {
+      if (!(r.cut_h > 0)) return '';
+      let j = i - 1;
+      while (j >= 0 && !(rows[j].cut_h > 0)) j--;
+      if (j < 0 || !(rows[j].perH > 0)) return '';
+      const p = (r.perH / rows[j].perH - 1) * 100;
+      if (Math.abs(p) < 0.05) return '';
+      const up = p > 0;
+      return `<text x="${cx(i).toFixed(1)}" y="${(P.t + ih - ih * (r.perH * sc.mul / top) + 7).toFixed(1)}"
+        text-anchor="middle" font-size="10.5"
+        fill="${up ? C['--warn'] : C['--chart-axis']}"
+        >${up ? '▲' : '▼'}${Math.abs(p).toFixed(1)}%</text>`;
+    };
+
     const bars = rows.map((r, i) => {
       /* 안 돌린 주는 «0» 이 아니라 «없음» 이다. 0 짜리 막대에 «0.0» 을 적으면
          «아주 조금 닳았다» 로 읽히는데, 실제로는 잰 적이 없는 주다. */
@@ -274,7 +396,7 @@
         <text x="${cx(i).toFixed(1)}" y="${(P.t + ih - h - 8).toFixed(1)}"
           text-anchor="middle" font-size="11.5" font-weight="650"
           fill="${hot ? C['--danger'] : (last ? C['--accent'] : C['--chart-label'])}"
-          >${v.toFixed(top < 10 ? 2 : 1)}</text>`;
+          >${v.toFixed(top < 10 ? 2 : 1)}</text>${dlt(i, r)}`;
     }).join('');
 
     /* 평균선 — 「이번 주가 평소보다 높은가」 를 눈으로 바로 답하게.
@@ -540,6 +662,15 @@ ${esc(m.why)}</title></circle>`;
 
       <div class="row two">
         <div class="box grow">
+          <h4>주차별 가동 상태
+            <span class="sub">막대 위 = 절삭 비율</span></h4>
+          ${statesSVG(W, { width: 520, height: 236 })}
+          <div class="hint">설비가 그 주에 <b>무엇을 했는지</b>입니다 —
+            깎았나(절삭), 돌기만 했나(공회전), 서 있었나(멈춤).
+            <b>공구는 절삭 시간에만 닳습니다.</b>
+            공회전이 길면 전기는 쓰는데 일은 안 한 것입니다.</div>
+        </div>
+        <div class="box grow">
           <h4>주차별 시간당 마모량
             <span class="sub">파랑 = 최근 주 · 빨강 = 이상 있던 주</span></h4>
           ${chartSVG(W, { hot, width: 520, height: 236 })}
@@ -548,11 +679,16 @@ ${esc(m.why)}</title></circle>`;
             막대가 그 위로 올라간 주를 보시면 됩니다.
             축 아래 숫자는 그 주의 절삭시간입니다.</div>
         </div>
+      </div>
+
+      <!-- 일자별은 가로로 길어야 읽힌다 — 43일이 좁은 칸에 들어가면 톱니가 된다 -->
+      <div class="row">
         <div class="box grow">
           <h4>일자별 시간당 마모량 <span class="sub">점 = 이상 징후</span></h4>
-          ${sparkSVG(days, A, { width: 520, height: 236 })}
+          ${sparkSVG(days, A, { width: 1060, height: 210 })}
           <div class="hint">점선이 <b>판정 기준(중앙값)</b>입니다 — 점이 왜 찍혔는지가
-            그림 안에 같이 있습니다. 점에 마우스를 올리면 근거가 나옵니다.</div>
+            그림 안에 같이 있습니다. 점에 마우스를 올리면 근거가 나옵니다.
+            바닥의 옅은 점은 <b>안 돌린 날</b>이라 선을 끊어 둔 자리입니다.</div>
         </div>
       </div>
 
@@ -641,7 +777,7 @@ ${esc(m.why)}</title></circle>`;
   }
 
   const api = {
-    weeks, anomalies, chartSVG, sparkSVG, weekKey, median, RULES, pal, resetPal,
+    weeks, anomalies, chartSVG, sparkSVG, statesSVG, weekKey, median, RULES, pal, resetPal,
     draw, active: () => ACTIVE,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
