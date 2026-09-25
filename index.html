@@ -196,10 +196,10 @@
   /* 기준 막대는 늘 화면에 붙어 있다 — 아래 표를 굴려도 «무엇을 기준으로
      보고 있는지» 가 사라지면 안 된다. */
   #basis{flex:none;background:var(--raise);border-bottom:1px solid var(--line);
-    padding:8px 26px;display:flex;align-items:center;gap:16px;row-gap:7px;flex-wrap:wrap}
+    padding:6px 26px;display:flex;align-items:center;gap:13px;row-gap:5px;flex-wrap:wrap}
   .bset{display:flex;align-items:center;gap:7px}
   .bset > span{font-size:12.5px;color:var(--muted);white-space:nowrap;font-weight:550}
-  .bset select,.bset input[type=date]{padding:5px 10px;border:1px solid var(--line-in);
+  .bset select,.bset input[type=date]{padding:4px 9px;max-width:270px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font:inherit;font-size:13px;background:var(--surface);
     color:var(--ink);cursor:pointer;
     box-shadow:0 1px 1px rgba(15,23,42,.04);
@@ -215,9 +215,9 @@
   /* 산출 기준 줄. flex-basis 100% 라 앞 칸들 아래로 «제 줄» 을 받는다 —
      이렇게 두면 날짜 칸을 붙이는 다른 파일(mes_ui.js)이 이 칸을 기준으로
      자리를 잡는 구조를 그대로 둘 수 있다. */
-  #bnote{flex:1 0 100%;display:flex;align-items:center;gap:13px;flex-wrap:wrap;
-    font-size:12.5px;color:var(--muted);line-height:1.45;
-    border-top:1px solid var(--line-2);margin-top:1px;padding-top:7px}
+  #bnote{flex:1 0 100%;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    font-size:12px;color:var(--muted);line-height:1.35;
+    border-top:1px solid var(--line-2);margin-top:0;padding-top:5px}
   #bnote b{color:var(--ink);font-weight:700}
   #bnote .bk{font-weight:650;color:var(--faint);letter-spacing:.02em}
   #bnote .bsep{width:1px;height:11px;background:var(--line);flex:none}
@@ -234,7 +234,7 @@
      값이 언제 것인지 알 길이 없어, 묵은 숫자를 지금 값으로 읽게 된다.
      화면 맨 위로 올려 어느 탭에서든 같은 자리에 둔다. */
   #top{flex:none;background:var(--surface);border-bottom:1px solid var(--line);
-    padding:9px 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    padding:7px 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
   .crumb{display:flex;align-items:center;gap:9px;font-size:13.5px;min-width:0}
   .crumb .cg{color:var(--muted)}
   .crumb .cs{color:var(--faint)}
@@ -272,7 +272,7 @@
   .dash2{display:grid;grid-template-columns:1fr 322px;gap:16px;align-items:start}
   /* 판 제목 밑 한 문장. 요약 카드 한 장이 하던 말을 여기로 옮겼다 —
      숫자만 덩그러니 세우지 않고 «무엇에 견준 몇 %인지» 를 같이 적는다. */
-  .psub{margin:-3px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .psub{margin:-2px 0 9px;font-size:12.5px;color:var(--muted);line-height:1.5}
   .psub b{color:var(--ink);font-weight:700}
   @media(max-width:1340px){ .dash2{grid-template-columns:1fr} }
   /* ── 한 줄 안내 띠 ─────────────────────────────────────────
@@ -323,10 +323,41 @@
      그 칸만 굴러가게 하면 — 빈자리가 안 생기고, 남는 가로폭이 전부
      그림으로 간다. 그래서 그림이 커진다. */
   .donut{display:grid;grid-template-columns:1fr 358px;gap:22px;align-items:stretch}
+  /* ── 셋째 칸: 고른 공구의 최근 추이 ─────────────────────────
+     그림 | 추이 | 순위. 가운데 칸은 그림에 «없는» 정보(날짜 축)를 맡는다.
+     둘째 원그래프를 세우면 같은 자료를 두 번 그리는 셈이 된다. */
+  .donut.has3{grid-template-columns:minmax(0,236px) minmax(0,1fr) 358px;gap:18px}
+  .dtrend{display:flex;flex-direction:column;justify-content:center;min-width:0;
+    border-left:1px solid var(--line-2);border-right:1px solid var(--line-2);
+    padding:0 18px}
+  .tth{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:700;
+    color:var(--ink);margin-bottom:10px}
+  .tth span{margin-left:auto;font-weight:500;font-size:11px;color:var(--faint)}
+  .ttsvg{width:100%;height:84px;display:block;overflow:visible}
+  .ttx{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);
+    margin-top:5px;font-variant-numeric:tabular-nums}
+  .ttv{display:flex;align-items:baseline;gap:8px;margin-top:11px;padding-top:9px;
+    border-top:1px solid var(--line-2);font-size:11.5px;color:var(--muted)}
+  .ttv b{margin-left:auto;font-size:14px;font-weight:700;color:var(--ink);
+    font-variant-numeric:tabular-nums}
+  .ttv b em{font-style:normal;font-size:11px;font-weight:500;color:var(--muted);margin-left:1px}
+  .ttd{margin-top:7px;font-size:11.5px;color:var(--muted);line-height:1.5}
+  .ttd b{font-weight:700;color:var(--ink)}
+  .ttd.up b{color:var(--warn)}   /* 빨라지고 있다 — 눈길이 가야 한다 */
+  .ttd.dn b{color:var(--ok)}
+  .ttnone{font-size:11.5px;color:var(--faint);line-height:1.6;padding:14px 0}
+  /* 좁아지면 추이를 그림·목록 «아래» 로 내린다. 셋을 계속 세워 두면
+     그림이 읽을 수 없을 만큼 얇아진다. */
+  @media(max-width:1460px){
+    .donut.has3{grid-template-columns:minmax(0,1fr) 320px}
+    .dtrend{grid-column:1/-1;grid-row:2;border:0;border-top:1px solid var(--line-2);
+      padding:12px 0 0}
+    .dtrend .ttsvg{height:70px}
+  }
   /* 이 판의 높이는 그림 지름이 정한다(목록은 min-height:0 이라 제 안에서
      줄어든다). 그래서 «세로만 줄이기» = 지름 줄이기다. 340 → 282px.
      목록은 여덟아홉 줄이 보이고 나머지는 그 칸에서 굴러간다. */
-  .dchart{position:relative;width:100%;max-width:282px;aspect-ratio:1/1;
+  .dchart{position:relative;width:100%;max-width:228px;aspect-ratio:1/1;
     margin:0 auto;align-self:center}
   .dchart svg{width:100%;height:100%;display:block}
   .dside{display:flex;flex-direction:column;gap:7px;min-height:0}
@@ -340,7 +371,7 @@
   .dslice.sel{stroke:var(--warn);stroke-width:2.5;paint-order:stroke}
   .dmid{position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;pointer-events:none;text-align:center;padding:0 22px}
-  .dmid b{font-size:30px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
+  .dmid b{font-size:26px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
   .dmid b.lv1{color:var(--warn)} .dmid b.lv2{color:var(--danger)}
   .dmid span{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.35}
   .dmid.pick span{color:var(--warn-ink);font-weight:600}
@@ -348,15 +379,15 @@
   /* 한 줄짜리. 넘치면 여기만 굴러간다 — min-height:0 이 있어야 판 높이를
      밀지 않고 제 안에서 줄어든다. */
   .dlegs{flex:1;min-height:0;overflow-y:auto;align-content:start;
-    display:grid;grid-template-columns:1fr;gap:2px;padding-right:4px}
+    display:grid;grid-template-columns:1fr;gap:1px;padding-right:4px}
   .dlegs::-webkit-scrollbar{width:6px}
   .dlegs::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
   /* 줄 바탕에 사용 비중만큼 색을 깔아 둔다(인라인 style 의 gradient).
      그래서 background-color 대신 box-shadow 로 눌린 표시를 준다 —
      색을 덮어쓰면 비중 막대가 사라진다. */
-  .dleg{display:flex;align-items:center;gap:8px;padding:3px 9px;border:0;border-radius:6px;
+  .dleg{display:flex;align-items:center;gap:8px;padding:1px 9px;border:0;border-radius:6px;
     background-color:transparent;background-repeat:no-repeat;
-    font:inherit;font-size:12.5px;line-height:1.5;color:var(--ink-2);cursor:pointer;
+    font:inherit;font-size:12.5px;line-height:1.45;color:var(--ink-2);cursor:pointer;
     text-align:left;width:100%;transition:box-shadow .1s,color .1s}
   .dleg:hover,.dleg.on{box-shadow:inset 0 0 0 1px var(--accent-line)}
   .rk{width:15px;flex:none;text-align:right;font-size:11px;font-weight:700;
@@ -471,7 +502,7 @@
      공구 상세가 다시 접힌다. 시간은 줄에서 빼고 말풍선에만 남긴다. */
   @media(max-width:1500px){
     .donut{grid-template-columns:1fr 300px;gap:16px}
-    .dchart{max-width:230px}
+    .dchart{max-width:196px}
     .dmid b{font-size:25px} .dmid{padding:0 18px}
     .dleg .hr{display:none}
   }
@@ -514,8 +545,8 @@
   .item.zero .m{color:rgba(255,255,255,.38)}
   .item.muted{color:rgba(255,255,255,.5);cursor:default}
   main{padding:18px 26px 40px;overflow-y:auto;min-height:0}
-  h2{font-size:22px;margin-bottom:3px;font-weight:700;letter-spacing:-.025em}
-  .desc{color:var(--muted);font-size:13px;margin-bottom:13px;
+  h2{font-size:19px;margin-bottom:2px;font-weight:700;letter-spacing:-.025em}
+  .desc{color:var(--muted);font-size:12.5px;margin-bottom:9px;
     display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   /* 구간·기간처럼 «지금 무엇을 보고 있나» 를 적는 표. 화면마다 자리가
      같아서, 탭을 옮겨도 눈이 같은 곳을 본다. */
@@ -555,13 +586,13 @@
   .card.hl .v{color:var(--accent)}
 
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
-    padding:14px 18px;margin-bottom:12px;box-shadow:var(--sh)}
-  .panel h4{font-size:14.5px;margin-bottom:10px;color:var(--ink);font-weight:700;
+    padding:12px 16px;margin-bottom:10px;box-shadow:var(--sh)}
+  .panel h4{font-size:14px;margin-bottom:8px;color:var(--ink);font-weight:700;
     letter-spacing:-.015em;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   /* 제목 앞 짧은 막대 — 판이 여러 개 쌓였을 때 덩이의 시작이 눈에 띈다 */
   .panel > h4::before,.phead h4::before{content:'';width:3px;height:14px;flex:none;
     background:var(--accent);border-radius:2px;margin-right:2px}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
   /* ── 「없습니다」 판 ───────────────────────────────────────
      빈 화면을 그냥 비워 두면 «안 뜬 건가» 하고 기다리게 된다.
@@ -583,9 +614,9 @@
      그림이 없는 공구는 왼쪽 칸 자체가 안 생긴다(.haspic) — 빈 네모를 띄우면
      «사진이 깨졌나» 하고 한 번 더 보게 된다. */
   .tdet{display:block}
-  .tdet.haspic{display:grid;grid-template-columns:186px 1fr;gap:22px;align-items:start}
+  .tdet.haspic{display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:start}
   .tpic{background:var(--raise);border:1px solid var(--line);border-radius:var(--r-sm);
-    padding:14px;display:flex;align-items:center;justify-content:center;
+    padding:10px;display:flex;align-items:center;justify-content:center;
     aspect-ratio:1/1;overflow:hidden}
   .tpic img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;
     image-rendering:-webkit-optimize-contrast}
@@ -594,9 +625,9 @@
      줘도 판이 길어지지 않고, 발표 화면에서 뒷자리까지 읽힌다.
      .tinfo 안으로 한정한다 — 전역 .row 를 건드리면 열 개 탭의 표가 전부
      늘어나 한 화면에 들어가던 것이 스크롤로 밀린다. */
-  .tinfo .row{font-size:13.5px;padding:11px 0}
+  .tinfo .row{font-size:13px;padding:8px 0}
   .tinfo .row > span:last-child{font-weight:650;color:var(--ink)}
-  .tinfo .act{margin-top:16px;padding:8px 16px;font-size:13px}
+  .tinfo .act{margin-top:11px;padding:6px 14px;font-size:12.5px}
   @media(max-width:1500px){ .tdet.haspic{grid-template-columns:150px 1fr;gap:16px} }
   @media(max-width:1100px){ .tdet.haspic{grid-template-columns:1fr;justify-items:center}
     .tpic{width:180px} .tinfo{width:100%} }
@@ -604,9 +635,19 @@
   /* ── 인자별 기여 한 줄 ────────────────────────────────────
      이름·값을 한 줄로 적고 그 «아래» 에 막대를 깐다. 막대를 옆에 두면
      이름이 길 때 막대 폭이 제각각이 되어 넷을 서로 견줄 수가 없다. */
-  .fct{margin-bottom:16px}
+  /* 넷을 한 줄에 이어 붙인 띠 + 그 색이름 */
+  .hsum{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--muted);
+    font-variant-numeric:tabular-nums}
+  .fstack{display:flex;height:15px;border-radius:5px;overflow:hidden;
+    background:var(--line-2);border:1px solid var(--line)}
+  .fstack i{display:block;height:100%}
+  .fleg{display:flex;gap:13px;flex-wrap:wrap;margin:7px 0 13px;
+    font-size:11px;color:var(--muted)}
+  .fleg span{display:inline-flex;align-items:center;gap:5px}
+  .fleg i{width:8px;height:8px;border-radius:2px;flex:none}
+  .fct{margin-bottom:11px}
   .fct:last-of-type{margin-bottom:10px}
-  .fct .row{border:0;padding:0 0 7px;font-size:13.5px}
+  .fct .row{border:0;padding:0 0 5px;font-size:13px}
   .fct .row > span:last-child{font-weight:650;color:var(--ink)}
   @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
 
@@ -637,18 +678,50 @@
   .chip .r{font-size:11px;opacity:.7}
 
   /* ── 게이지·막대 */
-  /* 마모율 막대. 이 판에서 제일 먼저 읽혀야 하는 한 줄이라 다른 막대보다
-     굵게 둔다 — 값은 막대 «가운데» 에 적는다. 끝에 붙이면 막대가 짧을 때
-     글자가 회색 바탕 위로 나가 어디까지가 찬 칸인지 흐려진다. */
-  .gauge{position:relative;height:44px;background:var(--line-2);border-radius:10px;
-    overflow:hidden;margin:9px 0 18px;border:1px solid var(--line)}
-  .gauge i{display:block;height:100%;background:var(--accent);border-radius:9px 0 0 9px;
+  /* 마모율 — 큰 숫자를 막대 «위» 에 두고, 막대 자체는 얇게 깐다.
+     막대 안에 숫자를 넣으면 28% 처럼 짧을 때 글자가 회색 바탕으로 나가
+     어디까지가 찬 칸인지 흐려진다. 대신 막대에는 주의(90)·교체(100)
+     눈금을 그어, 지금 값이 기준선에서 얼마나 떨어져 있는지 같이 보인다. */
+  .gtop{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .gtop span{font-size:12.5px;color:var(--muted)}
+  .gtop b{margin-left:auto;font-size:26px;font-weight:700;color:var(--accent);
+    letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.1}
+  .gtop b.w{color:var(--warn)} .gtop b.d{color:var(--danger)}
+  .gtop b em{font-style:normal;font-size:14px;font-weight:600;
+    color:var(--muted);margin-left:3px}
+  .gauge{position:relative;height:13px;background:var(--line-2);border-radius:7px;
+    overflow:hidden;border:1px solid var(--line)}
+  .gauge i{display:block;height:100%;background:var(--accent);border-radius:6px 0 0 6px;
     transition:width .3s ease}
   .gauge i.w{background:var(--warn)}
   .gauge i.d{background:var(--danger)}
-  .gauge span{position:absolute;top:0;left:0;right:0;line-height:42px;text-align:center;
-    font-weight:700;font-size:15px;color:var(--ink);letter-spacing:-.01em;
-    text-shadow:0 1px 2px rgba(255,255,255,.9)}
+  /* 기준 눈금. 90 과 100 은 10%밖에 안 떨어져 있어서 글자를 각자 달면
+     반드시 겹친다 — 막대에는 선만 긋고 이름은 아래 한 줄에 묶어 적는다. */
+  .gauge u{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;
+    text-decoration:none}
+  .gauge u.warn{background:var(--warn)} .gauge u.dang{background:var(--danger)}
+  .gmk{display:flex;justify-content:space-between;margin:4px 0 12px;
+    font-size:10.5px;color:var(--faint)}
+
+  /* 자주 묻는 넷 — 줄로 쌓지 않고 칸으로 세운다. 이 판에서만 쓰는 배치라
+     전역 .cards (가로로 늘어나는 것) 와 따로 둔다. */
+  .tcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
+    margin-bottom:11px}
+  .tcards .card{margin:0;padding:8px 10px;min-width:0}
+  .tcards .card .k{font-size:11px;margin-bottom:2px;display:flex;align-items:center;
+    gap:4px;flex-wrap:wrap}
+  .tcards .card .v{font-size:19px}
+  .tcards .card .u{font-size:11.5px}
+  .tcards .help{width:15px;height:15px;font-size:9.5px}
+  @media(max-width:1200px){ .tcards{grid-template-columns:repeat(2,minmax(0,1fr))} }
+
+  /* 경보 단계 — 제목 줄 끝에 세우는 표 */
+  .lvpill{margin-left:auto;display:inline-flex;align-items:center;gap:6px;
+    padding:3px 11px;border-radius:999px;font-size:11.5px;font-weight:650;
+    background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok)}
+  .lvpill i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+  .lvpill.w{background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn-ink)}
+  .lvpill.d{background:var(--danger-soft);border-color:var(--danger-line);color:var(--danger)}
   .bar{height:6px;background:var(--line-2);border-radius:3px;overflow:hidden}
   .bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
 
@@ -895,10 +968,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="53ad9a5319">
+<meta name="mes-build" content="eda2b55ab9">
 <script>
 (function(){
-  var mine = "53ad9a5319";
+  var mine = "eda2b55ab9";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -1118,6 +1191,10 @@ window.placeSide = placeSide;
 const f2=v=>(v??0).toFixed(2), f3=v=>(v??0).toFixed(3), f4=v=>(v??0).toFixed(4);
 const num=v=>(v??0).toLocaleString();
 const lvl=w=> w>=100?'d': w>=90?'w':'';
+/* 경보 단계 글자(정상·주의·교체…)를 색으로. 화면에 쓰는 말이 바뀌어도
+   «정상이 아니면 눈에 띈다» 는 규칙은 그대로 가게 한 곳에 모아 둔다. */
+const lvClass=s=>{ const t=String(s||'');
+  return /교체|위험|즉시/.test(t)?'d' : /주의|경고/.test(t)?'w' : ''; };
 const inten=v=> v==null?'-': v.toFixed(2)+'배';
 const days=v=> v==null?'-': v>=10000? (v/365).toFixed(0)+'년' : num(Math.round(v))+'일';
 const bar=(p,c)=>`<div class="bar"><i class="${c||''}" style="width:${Math.min(Math.max(p,0),100)}%"></i></div>`;
@@ -1495,7 +1572,7 @@ function tickSens(built){
   SENS_T = setInterval(draw, 1000);
 }
 
-function donutTop(tools, n, sel){
+function donutTop(tools, n, sel, mid2){
   n = n || 10;
   const used = tools.filter(t => (t.hours || 0) > 0)
                     .sort((a, b) => b.hours - a.hours);
@@ -1582,7 +1659,10 @@ function donutTop(tools, n, sel){
     <span><i style="background:var(--danger)"></i>교체 100%↑</span>
     ${typeof helpBtn === 'function' ? helpBtn('donut') : ''}</div>`;
 
-  return `<div class="donut">
+  /* mid2 — 그림과 순위 목록 사이에 세우는 셋째 칸(고른 공구의 추이).
+     안 넘기면 칸 자체가 안 생긴다. 넘길 것이 없을 때 빈 칸을 세워 두면
+     그림과 목록만 양끝으로 밀려 가운데가 허해진다. */
+  return `<div class="donut${mid2 ? ' has3' : ''}">
     <div class="dchart">
       <svg viewBox="0 0 200 200" role="img" aria-label="공구별 사용량">
         ${arcs}
@@ -1590,10 +1670,74 @@ function donutTop(tools, n, sel){
       </svg>
       <div class="dmid${cur ? ' pick' : ''}" id="dmid">${mid}</div>
     </div>
+    ${mid2 || ''}
     <div class="dside">
       <div class="dlegs">${legend}</div>
       ${key}
     </div>
+  </div>`;
+}
+
+/* ═════ 고른 공구의 최근 추이 ════════════════════════════════════
+   원그래프는 «누가 많이 도는가» 만 말한다. 같은 판에서 정작 궁금해지는
+   다음 물음은 «그래서 이 공구가 지금 빨라지고 있나» 인데, 그 답은 화면
+   한참 아래 일자별 그림까지 내려가야 나왔다.
+
+   둘째 원그래프를 세우는 안도 있었지만, 공구 하나에는 «공구별 분포» 라는
+   것이 없다 — 같은 그림이 두 번 나올 뿐이다. 그래서 이 자리에는 그림에
+   «없는» 정보, 곧 날짜 축을 놓는다.
+
+   값은 그날 늘어난 마모량(%)이다. 돌아간 날만 세고, 이틀이 안 되면
+   선을 긋지 않는다 — 점 하나를 이어 그린 «추이» 는 없는 이야기를 만든다. */
+function trendCol(det){
+  if(!det || !det.tool) return '';
+  const t = det.tool;
+  const bd = (Array.isArray(t.byday) ? t.byday : [])
+    .filter(d => (d.hours || 0) > 0 && d.wear != null);
+  const last = bd.slice(-7);
+  const head = `<div class="dtrend"><div class="tth">T${t.tool} 마모 추이`
+    + `<span>${last.length ? '최근 ' + last.length + '일' : '자료 없음'}</span></div>`;
+
+  if(last.length < 2)
+    return head + `<div class="ttnone">이 구간에 돌아간 날이 ${
+      last.length}일뿐입니다 — 이틀은 있어야 오르내림을 말할 수 있습니다</div></div>`;
+
+  const W = 240, H = 84, PX = 6, PY = 10;
+  const vs = last.map(d => d.wear);
+  let lo = Math.min(...vs), hi = Math.max(...vs);
+  if(hi - lo < 1e-9){ hi = lo + Math.max(lo * 0.1, 1e-6); lo = Math.max(0, lo - (hi - lo)); }
+  const pad = (hi - lo) * 0.18; lo -= pad; hi += pad;
+  const X = i => PX + i * (W - 2 * PX) / (last.length - 1);
+  const Y = v => PY + (hi - v) / (hi - lo) * (H - 2 * PY);
+  const pts = last.map((d, i) => [X(i), Y(d.wear)]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const area = line + ` L${X(last.length - 1).toFixed(1)} ${H} L${PX} ${H} Z`;
+
+  /* 앞 절반 평균과 뒤 절반 평균을 견준다. 마지막 하루만 보면 그날 유난히
+     많이 돌았을 뿐인 것을 «빨라졌다» 로 읽는다. */
+  const h2 = Math.floor(last.length / 2);
+  const avg = a => a.reduce((s, v) => s + v, 0) / a.length;
+  const a1 = avg(vs.slice(0, h2 || 1)), a2 = avg(vs.slice(h2));
+  const up = a2 > a1, flat = Math.abs(a2 - a1) < a1 * 0.05;
+  const dpct = a1 > 0 ? 100 * (a2 - a1) / a1 : 0;
+
+  return head + `<svg class="ttsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+      role="img" aria-label="T${t.tool} 날짜별 마모량">
+    <path d="${area}" fill="var(--accent-soft)"></path>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"
+      stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+    ${pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}"
+      r="${i === pts.length - 1 ? 3.4 : 2}"
+      fill="${i === pts.length - 1 ? 'var(--accent)' : 'var(--surface)'}"
+      stroke="var(--accent)" stroke-width="1.6" vector-effect="non-scaling-stroke"
+      ><title>${esc(last[i].date)} — ${last[i].wear.toFixed(4)}%</title></circle>`).join('')}
+  </svg>
+  <div class="ttx"><span>${esc(last[0].date.slice(5))}</span>
+    <span>${esc(last[last.length - 1].date.slice(5))}</span></div>
+  <div class="ttv"><span>하루 평균</span><b>${avg(vs).toFixed(4)}<em>%</em></b></div>
+  <div class="ttd ${flat ? '' : (up ? 'up' : 'dn')}">${
+    flat ? '앞뒤 절반이 비슷합니다'
+         : `뒤 절반이 앞 절반보다 <b>${Math.abs(dpct).toFixed(0)}% ${up ? '빠릅니다' : '느립니다'}</b>`}</div>
   </div>`;
 }
 
@@ -1716,7 +1860,7 @@ async function renderDash(){
         Math.min(10, busy.length)}종이 전체 사용시간의 <b>${busyPct}%</b>
         · 행을 누르면 아래에 자세히</div>
       <div class="dwrap">
-        ${donutTop(TOOLS, 10, SEL.tool)}
+        ${donutTop(TOOLS, 10, SEL.tool, trendCol(det))}
       </div>
     </div>
     <div class="panel">
@@ -1734,7 +1878,10 @@ async function renderDash(){
         <h4>T${det.tool.tool} · ${det.tool.name}
           <span class="tag ${det.tool.cls==='breakage'?'b':'w'}">${det.tool.cls==='breakage'?'파손형':'마모형'}</span>
           <span class="muted" style="font-weight:400;font-size:12px"> — ${det.tool.wear_label||'마모율'}</span>
-          ${helpBtn(det.tool.cls==='breakage'?'breakage':'wear')}</h4>
+          ${helpBtn(det.tool.cls==='breakage'?'breakage':'wear')}
+          <!-- 경보 단계는 줄 사이에 끼워 두면 여섯 줄 중 하나로 읽힌다.
+               이 판에서 «지금 괜찮은가» 는 제목과 같은 무게라 제목 줄 끝에 세운다. -->
+          <span class="lvpill ${lvClass(det.level)}"><i></i>경보 단계 · ${esc(det.level)}</span></h4>
         <!-- 그림이 있는 공구는 왼쪽에 형상을 놓고, 값은 그 오른쪽으로 모은다.
              숫자만 늘어놓으면 «T33» 이 무엇처럼 생긴 물건인지 모르는 사람은
              끝까지 모른다. 그림이 없는 공구는 이 칸 자체가 안 생긴다. -->
@@ -1745,24 +1892,35 @@ async function renderDash(){
                  loading="lazy" decoding="async">
           </div>`:''}
           <div class="tinfo">
+        <!-- 큰 숫자를 막대 «안» 이 아니라 막대 «위» 에 둔다. 막대가 짧을 때
+             글자가 회색 바탕으로 나가 어디까지 찼는지 흐려지던 것을 없앤다.
+             막대에는 주의(90)·교체(100) 눈금을 그어, 28% 가 어디쯤인지
+             기준선과 함께 보이게 한다. -->
+        <div class="gtop"><span>현재 ${det.tool.wear_label||'마모율'}</span>
+          <b class="${lvl(det.tool.wear)}">${f3(det.tool.wear)}<em>%</em></b></div>
         <div class="gauge"><i class="${lvl(det.tool.wear)}" style="width:${Math.min(det.tool.wear,100)}%"></i>
-          <span>${f3(det.tool.wear)} %</span></div>
+          <u class="warn" style="left:90%" title="주의 90%"></u>
+          <u class="dang" style="left:100%" title="교체 100%"></u></div>
+        <div class="gmk"><span>0%</span><span>주의 90 · 교체 100</span></div>
         ${det.tool.cls==='breakage'?`<div class="note warn" style="margin:8px 0 2px">
           닳은 정도가 아니라 <b>받은 충격의 누적</b>입니다 — 낮아도 부러질 수 있습니다.
           ${helpBtn('breakage')}</div>`:''}
-        <div class="row"><span>경보 단계</span><span>${det.level}</span></div>
+        <!-- 자주 묻는 넷은 칸으로 세운다. 일곱 줄을 나란히 쌓으면 어느 것이
+             «이 공구를 언제 갈아야 하나» 에 답하는 값인지 구분이 안 된다. -->
+        <div class="tcards">
+          ${cardHtml('예상 수명 <span class="tag w">참고</span>' + helpBtn('life'), days(det.tool.life), '')}
+          ${det.tool.wear_h!==null&&det.tool.wear_h!==undefined
+            ? cardHtml(((b.horizon&&b.horizon.label)||'예상') + ' <span class="tag b">예측</span>',
+                       f2(det.tool.wear_h), '%', 'hl')
+            : ''}
+          ${cardHtml('사용강도 (평균 대비)' + helpBtn('intensity'), inten(det.tool.intensity), '')}
+          ${cardHtml('누적 절삭', f2(det.tool.hours), 'h')}
+        </div>
         ${det.tool.trend?`<div class="row">
           <span>소요 전류 추세 <span class="tag ${det.tool.trend.pct_per_week>1?'b':'w'}">관측</span> ${helpBtn('trend')}</span>
           <span class="mono">${det.tool.trend.pct_per_week>0?'+':''}${f2(det.tool.trend.pct_per_week)} %/주
             · 누적 ${det.tool.trend.cum_pct>0?'+':''}${f2(det.tool.trend.cum_pct)} %</span></div>
           `:''}
-        ${det.tool.wear_h!==null&&det.tool.wear_h!==undefined?`<div class="row">
-          <span>${(b.horizon&&b.horizon.label)||'예상'} <span class="tag w">예측</span></span>
-          <span class="mono">${f2(det.tool.wear_h)} %</span></div>
-          `:''}
-        <div class="row"><span>사용강도 (평균 대비) ${helpBtn('intensity')}</span><span class="mono">${inten(det.tool.intensity)}</span></div>
-        <div class="row"><span>예상 수명 <span class="tag w">참고</span> ${helpBtn('life')}</span><span class="mono">${days(det.tool.life)}</span></div>
-        <div class="row"><span>누적 절삭</span><span class="mono">${f2(det.tool.hours)} h</span></div>
         <div class="row"><span>세트 내 기여도</span><span class="mono">${f2(det.tool.share)} %</span></div>
         ${det.tool.replaced_at?`<div class="row"><span>교체 기록</span>
           <span class="mono">${det.tool.replaced_at} 부터</span></div>
@@ -1776,7 +1934,28 @@ async function renderDash(){
         </div>
       </div>
       <div class="panel">
-        <h4>인자별 ${det.tool.cls==='breakage'?'파손 위험':'마모'} 기여</h4>
+        <h4>인자별 ${det.tool.cls==='breakage'?'파손 위험':'마모'} 기여
+          <span class="hsum">합계 ${f3(det.tool.wear)}%</span></h4>
+        <!-- 넷을 한 줄에 이어 붙인 띠. 아래 막대들은 각자 0부터 시작하므로
+             «실가공이 나머지 셋을 다 합친 것보다 몇 배인가» 가 안 보인다.
+             값이 0 인 인자는 칸을 안 만든다 — 폭 0짜리 조각은 색만 남는다. -->
+        <div class="fstack">${
+          [['실가공','machining','var(--accent)'],
+           ['과부하','overload','var(--warn)'],
+           ['충격','shock','#7C5CD6'],
+           ['조건급변','cond_change','var(--muted)']]
+          .map(([k,f,c])=>{
+            const v=det.tool[f], p=det.tool.wear?100*v/det.tool.wear:0;
+            return p>0?`<i style="width:${p.toFixed(3)}%;background:${c}"
+              title="${k} ${f2(p)}%"></i>`:'';
+          }).join('')}</div>
+        <div class="fleg">${
+          [['실가공','machining','var(--accent)'],
+           ['과부하','overload','var(--warn)'],
+           ['충격','shock','#7C5CD6'],
+           ['조건급변','cond_change','var(--muted)']]
+          .filter(([,f])=>det.tool[f]>0)
+          .map(([k,,c])=>`<span><i style="background:${c}"></i>${k}</span>`).join('')}</div>
         ${[['실가공','machining'],['과부하','overload'],['충격','shock'],['조건급변','cond_change']].map(([k,f])=>{
           const v=det.tool[f], p=det.tool.wear?100*v/det.tool.wear:0;
           const off=(v===0);
