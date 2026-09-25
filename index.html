@@ -196,10 +196,10 @@
   /* 기준 막대는 늘 화면에 붙어 있다 — 아래 표를 굴려도 «무엇을 기준으로
      보고 있는지» 가 사라지면 안 된다. */
   #basis{flex:none;background:var(--raise);border-bottom:1px solid var(--line);
-    padding:6px 26px;display:flex;align-items:center;gap:13px;row-gap:5px;flex-wrap:wrap}
+    padding:5px 26px;display:flex;align-items:center;gap:12px;row-gap:4px;flex-wrap:wrap}
   .bset{display:flex;align-items:center;gap:7px}
   .bset > span{font-size:12.5px;color:var(--muted);white-space:nowrap;font-weight:550}
-  .bset select,.bset input[type=date]{padding:4px 9px;max-width:270px;border:1px solid var(--line-in);
+  .bset select,.bset input[type=date]{padding:3px 8px;max-width:250px;border:1px solid var(--line-in);
     border-radius:var(--r-sm);font:inherit;font-size:13px;background:var(--surface);
     color:var(--ink);cursor:pointer;
     box-shadow:0 1px 1px rgba(15,23,42,.04);
@@ -256,8 +256,8 @@
   .ptop{display:flex;align-items:center;justify-content:space-between;
     gap:18px;flex-wrap:wrap}
   .ptop .pmain{min-width:min(100%,300px)}
-  .rstat{display:flex;align-items:center;gap:11px;margin-bottom:7px;
-    padding:5px 9px 5px 13px;border-radius:var(--r);font-size:13px;color:var(--ink);
+  .rstat{display:flex;align-items:center;gap:10px;margin-bottom:6px;
+    padding:4px 8px 4px 12px;border-radius:var(--r);font-size:12.5px;color:var(--ink);
     border:1px solid var(--ok-line);background:var(--ok-soft);white-space:nowrap}
   .rstat.bad{border-color:var(--danger-line);background:var(--danger-soft)}
   .rstat .rn{font-weight:700;font-size:16px;color:var(--ok);
@@ -275,8 +275,8 @@
      판은 아래가 비지만, 나란한 두 판의 밑선이 어긋나 있으면 그것부터 눈에
      띄어 정작 내용을 안 본다. 판 스스로는 margin 을 안 갖게 하고(칸 사이는
      grid 의 gap 이 맡는다), 안쪽 내용은 위부터 쌓이게 둔다. */
-  .dash2{display:grid;grid-template-columns:1fr 330px;gap:16px;
-    align-items:stretch;margin-bottom:10px}
+  .dash2{display:grid;grid-template-columns:1fr 330px;gap:14px;
+    align-items:stretch;margin-bottom:8px}
   .dash2 > .panel{margin-bottom:0;height:100%;display:flex;flex-direction:column}
   .dash2 > .panel > .dwrap{flex:1;min-height:0}
   /* 남는 자리는 목록과 신호표가 나눠 갖는다 — 판만 늘어나고 안은 위에
@@ -375,7 +375,7 @@
   /* 이 판의 높이는 그림 지름이 정한다(목록은 min-height:0 이라 제 안에서
      줄어든다). 그래서 «세로만 줄이기» = 지름 줄이기다. 340 → 282px.
      목록은 여덟아홉 줄이 보이고 나머지는 그 칸에서 굴러간다. */
-  .dchart{position:relative;width:100%;max-width:272px;aspect-ratio:1/1;
+  .dchart{position:relative;width:100%;max-width:232px;aspect-ratio:1/1;
     margin:0 auto;align-self:center}
   .dchart svg{width:100%;height:100%;display:block}
   .dside{display:flex;flex-direction:column;gap:7px;min-height:0}
@@ -389,7 +389,7 @@
   .dslice.sel{stroke:var(--warn);stroke-width:2.5;paint-order:stroke}
   .dmid{position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;pointer-events:none;text-align:center;padding:0 22px}
-  .dmid b{font-size:29px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
+  .dmid b{font-size:26px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
   .dmid b.lv1{color:var(--warn)} .dmid b.lv2{color:var(--danger)}
   .dmid span{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.35}
   .dmid.pick span{color:var(--warn-ink);font-weight:600}
@@ -460,8 +460,8 @@
     padding:10px 13px 9px}
   /* 제 판 안에 들어갈 때 — 판이 이미 테두리와 바탕을 갖고 있어 한 겹이면 된다 */
   .senscol.bare{border:0;background:transparent;padding:0;border-radius:0}
-  .senscol.bare .sline{font-size:12.5px;padding:5px 0}
-  .senscol.bare .sline b{font-size:14px}
+  .senscol.bare .sline{font-size:12px;padding:4px 0}
+  .senscol.bare .sline b{font-size:13.5px}
   .sigt{display:flex;align-items:baseline;gap:8px;margin-top:9px;
     font-size:12px;font-weight:650;color:var(--ink-2)}
   .sigt span{margin-left:auto;font-weight:500;color:var(--faint);font-size:11.5px}
@@ -492,8 +492,8 @@
      위로 몰아 두면 아래가 통째로 빈다. */
   .sigs{display:flex;flex-wrap:wrap;gap:3px;margin-top:auto;padding-top:8px;
     align-items:center;align-content:flex-end}
-  .sig{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;
-    padding:2px 7px;border-radius:999px;white-space:nowrap;
+  .sig{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+    padding:2px 6px;border-radius:999px;white-space:nowrap;
     background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent)}
   .sig i{width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
   .sig.off{background:var(--bg);border-color:var(--line);color:var(--faint)}
@@ -520,7 +520,7 @@
      공구 상세가 다시 접힌다. 시간은 줄에서 빼고 말풍선에만 남긴다. */
   @media(max-width:1500px){
     .donut{grid-template-columns:1fr 300px;gap:16px}
-    .dchart{max-width:232px}
+    .dchart{max-width:206px}
     .dmid b{font-size:25px} .dmid{padding:0 18px}
     .dleg .hr{display:none}
   }
@@ -563,8 +563,8 @@
   .item.zero .m{color:rgba(255,255,255,.38)}
   .item.muted{color:rgba(255,255,255,.5);cursor:default}
   main{padding:18px 26px 40px;overflow-y:auto;min-height:0}
-  h2{font-size:17.5px;margin-bottom:1px;font-weight:700;letter-spacing:-.025em}
-  .desc{color:var(--muted);font-size:12.5px;margin-bottom:7px;
+  h2{font-size:16.5px;margin-bottom:0;font-weight:700;letter-spacing:-.025em}
+  .desc{color:var(--muted);font-size:12px;margin-bottom:6px;
     display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   /* 구간·기간처럼 «지금 무엇을 보고 있나» 를 적는 표. 화면마다 자리가
      같아서, 탭을 옮겨도 눈이 같은 곳을 본다. */
@@ -604,13 +604,13 @@
   .card.hl .v{color:var(--accent)}
 
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
-    padding:12px 16px;margin-bottom:10px;box-shadow:var(--sh)}
+    padding:11px 15px;margin-bottom:8px;box-shadow:var(--sh)}
   .panel h4{font-size:14px;margin-bottom:8px;color:var(--ink);font-weight:700;
     letter-spacing:-.015em;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   /* 제목 앞 짧은 막대 — 판이 여러 개 쌓였을 때 덩이의 시작이 눈에 띈다 */
   .panel > h4::before,.phead h4::before{content:'';width:3px;height:14px;flex:none;
     background:var(--accent);border-radius:2px;margin-right:2px}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 
   /* ── 「없습니다」 판 ───────────────────────────────────────
      빈 화면을 그냥 비워 두면 «안 뜬 건가» 하고 기다리게 된다.
@@ -643,9 +643,9 @@
      줘도 판이 길어지지 않고, 발표 화면에서 뒷자리까지 읽힌다.
      .tinfo 안으로 한정한다 — 전역 .row 를 건드리면 열 개 탭의 표가 전부
      늘어나 한 화면에 들어가던 것이 스크롤로 밀린다. */
-  .tinfo .row{font-size:13px;padding:8px 0}
+  .tinfo .row{font-size:12.5px;padding:6px 0}
   .tinfo .row > span:last-child{font-weight:650;color:var(--ink)}
-  .tinfo .act{margin-top:11px;padding:6px 14px;font-size:12.5px}
+  .tinfo .act{margin-top:9px;padding:5px 13px;font-size:12.5px}
   @media(max-width:1500px){ .tdet.haspic{grid-template-columns:150px 1fr;gap:16px} }
   @media(max-width:1100px){ .tdet.haspic{grid-template-columns:1fr;justify-items:center}
     .tpic{width:180px} .tinfo{width:100%} }
@@ -656,16 +656,16 @@
   /* 넷을 한 줄에 이어 붙인 띠 + 그 색이름 */
   .hsum{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--muted);
     font-variant-numeric:tabular-nums}
-  .fstack{display:flex;height:15px;border-radius:5px;overflow:hidden;
+  .fstack{display:flex;height:13px;border-radius:5px;overflow:hidden;
     background:var(--line-2);border:1px solid var(--line)}
   .fstack i{display:block;height:100%}
-  .fleg{display:flex;gap:13px;flex-wrap:wrap;margin:6px 0 10px;
+  .fleg{display:flex;gap:12px;flex-wrap:wrap;margin:5px 0 8px;
     font-size:11px;color:var(--muted)}
   .fleg span{display:inline-flex;align-items:center;gap:5px}
   .fleg i{width:8px;height:8px;border-radius:2px;flex:none}
-  .fct{margin-bottom:9px}
+  .fct{margin-bottom:7px}
   .fct:last-of-type{margin-bottom:10px}
-  .fct .row{border:0;padding:0 0 5px;font-size:13px}
+  .fct .row{border:0;padding:0 0 4px;font-size:12.5px}
   .fct .row > span:last-child{font-weight:650;color:var(--ink)}
   @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
 
@@ -700,9 +700,9 @@
      막대 안에 숫자를 넣으면 28% 처럼 짧을 때 글자가 회색 바탕으로 나가
      어디까지가 찬 칸인지 흐려진다. 대신 막대에는 주의(90)·교체(100)
      눈금을 그어, 지금 값이 기준선에서 얼마나 떨어져 있는지 같이 보인다. */
-  .gtop{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .gtop{display:flex;align-items:baseline;gap:10px;margin-bottom:5px}
   .gtop span{font-size:12.5px;color:var(--muted)}
-  .gtop b{margin-left:auto;font-size:26px;font-weight:700;color:var(--accent);
+  .gtop b{margin-left:auto;font-size:23px;font-weight:700;color:var(--accent);
     letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.1}
   .gtop b.w{color:var(--warn)} .gtop b.d{color:var(--danger)}
   .gtop b em{font-style:normal;font-size:14px;font-weight:600;
@@ -718,17 +718,17 @@
   .gauge u{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;
     text-decoration:none}
   .gauge u.warn{background:var(--warn)} .gauge u.dang{background:var(--danger)}
-  .gmk{display:flex;justify-content:space-between;margin:4px 0 10px;
+  .gmk{display:flex;justify-content:space-between;margin:3px 0 8px;
     font-size:10.5px;color:var(--faint)}
 
   /* 자주 묻는 넷 — 줄로 쌓지 않고 칸으로 세운다. 이 판에서만 쓰는 배치라
      전역 .cards (가로로 늘어나는 것) 와 따로 둔다. */
-  .tcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;
-    margin-bottom:9px}
-  .tcards .card{margin:0;padding:7px 10px;min-width:0}
+  .tcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;
+    margin-bottom:8px}
+  .tcards .card{margin:0;padding:6px 9px;min-width:0}
   .tcards .card .k{font-size:11px;margin-bottom:2px;display:flex;align-items:center;
     gap:4px;flex-wrap:wrap}
-  .tcards .card .v{font-size:19px}
+  .tcards .card .v{font-size:17.5px}
   .tcards .card .u{font-size:11.5px}
   .tcards .help{width:15px;height:15px;font-size:9.5px}
   @media(max-width:1200px){ .tcards{grid-template-columns:repeat(2,minmax(0,1fr))} }
@@ -986,10 +986,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="76400c05a3">
+<meta name="mes-build" content="3408c8928a">
 <script>
 (function(){
-  var mine = "76400c05a3";
+  var mine = "3408c8928a";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -2000,7 +2000,7 @@ async function renderDash(){
         <div class="fct"><div class="row">
           <span>알림 <span class="tag w">미수집</span> ${helpBtn('missing')}</span>
           <span class="mono">0.0000% (0.00%)</span></div>${bar(0)}</div>
-        <div class="dkey tp" style="margin-top:14px">
+        <div class="dkey tp" style="margin-top:10px">
           <span>${det.tool.cls==='breakage'
             ? '파손형 배분 — 실가공 20 · 과부하 40 · 충격 25 · 조건급변 15'
             : '마모형 배분 — 실가공 50 · 과부하 30 · 충격 10 · 알림 10'}</span>
