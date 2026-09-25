@@ -212,9 +212,69 @@
      그러면 «구간·기준 수명…» 과 멀찍이 떨어져 읽는 눈이 한 번 건너뛰고,
      두 줄이라 막대가 선택칸보다 높아져 아래에 빈 띠가 생겼다.
      날짜 칸 바로 옆에 한 줄로 붙인다 — 막대 높이가 선택칸에 맞는다. */
-  #bnote{font-size:12.5px;color:var(--muted);line-height:1.45;
-    white-space:nowrap}
-  #bnote b{color:var(--accent);font-weight:650}
+  /* 산출 기준 줄. flex-basis 100% 라 앞 칸들 아래로 «제 줄» 을 받는다 —
+     이렇게 두면 날짜 칸을 붙이는 다른 파일(mes_ui.js)이 이 칸을 기준으로
+     자리를 잡는 구조를 그대로 둘 수 있다. */
+  #bnote{flex:1 0 100%;display:flex;align-items:center;gap:13px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--muted);line-height:1.45;
+    border-top:1px solid var(--line-2);margin-top:1px;padding-top:7px}
+  #bnote b{color:var(--ink);font-weight:700}
+  #bnote .bk{font-weight:650;color:var(--faint);letter-spacing:.02em}
+  #bnote .bsep{width:1px;height:11px;background:var(--line);flex:none}
+  /* 기준 수명을 얼마나 썼나 — 숫자만 적으면 «10.89% 가 많은 건가» 를 모른다.
+     막대를 옆에 붙이면 남은 칸이 눈에 바로 들어온다. */
+  #bnote .buse{margin-left:auto;display:flex;align-items:center;gap:9px;white-space:nowrap}
+  #bnote .buse i{width:118px;height:7px;border-radius:999px;background:var(--line-2);
+    display:block;overflow:hidden;flex:none;border:1px solid var(--line)}
+  #bnote .buse i em{display:block;height:100%;background:var(--accent)}
+  #bnote .buse b{color:var(--accent);font-variant-numeric:tabular-nums}
+
+  /* ── 맨 위 띠 — 여기가 어디인지 · 값이 살아 있는지 ────────────
+     예전에는 «센서 수집 중» 이 대시보드 판 안에만 있었다. 다른 탭으로 가면
+     값이 언제 것인지 알 길이 없어, 묵은 숫자를 지금 값으로 읽게 된다.
+     화면 맨 위로 올려 어느 탭에서든 같은 자리에 둔다. */
+  #top{flex:none;background:var(--surface);border-bottom:1px solid var(--line);
+    padding:9px 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .crumb{display:flex;align-items:center;gap:9px;font-size:13.5px;min-width:0}
+  .crumb .cg{color:var(--muted)}
+  .crumb .cs{color:var(--faint)}
+  .crumb b{color:var(--ink);font-weight:700}
+  .tstat{margin-left:auto;display:flex;align-items:center;gap:15px;font-size:12.5px}
+  .live{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;border-radius:999px;
+    background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok);font-weight:600}
+  .live .dot{width:7px;height:7px}
+  .tstat .since{font-variant-numeric:tabular-nums;font-weight:650}
+  .tlast{color:var(--muted);white-space:nowrap}
+  .tlast b{color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums;margin-left:5px}
+  @media(max-width:1180px){ #top{padding:9px 16px} .tlast{display:none} }
+
+  /* ── 탭 머리 오른쪽에 붙는 상태 ───────────────────────────────
+     넉 장짜리 요약 카드 줄을 없애면서 그중 «지금 당장 답이 필요한» 하나만
+     제목 옆으로 올렸다. 나머지 셋은 각자 설명하는 내용 옆으로 갔다. */
+  .ptop{display:flex;align-items:center;justify-content:space-between;
+    gap:18px;flex-wrap:wrap}
+  .ptop .pmain{min-width:min(100%,300px)}
+  .rstat{display:flex;align-items:center;gap:11px;margin-bottom:13px;
+    padding:7px 9px 7px 14px;border-radius:var(--r);font-size:13px;color:var(--ink);
+    border:1px solid var(--ok-line);background:var(--ok-soft);white-space:nowrap}
+  .rstat.bad{border-color:var(--danger-line);background:var(--danger-soft)}
+  .rstat .rn{font-weight:700;font-size:16px;color:var(--ok);
+    font-variant-numeric:tabular-nums}
+  .rstat.bad .rn{color:var(--danger)}
+  .rstat .rlnk{border:1px solid var(--line-in);background:var(--surface);font:inherit;
+    font-size:12.5px;padding:5px 11px;border-radius:var(--r-sm);cursor:pointer;
+    color:var(--ink-2);transition:border-color .12s,color .12s}
+  .rstat .rlnk:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ── 대시보드 첫 줄 — 원그래프 판 · 수집 현황 판 ──────────────
+     한 판 안에 셋을 욱여넣었더니 판 하나가 세 칸으로 갈려 어느 것이 제목에
+     딸린 내용인지 흐려졌다. 성격이 다른 둘이므로 판을 나눈다. */
+  .dash2{display:grid;grid-template-columns:1fr 322px;gap:16px;align-items:start}
+  /* 판 제목 밑 한 문장. 요약 카드 한 장이 하던 말을 여기로 옮겼다 —
+     숫자만 덩그러니 세우지 않고 «무엇에 견준 몇 %인지» 를 같이 적는다. */
+  .psub{margin:-3px 0 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .psub b{color:var(--ink);font-weight:700}
+  @media(max-width:1340px){ .dash2{grid-template-columns:1fr} }
   /* ── 한 줄 안내 띠 ─────────────────────────────────────────
      문단으로 깔아 두던 설명을 한 줄로 줄인 자리. 자세한 것은 «?» 뒤. */
   .note{background:var(--accent-soft);border:1px solid var(--accent-line);
@@ -309,6 +369,11 @@
   .dleg.sel .hr{color:var(--warn-ink);opacity:.75}
   .dleg i{width:9px;height:9px;border-radius:2px;flex:none}
   .dleg .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* «가장 많이 쓴 공구» 를 카드로 한 번 더 적을 필요가 없다 — 이 목록의
+     1위가 곧 그 값이다. 카드를 지우고 그 이름표만 1위 줄에 붙였다. */
+  .top1{margin-left:6px;font-size:10px;font-weight:700;padding:1px 6px;
+    border-radius:999px;background:var(--accent-soft);color:var(--accent);
+    vertical-align:1px;letter-spacing:-.01em}
   .dleg .hr{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
   .dleg .we{width:50px;text-align:right;color:var(--ink);font-weight:650;
     font-variant-numeric:tabular-nums;font-size:12px}
@@ -336,12 +401,25 @@
   /* 왼쪽부터 센서 현황 · 요약 숫자 · 원그래프. 원그래프를 오른쪽으로 밀고
      폭을 줄였다 — 그림은 좁아져도 읽히지만, 「지금 값이 들어오고는 있나」는
      안 보이면 아예 모른다. */
-  .dwrap{display:grid;grid-template-columns:248px 206px 1fr;gap:16px;align-items:stretch}
+  /* 이 칸에는 이제 원그래프만 남는다 — 센서 현황은 옆 판으로, 요약 숫자
+     넉 장은 각자 설명하는 내용 옆으로 흩어졌다. */
+  .dwrap{display:grid;grid-template-columns:1fr;gap:16px;align-items:stretch}
 
   /* ── 센서·반영 현황 ──────────────────────────────────────── */
   .senscol{display:flex;flex-direction:column;min-height:0;
     border:1px solid var(--line);border-radius:var(--r);background:var(--surface);
     padding:10px 13px 9px}
+  /* 제 판 안에 들어갈 때 — 판이 이미 테두리와 바탕을 갖고 있어 한 겹이면 된다 */
+  .senscol.bare{border:0;background:transparent;padding:0;border-radius:0}
+  .senscol.bare .sline{font-size:12.5px;padding:7px 0}
+  .senscol.bare .sline b{font-size:14px}
+  .sigt{display:flex;align-items:baseline;gap:8px;margin-top:13px;
+    font-size:12px;font-weight:650;color:var(--ink-2)}
+  .sigt span{margin-left:auto;font-weight:500;color:var(--faint);font-size:11.5px}
+  .senscol.bare .sigs{margin-top:8px;padding-top:0}
+  .slnk{margin-top:12px;border:0;background:transparent;font:inherit;font-size:12.5px;
+    color:var(--accent);cursor:pointer;padding:0;text-align:left;font-weight:600}
+  .slnk:hover{text-decoration:underline}
   .shead{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:650;
     color:var(--ink);padding-bottom:9px;border-bottom:1px solid var(--line-2)}
   .shead b{margin-left:auto;font-size:12px;font-weight:650;color:var(--accent);
@@ -388,7 +466,6 @@
 
   /* 좁아지면 센서 현황과 요약 숫자를 위아래로 접는다 — 셋을 다 세워 두면
      원그래프가 읽을 수 없을 만큼 얇아진다. */
-  @media(max-width:1700px){ .dwrap{grid-template-columns:230px 190px 1fr;gap:16px} }
   /* 1500px 아래에서는 그림을 줄여 목록에 자리를 넘긴다. 그림이 커 봐야
      목록이 한 줄짜리로 떨어지면 판이 열 줄만큼 길어진다 — 그러면 아래
      공구 상세가 다시 접힌다. 시간은 줄에서 빼고 말풍선에만 남긴다. */
@@ -398,15 +475,7 @@
     .dmid b{font-size:25px} .dmid{padding:0 18px}
     .dleg .hr{display:none}
   }
-  @media(max-width:1340px){
-    .dwrap{grid-template-columns:230px 1fr;gap:16px}
-    .senscol{grid-column:1;min-height:0}
-    .sumcol{grid-column:1;min-height:0}
-    .sumcol .srow{padding:9px 14px}
-    .donut{grid-column:2;grid-row:1/3}
-  }
-  @media(max-width:900px){ .dwrap{grid-template-columns:1fr}
-    .sumcol{min-height:0} .srow{padding:9px 13px}
+  @media(max-width:900px){ .srow{padding:9px 13px}
     .donut{grid-template-columns:1fr} .dchart{margin:0 auto}
     .dside{min-height:0} .dside .dkey{margin-top:0} }
   /* 구간 혼합 경고는 띠로 두지 않는다. 화면 맨 위에서 한 줄을 통째로 먹는데
@@ -777,6 +846,18 @@
   </div>
 
   <div id="col">
+  <!-- 맨 위 띠 — 왼쪽은 «지금 어느 메뉴에 있나», 오른쪽은 «이 숫자가 언제
+       것인가». 값이 얼마나 묵었는지는 어느 탭에서나 같은 자리에 있어야
+       한다. 대시보드 판 안에만 두었을 때는 다른 탭에서 알 길이 없었다. -->
+  <div id="top">
+    <div class="crumb" id="crumb"></div>
+    <div class="tstat">
+      <span class="live" title="집계를 만든 때부터 흐른 시간입니다 — 실시간 값은 아닙니다">
+        <i class="dot"></i>센서 수집 중 <span class="since">—</span></span>
+      <span class="tlast">마지막 반영 <b id="tbuilt">—</b></span>
+    </div>
+  </div>
+
   <div id="basis">
     <div class="bset"><span>구간</span><select id="b_seg" onchange="setBasis()"></select>
       <button class="help" id="h_seg" type="button" title="구간이란" onclick="openHelp('segment')">?</button></div>
@@ -796,10 +877,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="937a9d1781">
+<meta name="mes-build" content="293a74d6ff">
 <script>
 (function(){
-  var mine = "937a9d1781";
+  var mine = "293a74d6ff";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -936,10 +1017,24 @@ function fillBasisBar(b){
   sel($('b_anchor'), b.anchor_options.map(a=>({v:a.v,t:a.label})), b.anchor);
   B.seg=b.segment; B.life=b.life_days; B.week=b.week_hours; B.anchor=b.anchor;
 
-  // 한 줄로 쓴다. 두 줄이면 기준 막대가 선택칸보다 높아져 아래에 빈 띠가 생긴다.
+  /* 산출 기준 줄. 예전에는 선택칸 옆에 한 줄로 밀어 넣어 «관측 162.68h» 가
+     자잘한 회색 글자로 묻혀 있었고, 그래서 같은 값을 요약 카드로 한 번 더
+     적고 있었다. 제 줄을 주고 굵게 세우면 카드가 필요 없다. */
+  const used = 100 * b.observed_hours / b.life_cut_hours;
   $('bnote').innerHTML =
-    `기준 <b>${b.life_days}일 = 절삭 ${num(Math.round(b.life_cut_hours))}h</b> · 하루 ${b.day_hours.toFixed(2)}h` +
-    ` · 관측 ${b.observed_hours}h = 기준 수명의 <b>${(100*b.observed_hours/b.life_cut_hours).toFixed(2)}%</b>`;
+    `<span class="bk">산출 기준</span>` +
+    `<span>기준 <b>${b.life_days}일</b> = 절삭 <b>${num(Math.round(b.life_cut_hours))}h</b></span>` +
+    `<span class="bsep"></span><span>하루 <b>${b.day_hours.toFixed(2)}h</b></span>` +
+    `<span class="bsep"></span><span>관측 절삭 <b>${b.observed_hours}h</b></span>` +
+    `<span class="buse" title="관측 절삭 ${b.observed_hours}h / 기준 수명 절삭 ${num(Math.round(b.life_cut_hours))}h">` +
+      `<span>기준 수명 소진</span>` +
+      `<i><em style="width:${Math.min(100, Math.max(0, used)).toFixed(2)}%"></em></i>` +
+      `<b>${used.toFixed(2)}%</b></span>`;
+
+  // 맨 위 띠의 «마지막 반영» — 어느 탭에서나 보이는 자리다
+  const tb = $('tbuilt');
+  if(tb) tb.textContent = (b.built||'').slice(5,16) || '-';
+  tickSens(b.built);
 
   // 구간 혼합 표시. 예전에는 화면 맨 위에 띠를 깔았는데, 늘 같은 문장이
   // 한 줄을 먹고 있어서 며칠이면 아무도 안 읽는다. 「구간」 옆 «?» 를
@@ -1018,13 +1113,33 @@ const sumRow=(k,v,u,c)=>`<div class="srow ${c||''}"><span class="k">${k}</span><
    보고 있나» 를 찾는 자리가 화면마다 달랐다. 자리를 하나로 못 박는다.
      pin 을 넘기지 않으면 지금 기준의 구간·기간을 쓰고,
      pin 에 '' 를 주면 구간 표를 아예 안 붙인다 (구간과 무관한 화면). */
-function pageHead(title, note, pin){
+/*   right 를 주면 제목 줄 오른쪽 끝에 붙는다 — 그 화면이 제일 먼저 답해야
+     하는 한 가지(대시보드라면 «갈 게 있나») 를 두는 자리다. 숫자를 카드로
+     줄지어 세우지 않고 제목 옆에 두면, 화면 한 줄을 안 먹고도 맨 먼저 읽힌다. */
+function pageHead(title, note, pin, right){
   const b = BASIS || {};
   const p = pin !== undefined ? pin
     : (b.segment_label ? b.segment_label + (b.segment_period ? ' · ' + b.segment_period : '') : '');
-  return `<h2>${title}</h2>` + (p || note
+  const head = `<h2>${title}</h2>` + (p || note
     ? `<div class="desc">${p ? `<span class="pin">${esc(p)}</span>` : ''}${note || ''}</div>`
     : '');
+  return right ? `<div class="ptop"><div class="pmain">${head}</div>${right}</div>` : head;
+}
+
+/* 맨 위 띠의 «현황 › 대시보드». 왼쪽 기둥에서 지금 눌린 칸과 그 칸이 속한
+   묶음을 그대로 읽어 온다 — 탭 이름을 여기에 또 적어 두면 「종합」처럼
+   다른 파일이 붙인 칸이 빠지고, 이름을 고칠 때 한 곳을 반드시 빠뜨린다. */
+function setCrumb(){
+  const el = $('crumb'); if(!el) return;
+  const on = document.querySelector('nav button.on');
+  if(!on){ el.innerHTML = ''; return; }
+  let grp = '', n = on;
+  while((n = n.previousElementSibling))
+    if(n.classList && n.classList.contains('ngrp')){ grp = n.textContent.trim(); break; }
+  const s = on.querySelector('span');
+  const nm = (s ? s.textContent : on.title || '').trim();
+  el.innerHTML = (grp ? `<span class="cg">${esc(grp)}</span><span class="cs">›</span>` : '')
+    + `<b>${esc(nm)}</b>`;
 }
 /* 카드를 눌러 그 항목만 보게 한다. .cards 가 flex 라 래퍼 div 로 감싸면
    카드가 안 늘어난다 — 그래서 카드 자체에 onclick 을 심는다.
@@ -1057,6 +1172,7 @@ function wrapTables(root){
 
 async function render(){
   placeSide();          // 딸린 목록을 지금 눌린 메뉴 밑으로
+  setCrumb();           // 맨 위 띠의 «현황 › 대시보드»
   await renderTab();
   wrapTables($('main'));   // 다 그린 뒤에 긴 표만 제 칸에 넣는다
 }
@@ -1315,20 +1431,24 @@ function sensPanel(b, ov, hs){
   /* 안 들어오는 것도 같이 적는다. 빠진 것을 안 적으면 «다 들어온다» 로 읽힌다 */
   const OFF = ['알람 코드', '진동 첨도', '생산 수량', '고정 사이클 G코드'];
 
-  return `<div class="senscol">
-    <div class="shead"><i class="dot"></i>센서 수집
-      <b id="since" title="집계를 만든 때부터 흐른 시간">—</b></div>
+  const onN = sigs.filter(g => g.on).length;
+  const allN = sigs.length + OFF.length;
+
+  return `<div class="senscol bare">
+    <div class="sline"><span>최근 수집</span>
+      <b class="since" id="since" title="집계를 만든 때부터 흐른 시간">—</b></div>
     <div class="sline"><span>마지막 반영</span>
       <b>${esc((b.built||'').slice(5,16) || '-')}</b></div>
     <div class="sline"><span>자료 기간</span>
       <b>${dr.count||0}일</b><em>${esc((dr.min||'').slice(5))}~${esc((dr.max||'').slice(5))}</em></div>
     <div class="sline"><span>이 구간 행</span><b>${man(rows)}</b><em>행</em></div>
+    <div class="sigt">수집 채널<span>${onN} / ${allN} 사용</span></div>
     <div class="sigs">
       ${sigs.map(g=>`<span class="sig ${g.on?'on':'off'}" title="${num(g.n)}행">
         <i></i>${g.nm}</span>`).join('')}
       ${OFF.map(n=>`<span class="sig off" title="이 설비에서 값이 안 들어옵니다"><i></i>${n}</span>`).join('')}
-      ${helpBtn('sensor')}
     </div>
+    <button class="slnk" type="button" onclick="openHelp('sensor')">채널 설명 보기 ›</button>
   </div>`;
 }
 
@@ -1336,18 +1456,22 @@ function sensPanel(b, ov, hs){
    앞 시계를 반드시 끈다 — 안 끄면 탭을 옮길 때마다 시계가 하나씩 쌓인다. */
 function tickSens(built){
   if(SENS_T){ clearInterval(SENS_T); SENS_T = null; }
-  const el = $('since'); if(!el) return;
+  /* 시계가 둘이다 — 맨 위 띠(어느 탭에서나)와 대시보드의 수집 현황 판.
+     한 칸만 갱신하면 다른 하나가 «—» 인 채로 굳는다. */
+  const all = () => document.querySelectorAll('.since');
+  if(!all().length) return;
   const t0 = built ? new Date(String(built).replace(' ', 'T')).getTime() : NaN;
-  if(!(t0 > 0)){ el.textContent = '시각 없음'; return; }
+  if(!(t0 > 0)){ all().forEach(e => e.textContent = '시각 없음'); return; }
   const draw = () => {
-    const el2 = $('since');
-    if(!el2){ clearInterval(SENS_T); SENS_T = null; return; }   // 화면이 바뀌었다
+    const els = all();
+    if(!els.length){ clearInterval(SENS_T); SENS_T = null; return; }   // 화면이 바뀌었다
     let s = Math.max(0, Math.floor((Date.now() - t0) / 1000));
     const d = Math.floor(s/86400); s -= d*86400;
     const h = Math.floor(s/3600);  s -= h*3600;
     const m = Math.floor(s/60);    s -= m*60;
     const p = v => String(v).padStart(2,'0');
-    el2.textContent = (d?d+'일 ':'') + `${p(h)}:${p(m)}:${p(s)} 전`;
+    const txt = (d?d+'일 ':'') + `${p(h)}:${p(m)}:${p(s)} 전`;
+    els.forEach(e => e.textContent = txt);
   };
   draw();
   SENS_T = setInterval(draw, 1000);
@@ -1412,7 +1536,8 @@ function donutTop(tools, n, sel){
       ${g.tool == null ? '' : `onclick="SEL.tool=${g.tool};render()"`}>
       <span class="rk">${i + 1}</span>
       <i style="background:${g.col};opacity:${g.op.toFixed(3)}"></i>
-      <span class="nm">${g.tool == null ? esc(g.name) : 'T' + g.tool + ' ' + esc(g.name)}</span>
+      <span class="nm">${g.tool == null ? esc(g.name) : 'T' + g.tool + ' ' + esc(g.name)}${
+        i === 0 ? '<span class="top1">최다 사용</span>' : ''}</span>
       <span class="hr">${g.h.toFixed(1)}h</span>
       <span class="we lv${g.lv}">${g.wear == null ? '' : g.wear.toFixed(1) + '%'}</span>
     </button>`;
@@ -1437,10 +1562,6 @@ function donutTop(tools, n, sel){
       style="background:var(--chart-bar);margin-left:-2px"></i>진할수록 많이 닳음</span>
     <span><i style="background:var(--warn)"></i>주의 90%↑</span>
     <span><i style="background:var(--danger)"></i>교체 100%↑</span>
-    <span class="sep"></span>
-    <span title="${top.length}종 ${all.toFixed(1)}h / 전체 ${allH.toFixed(1)}h${
-      rest.length ? ` · 나머지 ${rest.length}종 ${restH.toFixed(1)}h` : ''}">이 ${
-      top.length}종이 전체의 <b>${(100 * all / allH).toFixed(0)}%</b></span>
     ${typeof helpBtn === 'function' ? helpBtn('donut') : ''}</div>`;
 
   return `<div class="donut">
@@ -1517,9 +1638,23 @@ async function renderDash(){
   const busy = TOOLS.filter(x => (x.hours || 0) > 0)
                     .sort((a, b2) => b2.hours - a.hours).slice(0, 10);
   const hot = TOOLS.filter(x => x.wear >= 90).sort((a, b2) => b2.wear - a.wear);
+  /* 「상위 10종이 전체의 몇 %」. 원그래프 옆 범례에도 같은 값이 있는데,
+     거기서는 그림 안에서 견준 값이라 이 판 제목 밑에도 한 번 적는다. */
+  const allH2 = TOOLS.reduce((t, x) => t + (x.hours || 0), 0);
+  const busyPct = allH2 > 0
+    ? (100 * busy.reduce((t, x) => t + x.hours, 0) / allH2).toFixed(0) : '0';
+
+  /* 「갈 게 있나」 — 이 화면이 제일 먼저 답해야 하는 한 가지다. 카드 줄에
+     끼워 두면 옆의 세 장과 같은 무게로 읽히므로 제목 옆으로 올렸다. */
+  const rstat = `<div class="rstat ${hot.length?'bad':''}">
+    <span>교체가 필요한 공구 <b class="rn">${hot.length}</b>종</span>
+    ${hot.length
+      ? `<button class="rlnk" type="button" onclick="SEL.tool=${hot[0].tool};goTab('alert')">교체 목록 보기</button>`
+      : '<span class="muted" style="font-size:12px">마모 90% 넘긴 공구 없음</span>'}
+  </div>`;
 
   $('main').innerHTML = `
-    ${pageHead('대시보드', '지금 무엇이 급한지 · 무엇이 제일 많이 도는지')}
+    ${pageHead('대시보드', '지금 무엇이 급한지 · 무엇이 제일 많이 도는지', undefined, rstat)}
     ${s.anchor_live===false?`<div class="note warn">
       <b>기준 공구가 이 구간에서 안 돌았습니다</b> — 「기준 대비 진행」이 멈춰 있습니다.
       다른 공구 마모율은 정상입니다. ${helpBtn('anchor-stall')}</div>`:''}
@@ -1528,15 +1663,18 @@ async function renderDash(){
       <b>먼저 보세요</b> — ${hot.slice(0,4).map(x=>`<button class="lnk" onclick="SEL.tool=${x.tool};render()">T${x.tool} ${esc(x.name)} ${f2(x.wear)}%</button>`).join(' ')}
       ${hot.length>4?`<span class="muted">외 ${hot.length-4}종</span>`:''}</div>`:''}
 
-    <!-- 대시보드 첫 판 하나에 다 넣는다 — 요약 숫자 · 원그래프 · 공구 목록 ·
-         공구 고르는 칸. 예전에는 카드 줄 / 원그래프 판 / 「공구 하나 자세히
-         보기」 판이 따로 서서 화면 위쪽 600px 가까이를 쓰고 있었고, 범례와
-         빠른 선택 칩은 같은 상위 공구를 두 번 적고 있었다. 지금은 판 높이가
-         원그래프 높이(196px)로 묶여, 아래 공구 상세가 스크롤 없이 보인다. -->
+    <!-- 첫 줄은 판 둘 — 왼쪽 «어느 공구가 많이 도는가», 오른쪽 «이 숫자가
+         언제 것인가». 예전에는 넉 장짜리 요약 카드 줄이 위에 따로 서고,
+         그 아래 한 판이 센서·요약·원그래프 세 칸으로 갈려 있었다. 카드 줄은
+         네 숫자를 같은 무게로 세워 무엇이 급한지를 오히려 감췄고, 세 칸으로
+         갈린 판은 어느 것이 제목에 딸린 내용인지가 흐렸다.
+         카드 넷은 각자 설명하는 내용 옆으로 흩어 보냈다 — 교체 필요는 제목
+         옆, 최다 사용은 순위 1위 줄, 관측 절삭은 산출 기준 줄, 쓰는 공구
+         종수는 판 제목 밑 문장. 숫자가 설명과 붙어 있어야 읽고 남는다. -->
+    <div class="dash2">
     <div class="panel">
       <div class="phead">
-        <h4>어느 공구가 많이 도는가
-          <span class="hint">누르면 아래에 자세히 · 올리면 마모율</span></h4>
+        <h4>어느 공구가 많이 도는가</h4>
         <!-- 67종을 한 줄 목록으로만 두면 «T43 이 어디 있지» 를 눈으로 훑게
              된다. 찾기(글자)와 정렬(무엇이 위로 오나)을 칸 옆에 붙인다. -->
         <div class="tpick">
@@ -1553,17 +1691,23 @@ async function renderDash(){
           </select>
         </div>
       </div>
+      <!-- 「쓰는 공구 67종」 도 카드 한 장을 쓰고 있었다. 그 숫자가 뜻이
+           생기는 곳은 «그중 위 10종이 얼마나 도는가» 옆이므로 한 문장으로
+           합쳤다 — 숫자가 설명과 붙어 있어야 읽고 나서 남는 게 있다. -->
+      <div class="psub">쓰는 공구 <b>${s.tools}종</b> 중 상위 ${
+        Math.min(10, busy.length)}종이 전체 사용시간의 <b>${busyPct}%</b>
+        · 행을 누르면 아래에 자세히</div>
       <div class="dwrap">
-        ${sensPanel(b, ov, hs)}
-        <div class="sumcol">
-          ${sumRow('교체가 필요한 공구', hot.length, '종', hot.length?'warn':'ok')}
-          ${sumRow('가장 많이 쓴 공구', busy[0]?('T'+busy[0].tool):'-',
-                   busy[0]?f2(busy[0].hours)+'h':'')}
-          ${sumRow('관측 절삭', f2(s.cut_hours), 'h')}
-          ${sumRow('쓰는 공구', s.tools, '종')}
-        </div>
         ${donutTop(TOOLS, 10, SEL.tool)}
       </div>
+    </div>
+    <div class="panel">
+      <div class="phead">
+        <h4>데이터 수집 현황</h4>
+        <span class="live"><i class="dot"></i>센서 수집</span>
+      </div>
+      ${sensPanel(b, ov, hs)}
+    </div>
     </div>
 
     ${det ? `
