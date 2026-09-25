@@ -583,16 +583,31 @@
      그림이 없는 공구는 왼쪽 칸 자체가 안 생긴다(.haspic) — 빈 네모를 띄우면
      «사진이 깨졌나» 하고 한 번 더 보게 된다. */
   .tdet{display:block}
-  .tdet.haspic{display:grid;grid-template-columns:138px 1fr;gap:18px;align-items:start}
+  .tdet.haspic{display:grid;grid-template-columns:186px 1fr;gap:22px;align-items:start}
   .tpic{background:var(--raise);border:1px solid var(--line);border-radius:var(--r-sm);
-    padding:8px;display:flex;align-items:center;justify-content:center;
+    padding:14px;display:flex;align-items:center;justify-content:center;
     aspect-ratio:1/1;overflow:hidden}
   .tpic img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;
     image-rendering:-webkit-optimize-contrast}
   .tinfo{min-width:0}
-  @media(max-width:1500px){ .tdet.haspic{grid-template-columns:118px 1fr;gap:14px} }
+  /* 이 판의 줄은 다른 탭의 표보다 한 칸씩 크게 둔다. 일곱 줄뿐이라 여유를
+     줘도 판이 길어지지 않고, 발표 화면에서 뒷자리까지 읽힌다.
+     .tinfo 안으로 한정한다 — 전역 .row 를 건드리면 열 개 탭의 표가 전부
+     늘어나 한 화면에 들어가던 것이 스크롤로 밀린다. */
+  .tinfo .row{font-size:13.5px;padding:11px 0}
+  .tinfo .row > span:last-child{font-weight:650;color:var(--ink)}
+  .tinfo .act{margin-top:16px;padding:8px 16px;font-size:13px}
+  @media(max-width:1500px){ .tdet.haspic{grid-template-columns:150px 1fr;gap:16px} }
   @media(max-width:1100px){ .tdet.haspic{grid-template-columns:1fr;justify-items:center}
     .tpic{width:180px} .tinfo{width:100%} }
+
+  /* ── 인자별 기여 한 줄 ────────────────────────────────────
+     이름·값을 한 줄로 적고 그 «아래» 에 막대를 깐다. 막대를 옆에 두면
+     이름이 길 때 막대 폭이 제각각이 되어 넷을 서로 견줄 수가 없다. */
+  .fct{margin-bottom:16px}
+  .fct:last-of-type{margin-bottom:10px}
+  .fct .row{border:0;padding:0 0 7px;font-size:13.5px}
+  .fct .row > span:last-child{font-weight:650;color:var(--ink)}
   @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
 
   /* 판 제목 줄 오른쪽 — 찾기 · 정렬 · 고르기 한 벌.
@@ -622,14 +637,17 @@
   .chip .r{font-size:11px;opacity:.7}
 
   /* ── 게이지·막대 */
-  .gauge{position:relative;height:32px;background:var(--line-2);border-radius:8px;
-    overflow:hidden;margin:7px 0 14px;border:1px solid var(--line)}
-  .gauge i{display:block;height:100%;background:var(--accent);border-radius:7px 0 0 7px;
+  /* 마모율 막대. 이 판에서 제일 먼저 읽혀야 하는 한 줄이라 다른 막대보다
+     굵게 둔다 — 값은 막대 «가운데» 에 적는다. 끝에 붙이면 막대가 짧을 때
+     글자가 회색 바탕 위로 나가 어디까지가 찬 칸인지 흐려진다. */
+  .gauge{position:relative;height:44px;background:var(--line-2);border-radius:10px;
+    overflow:hidden;margin:9px 0 18px;border:1px solid var(--line)}
+  .gauge i{display:block;height:100%;background:var(--accent);border-radius:9px 0 0 9px;
     transition:width .3s ease}
   .gauge i.w{background:var(--warn)}
   .gauge i.d{background:var(--danger)}
-  .gauge span{position:absolute;top:0;left:0;right:0;line-height:30px;text-align:center;
-    font-weight:650;font-size:12.5px;color:var(--ink);
+  .gauge span{position:absolute;top:0;left:0;right:0;line-height:42px;text-align:center;
+    font-weight:700;font-size:15px;color:var(--ink);letter-spacing:-.01em;
     text-shadow:0 1px 2px rgba(255,255,255,.9)}
   .bar{height:6px;background:var(--line-2);border-radius:3px;overflow:hidden}
   .bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
@@ -877,10 +895,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="293a74d6ff">
+<meta name="mes-build" content="53ad9a5319">
 <script>
 (function(){
-  var mine = "293a74d6ff";
+  var mine = "53ad9a5319";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -1762,14 +1780,14 @@ async function renderDash(){
         ${[['실가공','machining'],['과부하','overload'],['충격','shock'],['조건급변','cond_change']].map(([k,f])=>{
           const v=det.tool[f], p=det.tool.wear?100*v/det.tool.wear:0;
           const off=(v===0);
-          return `<div style="margin-bottom:9px"><div class="row" style="border:0;padding:3px 0">
+          return `<div class="fct"><div class="row">
             <span>${k}${off?' <span class="tag w">미반영</span>':''}</span>
             <span class="mono">${f4(v)}% (${f2(p)}%)</span></div>${bar(p)}</div>`;
         }).join('')}
-        <div style="margin-bottom:9px"><div class="row" style="border:0;padding:3px 0">
+        <div class="fct"><div class="row">
           <span>알림 <span class="tag w">미수집</span> ${helpBtn('missing')}</span>
           <span class="mono">0.0000% (0.00%)</span></div>${bar(0)}</div>
-        <div class="dkey tp" style="margin-top:11px">
+        <div class="dkey tp" style="margin-top:14px">
           <span>${det.tool.cls==='breakage'
             ? '파손형 배분 — 실가공 20 · 과부하 40 · 충격 25 · 조건급변 15'
             : '마모형 배분 — 실가공 50 · 과부하 30 · 충격 10 · 알림 10'}</span>
