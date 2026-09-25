@@ -215,9 +215,11 @@
   /* 산출 기준 줄. flex-basis 100% 라 앞 칸들 아래로 «제 줄» 을 받는다 —
      이렇게 두면 날짜 칸을 붙이는 다른 파일(mes_ui.js)이 이 칸을 기준으로
      자리를 잡는 구조를 그대로 둘 수 있다. */
-  #bnote{flex:1 0 100%;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  /* flex:1 1 380px — 자리가 남으면 앞 칸 옆에 붙고, 좁으면 제 줄로 접힌다.
+     늘 100% 를 차지하게 두면 넉넉한 화면에서도 한 줄을 통째로 먹는다. */
+  #bnote{flex:1 1 380px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
     font-size:12px;color:var(--muted);line-height:1.35;
-    border-top:1px solid var(--line-2);margin-top:0;padding-top:5px}
+    padding-left:14px;border-left:1px solid var(--line)}
   #bnote b{color:var(--ink);font-weight:700}
   #bnote .bk{font-weight:650;color:var(--faint);letter-spacing:.02em}
   #bnote .bsep{width:1px;height:11px;background:var(--line);flex:none}
@@ -254,8 +256,8 @@
   .ptop{display:flex;align-items:center;justify-content:space-between;
     gap:18px;flex-wrap:wrap}
   .ptop .pmain{min-width:min(100%,300px)}
-  .rstat{display:flex;align-items:center;gap:11px;margin-bottom:13px;
-    padding:7px 9px 7px 14px;border-radius:var(--r);font-size:13px;color:var(--ink);
+  .rstat{display:flex;align-items:center;gap:11px;margin-bottom:7px;
+    padding:5px 9px 5px 13px;border-radius:var(--r);font-size:13px;color:var(--ink);
     border:1px solid var(--ok-line);background:var(--ok-soft);white-space:nowrap}
   .rstat.bad{border-color:var(--danger-line);background:var(--danger-soft)}
   .rstat .rn{font-weight:700;font-size:16px;color:var(--ok);
@@ -282,7 +284,7 @@
   .dash2 > .panel > .senscol{flex:1;min-height:0}
   /* 판 제목 밑 한 문장. 요약 카드 한 장이 하던 말을 여기로 옮겼다 —
      숫자만 덩그러니 세우지 않고 «무엇에 견준 몇 %인지» 를 같이 적는다. */
-  .psub{margin:-2px 0 9px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .psub{margin:-2px 0 7px;font-size:12.5px;color:var(--muted);line-height:1.5}
   .psub b{color:var(--ink);font-weight:700}
   @media(max-width:1340px){ .dash2{grid-template-columns:1fr} }
   /* ── 한 줄 안내 띠 ─────────────────────────────────────────
@@ -293,6 +295,9 @@
   .note.warn{background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn-ink)}
   .note.danger{background:var(--danger-soft);border-color:var(--danger-line);color:#991B1B}
   .note b{font-weight:650}
+  /* 판 «안» 에 들어가는 안내는 한 칸 작게. 바깥 띠와 같은 크기로 두면
+     이 판만 한 줄 분량 더 길어져 아래 내용이 화면 밖으로 밀린다. */
+  .note.nsm{margin:0 0 9px;padding:6px 11px;font-size:12px;line-height:1.5}
   .lnk{border:1px solid currentColor;background:transparent;color:inherit;font:inherit;
     font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;cursor:pointer}
   .lnk:hover{background:rgba(255,255,255,.55)}
@@ -455,13 +460,13 @@
     padding:10px 13px 9px}
   /* 제 판 안에 들어갈 때 — 판이 이미 테두리와 바탕을 갖고 있어 한 겹이면 된다 */
   .senscol.bare{border:0;background:transparent;padding:0;border-radius:0}
-  .senscol.bare .sline{font-size:12.5px;padding:7px 0}
+  .senscol.bare .sline{font-size:12.5px;padding:5px 0}
   .senscol.bare .sline b{font-size:14px}
-  .sigt{display:flex;align-items:baseline;gap:8px;margin-top:13px;
+  .sigt{display:flex;align-items:baseline;gap:8px;margin-top:9px;
     font-size:12px;font-weight:650;color:var(--ink-2)}
   .sigt span{margin-left:auto;font-weight:500;color:var(--faint);font-size:11.5px}
-  .senscol.bare .sigs{margin-top:8px;padding-top:0}
-  .slnk{margin-top:12px;border:0;background:transparent;font:inherit;font-size:12.5px;
+  .senscol.bare .sigs{margin-top:7px;padding-top:0}
+  .slnk{margin-top:9px;border:0;background:transparent;font:inherit;font-size:12.5px;
     color:var(--accent);cursor:pointer;padding:0;text-align:left;font-weight:600}
   .slnk:hover{text-decoration:underline}
   .shead{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:650;
@@ -477,7 +482,7 @@
     70%{box-shadow:0 0 0 7px rgba(5,150,105,0)}
     100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}}
   @media(prefers-reduced-motion:reduce){ .dot{animation:none} }
-  .sline{display:flex;align-items:baseline;gap:7px;padding:4px 0;font-size:11.5px;
+  .sline{display:flex;align-items:baseline;gap:7px;padding:3px 0;font-size:11.5px;
     color:var(--muted);border-bottom:1px solid var(--line-2)}
   .sline span{flex:none}
   .sline b{margin-left:auto;font-size:13px;font-weight:700;color:var(--ink);
@@ -485,10 +490,10 @@
   .sline em{font-style:normal;font-size:11px;color:var(--faint);flex:none}
   /* 신호 표는 칸 아래쪽에 붙인다 — 그림 높이에 맞춰 칸이 늘어나므로,
      위로 몰아 두면 아래가 통째로 빈다. */
-  .sigs{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto;padding-top:10px;
+  .sigs{display:flex;flex-wrap:wrap;gap:3px;margin-top:auto;padding-top:8px;
     align-items:center;align-content:flex-end}
-  .sig{display:inline-flex;align-items:center;gap:5px;font-size:11px;
-    padding:3px 8px;border-radius:999px;white-space:nowrap;
+  .sig{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;
+    padding:2px 7px;border-radius:999px;white-space:nowrap;
     background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent)}
   .sig i{width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
   .sig.off{background:var(--bg);border-color:var(--line);color:var(--faint)}
@@ -558,8 +563,8 @@
   .item.zero .m{color:rgba(255,255,255,.38)}
   .item.muted{color:rgba(255,255,255,.5);cursor:default}
   main{padding:18px 26px 40px;overflow-y:auto;min-height:0}
-  h2{font-size:19px;margin-bottom:2px;font-weight:700;letter-spacing:-.025em}
-  .desc{color:var(--muted);font-size:12.5px;margin-bottom:9px;
+  h2{font-size:17.5px;margin-bottom:1px;font-weight:700;letter-spacing:-.025em}
+  .desc{color:var(--muted);font-size:12.5px;margin-bottom:7px;
     display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   /* 구간·기간처럼 «지금 무엇을 보고 있나» 를 적는 표. 화면마다 자리가
      같아서, 탭을 옮겨도 눈이 같은 곳을 본다. */
@@ -654,11 +659,11 @@
   .fstack{display:flex;height:15px;border-radius:5px;overflow:hidden;
     background:var(--line-2);border:1px solid var(--line)}
   .fstack i{display:block;height:100%}
-  .fleg{display:flex;gap:13px;flex-wrap:wrap;margin:7px 0 13px;
+  .fleg{display:flex;gap:13px;flex-wrap:wrap;margin:6px 0 10px;
     font-size:11px;color:var(--muted)}
   .fleg span{display:inline-flex;align-items:center;gap:5px}
   .fleg i{width:8px;height:8px;border-radius:2px;flex:none}
-  .fct{margin-bottom:11px}
+  .fct{margin-bottom:9px}
   .fct:last-of-type{margin-bottom:10px}
   .fct .row{border:0;padding:0 0 5px;font-size:13px}
   .fct .row > span:last-child{font-weight:650;color:var(--ink)}
@@ -713,14 +718,14 @@
   .gauge u{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;
     text-decoration:none}
   .gauge u.warn{background:var(--warn)} .gauge u.dang{background:var(--danger)}
-  .gmk{display:flex;justify-content:space-between;margin:4px 0 12px;
+  .gmk{display:flex;justify-content:space-between;margin:4px 0 10px;
     font-size:10.5px;color:var(--faint)}
 
   /* 자주 묻는 넷 — 줄로 쌓지 않고 칸으로 세운다. 이 판에서만 쓰는 배치라
      전역 .cards (가로로 늘어나는 것) 와 따로 둔다. */
-  .tcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
-    margin-bottom:11px}
-  .tcards .card{margin:0;padding:8px 10px;min-width:0}
+  .tcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;
+    margin-bottom:9px}
+  .tcards .card{margin:0;padding:7px 10px;min-width:0}
   .tcards .card .k{font-size:11px;margin-bottom:2px;display:flex;align-items:center;
     gap:4px;flex-wrap:wrap}
   .tcards .card .v{font-size:19px}
@@ -981,10 +986,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="68256cdfca">
+<meta name="mes-build" content="76400c05a3">
 <script>
 (function(){
-  var mine = "68256cdfca";
+  var mine = "76400c05a3";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -1894,10 +1899,9 @@ async function renderDash(){
       </div>
     </div>
     <div class="panel">
-      <div class="phead">
-        <h4>데이터 수집 현황</h4>
-        <span class="live"><i class="dot"></i>센서 수집</span>
-      </div>
+      <!-- 제목 옆에 「센서 수집」 표를 또 달지 않는다. 맨 위 띠가 이미 같은
+           말을 하고 있고, 이 좁은 판에서는 제목 밑으로 접혀 한 줄을 더 먹었다. -->
+      <h4>데이터 수집 현황</h4>
       ${sensPanel(b, ov, hs)}
     </div>
     </div>
@@ -1932,8 +1936,8 @@ async function renderDash(){
           <u class="warn" style="left:90%" title="주의 90%"></u>
           <u class="dang" style="left:100%" title="교체 100%"></u></div>
         <div class="gmk"><span>0%</span><span>주의 90 · 교체 100</span></div>
-        ${det.tool.cls==='breakage'?`<div class="note warn" style="margin:8px 0 2px">
-          닳은 정도가 아니라 <b>받은 충격의 누적</b>입니다 — 낮아도 부러질 수 있습니다.
+        ${det.tool.cls==='breakage'?`<div class="note warn nsm">
+          닳은 정도가 아니라 <b>받은 충격의 누적</b> — 낮아도 부러질 수 있습니다.
           ${helpBtn('breakage')}</div>`:''}
         <!-- 자주 묻는 넷은 칸으로 세운다. 일곱 줄을 나란히 쌓으면 어느 것이
              «이 공구를 언제 갈아야 하나» 에 답하는 값인지 구분이 안 된다. -->
