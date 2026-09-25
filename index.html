@@ -269,7 +269,17 @@
   /* ── 대시보드 첫 줄 — 원그래프 판 · 수집 현황 판 ──────────────
      한 판 안에 셋을 욱여넣었더니 판 하나가 세 칸으로 갈려 어느 것이 제목에
      딸린 내용인지 흐려졌다. 성격이 다른 둘이므로 판을 나눈다. */
-  .dash2{display:grid;grid-template-columns:1fr 322px;gap:16px;align-items:start}
+  /* align-items:stretch — 두 판의 «바깥 높이» 를 같게 맞춘다. 안쪽이 남는
+     판은 아래가 비지만, 나란한 두 판의 밑선이 어긋나 있으면 그것부터 눈에
+     띄어 정작 내용을 안 본다. 판 스스로는 margin 을 안 갖게 하고(칸 사이는
+     grid 의 gap 이 맡는다), 안쪽 내용은 위부터 쌓이게 둔다. */
+  .dash2{display:grid;grid-template-columns:1fr 330px;gap:16px;
+    align-items:stretch;margin-bottom:10px}
+  .dash2 > .panel{margin-bottom:0;height:100%;display:flex;flex-direction:column}
+  .dash2 > .panel > .dwrap{flex:1;min-height:0}
+  /* 남는 자리는 목록과 신호표가 나눠 갖는다 — 판만 늘어나고 안은 위에
+     몰려 있으면, 맞춘 밑선이 오히려 «빈 칸» 으로 보인다. */
+  .dash2 > .panel > .senscol{flex:1;min-height:0}
   /* 판 제목 밑 한 문장. 요약 카드 한 장이 하던 말을 여기로 옮겼다 —
      숫자만 덩그러니 세우지 않고 «무엇에 견준 몇 %인지» 를 같이 적는다. */
   .psub{margin:-2px 0 9px;font-size:12.5px;color:var(--muted);line-height:1.5}
@@ -326,14 +336,17 @@
   /* ── 셋째 칸: 고른 공구의 최근 추이 ─────────────────────────
      그림 | 추이 | 순위. 가운데 칸은 그림에 «없는» 정보(날짜 축)를 맡는다.
      둘째 원그래프를 세우면 같은 자료를 두 번 그리는 셈이 된다. */
-  .donut.has3{grid-template-columns:minmax(0,236px) minmax(0,1fr) 358px;gap:18px}
+  .donut.has3{grid-template-columns:minmax(0,1fr) minmax(0,212px) 392px;gap:18px}
   .dtrend{display:flex;flex-direction:column;justify-content:center;min-width:0;
     border-left:1px solid var(--line-2);border-right:1px solid var(--line-2);
     padding:0 18px}
   .tth{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:700;
     color:var(--ink);margin-bottom:10px}
   .tth span{margin-left:auto;font-weight:500;font-size:11px;color:var(--faint)}
-  .ttsvg{width:100%;height:84px;display:block;overflow:visible}
+  /* 가로세로 비를 지켜 그린다. 예전에는 preserveAspectRatio="none" 으로
+     가로만 늘려서, 칸이 넓어지면 선이 납작해지고 점이 타원이 됐다 —
+     «깨진 그림» 처럼 보이던 것이 이것이다. */
+  .ttsvg{width:100%;height:auto;aspect-ratio:240/116;display:block;overflow:visible}
   .ttx{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);
     margin-top:5px;font-variant-numeric:tabular-nums}
   .ttv{display:flex;align-items:baseline;gap:8px;margin-top:11px;padding-top:9px;
@@ -349,15 +362,15 @@
   /* 좁아지면 추이를 그림·목록 «아래» 로 내린다. 셋을 계속 세워 두면
      그림이 읽을 수 없을 만큼 얇아진다. */
   @media(max-width:1460px){
-    .donut.has3{grid-template-columns:minmax(0,1fr) 320px}
+    .donut.has3{grid-template-columns:minmax(0,1fr) 340px}
     .dtrend{grid-column:1/-1;grid-row:2;border:0;border-top:1px solid var(--line-2);
       padding:12px 0 0}
-    .dtrend .ttsvg{height:70px}
+    .dtrend{max-width:520px}
   }
   /* 이 판의 높이는 그림 지름이 정한다(목록은 min-height:0 이라 제 안에서
      줄어든다). 그래서 «세로만 줄이기» = 지름 줄이기다. 340 → 282px.
      목록은 여덟아홉 줄이 보이고 나머지는 그 칸에서 굴러간다. */
-  .dchart{position:relative;width:100%;max-width:228px;aspect-ratio:1/1;
+  .dchart{position:relative;width:100%;max-width:272px;aspect-ratio:1/1;
     margin:0 auto;align-self:center}
   .dchart svg{width:100%;height:100%;display:block}
   .dside{display:flex;flex-direction:column;gap:7px;min-height:0}
@@ -371,7 +384,7 @@
   .dslice.sel{stroke:var(--warn);stroke-width:2.5;paint-order:stroke}
   .dmid{position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;pointer-events:none;text-align:center;padding:0 22px}
-  .dmid b{font-size:26px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
+  .dmid b{font-size:29px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
   .dmid b.lv1{color:var(--warn)} .dmid b.lv2{color:var(--danger)}
   .dmid span{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.35}
   .dmid.pick span{color:var(--warn-ink);font-weight:600}
@@ -502,7 +515,7 @@
      공구 상세가 다시 접힌다. 시간은 줄에서 빼고 말풍선에만 남긴다. */
   @media(max-width:1500px){
     .donut{grid-template-columns:1fr 300px;gap:16px}
-    .dchart{max-width:196px}
+    .dchart{max-width:232px}
     .dmid b{font-size:25px} .dmid{padding:0 18px}
     .dleg .hr{display:none}
   }
@@ -968,10 +981,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="eda2b55ab9">
+<meta name="mes-build" content="68256cdfca">
 <script>
 (function(){
-  var mine = "eda2b55ab9";
+  var mine = "68256cdfca";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -1455,7 +1468,7 @@ function wden(w, lo, hi){
    글자로 찾고, 무엇을 위로 올릴지 고를 수 있게 한다.
    찾기는 화면 전체를 다시 그리지 않고 목록 속만 갈아 끼운다 — 다시 그리면
    글자를 한 자 칠 때마다 입력칸에서 커서가 튕겨 나간다. */
-let TSEL_Q = '', TSEL_SORT = 'wear';
+let TSEL_Q = '', TSEL_SORT = 'hours';
 const TSORT = {
   wear:  ['마모율 높은 순',   (a,b)=> (b.wear ||0) - (a.wear ||0)],
   hours: ['사용시간 많은 순', (a,b)=> (b.hours||0) - (a.hours||0)],
@@ -1485,7 +1498,13 @@ function tfind(v){
   TSEL_Q = v;
   const el = $('tsel'); if(el) el.innerHTML = toolOptions();
 }
-function tsort(v){ TSEL_SORT = v; tfind(TSEL_Q); }
+function tsort(v){
+  TSEL_SORT = v;
+  /* 예전에는 tfind() 만 불러 «공구 고르는 칸» 의 차례만 바꿨다. 그 칸은
+     평소 접혀 있으니, 정렬을 골라도 화면에서는 아무 일도 안 일어난 것처럼
+     보였다. 순위 목록까지 같이 다시 그린다. */
+  render();
+}
 /* 찾기칸에서 Enter — 맨 위에 걸린 공구로 바로 간다 */
 function tfirst(){
   const first = toolHits()[0];
@@ -1572,7 +1591,7 @@ function tickSens(built){
   SENS_T = setInterval(draw, 1000);
 }
 
-function donutTop(tools, n, sel, mid2){
+function donutTop(tools, n, sel, mid2, sortKey){
   n = n || 10;
   const used = tools.filter(t => (t.hours || 0) > 0)
                     .sort((a, b) => b.hours - a.hours);
@@ -1621,7 +1640,18 @@ function donutTop(tools, n, sel, mid2){
      줄 바탕을 사용 비중만큼 칠한다 — 막대를 따로 그리면 줄 높이가 두 배가
      되는데, 바탕으로 깔면 높이를 안 먹고도 «누가 큰가» 가 한눈에 보인다.
      그림을 못 보는 상황(작은 화면·흑백 인쇄)에서도 목록만으로 읽힌다. */
-  const legend = seg.map((g, i) => {
+  /* 목록의 차례는 정렬 칸이 정한다. 그림 조각은 «사용량» 순서 그대로 두고
+     줄만 다시 세운다 — 마모율 순으로 그림까지 다시 그리면, 조각 크기는
+     여전히 사용량인데 차례만 마모율이라 둘이 어긋난 그림이 된다.
+     data-i 는 원래 조각 번호를 그대로 들고 간다(올리면 그 조각이 짚인다). */
+  const ord = seg.map((g, i) => ({g, i}));
+  if(sortKey && typeof TSORT === 'object' && TSORT[sortKey])
+    ord.sort((a, b) => TSORT[sortKey][1](a.g, b.g));
+  /* 「최다 사용」 은 차례가 아니라 «그 공구» 에 붙는다. 칸 번호로 달면
+     마모율 순으로 바꿨을 때 엉뚱한 줄에 최다 사용이 붙는다. */
+  const busiest = seg.length ? seg[0].tool : null;
+
+  const legend = ord.map(({g, i}, k) => {
     const pct = 100 * g.h / all;
     const sel_ = g.tool != null && g.tool === sel;
     return `<button class="dleg${sel_ ? ' sel' : ''}" data-i="${i}"
@@ -1629,10 +1659,10 @@ function donutTop(tools, n, sel, mid2){
         g.wear == null ? '' : ` · 마모 ${g.wear.toFixed(2)}%`}"
       style="background-image:linear-gradient(90deg,var(--accent-soft) ${pct.toFixed(1)}%,transparent ${pct.toFixed(1)}%)"
       ${g.tool == null ? '' : `onclick="SEL.tool=${g.tool};render()"`}>
-      <span class="rk">${i + 1}</span>
+      <span class="rk">${k + 1}</span>
       <i style="background:${g.col};opacity:${g.op.toFixed(3)}"></i>
       <span class="nm">${g.tool == null ? esc(g.name) : 'T' + g.tool + ' ' + esc(g.name)}${
-        i === 0 ? '<span class="top1">최다 사용</span>' : ''}</span>
+        g.tool != null && g.tool === busiest ? '<span class="top1">최다 사용</span>' : ''}</span>
       <span class="hr">${g.h.toFixed(1)}h</span>
       <span class="we lv${g.lv}">${g.wear == null ? '' : g.wear.toFixed(1) + '%'}</span>
     </button>`;
@@ -1702,7 +1732,7 @@ function trendCol(det){
     return head + `<div class="ttnone">이 구간에 돌아간 날이 ${
       last.length}일뿐입니다 — 이틀은 있어야 오르내림을 말할 수 있습니다</div></div>`;
 
-  const W = 240, H = 84, PX = 6, PY = 10;
+  const W = 240, H = 116, PX = 7, PY = 13;
   const vs = last.map(d => d.wear);
   let lo = Math.min(...vs), hi = Math.max(...vs);
   if(hi - lo < 1e-9){ hi = lo + Math.max(lo * 0.1, 1e-6); lo = Math.max(0, lo - (hi - lo)); }
@@ -1721,7 +1751,7 @@ function trendCol(det){
   const up = a2 > a1, flat = Math.abs(a2 - a1) < a1 * 0.05;
   const dpct = a1 > 0 ? 100 * (a2 - a1) / a1 : 0;
 
-  return head + `<svg class="ttsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+  return head + `<svg class="ttsvg" viewBox="0 0 ${W} ${H}"
       role="img" aria-label="T${t.tool} 날짜별 마모량">
     <path d="${area}" fill="var(--accent-soft)"></path>
     <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"
@@ -1856,11 +1886,11 @@ async function renderDash(){
       <!-- 「쓰는 공구 67종」 도 카드 한 장을 쓰고 있었다. 그 숫자가 뜻이
            생기는 곳은 «그중 위 10종이 얼마나 도는가» 옆이므로 한 문장으로
            합쳤다 — 숫자가 설명과 붙어 있어야 읽고 나서 남는 게 있다. -->
-      <div class="psub">쓰는 공구 <b>${s.tools}종</b> 중 상위 ${
-        Math.min(10, busy.length)}종이 전체 사용시간의 <b>${busyPct}%</b>
-        · 행을 누르면 아래에 자세히</div>
+      <div class="psub">쓰는 공구 <b>${s.tools}종</b> 중 사용시간 상위 ${
+        Math.min(10, busy.length)}종이 전체의 <b>${busyPct}%</b>
+        · 목록은 <b>${esc(TSORT[TSEL_SORT][0])}</b> · 행을 누르면 아래에 자세히</div>
       <div class="dwrap">
-        ${donutTop(TOOLS, 10, SEL.tool, trendCol(det))}
+        ${donutTop(TOOLS, 10, SEL.tool, trendCol(det), TSEL_SORT)}
       </div>
     </div>
     <div class="panel">
