@@ -342,7 +342,10 @@
      그림 | 추이 | 순위. 가운데 칸은 그림에 «없는» 정보(날짜 축)를 맡는다.
      둘째 원그래프를 세우면 같은 자료를 두 번 그리는 셈이 된다. */
   .donut.has3{grid-template-columns:minmax(0,1fr) minmax(0,212px) 392px;gap:18px}
+  /* 높이를 못 박는다. 그림이 있는 공구와 «이틀뿐» 인 공구를 오갈 때 이 칸이
+     늘었다 줄었다 하면, 옆의 원그래프·목록까지 같이 들썩인다. */
   .dtrend{display:flex;flex-direction:column;justify-content:center;min-width:0;
+    height:238px;
     border-left:1px solid var(--line-2);border-right:1px solid var(--line-2);
     padding:0 18px}
   .tth{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:700;
@@ -359,18 +362,21 @@
   .ttv b{margin-left:auto;font-size:14px;font-weight:700;color:var(--ink);
     font-variant-numeric:tabular-nums}
   .ttv b em{font-style:normal;font-size:11px;font-weight:500;color:var(--muted);margin-left:1px}
-  .ttd{margin-top:7px;font-size:11.5px;color:var(--muted);line-height:1.5}
+  /* 두 줄까지 자리를 미리 잡아 둔다 — 「앞뒤 절반이 비슷합니다」 한 줄과
+     「뒤 절반이 앞 절반보다 9% 느립니다」 두 줄이 번갈아 나오기 때문이다. */
+  .ttd{margin-top:7px;font-size:11.5px;color:var(--muted);line-height:1.5;
+    min-height:34px}
   .ttd b{font-weight:700;color:var(--ink)}
   .ttd.up b{color:var(--warn)}   /* 빨라지고 있다 — 눈길이 가야 한다 */
   .ttd.dn b{color:var(--ok)}
-  .ttnone{font-size:11.5px;color:var(--faint);line-height:1.6;padding:14px 0}
+  .ttnone{font-size:11.5px;color:var(--faint);line-height:1.6;padding:14px 0;text-align:center}
   /* 좁아지면 추이를 그림·목록 «아래» 로 내린다. 셋을 계속 세워 두면
      그림이 읽을 수 없을 만큼 얇아진다. */
   @media(max-width:1460px){
     .donut.has3{grid-template-columns:minmax(0,1fr) 340px}
     .dtrend{grid-column:1/-1;grid-row:2;border:0;border-top:1px solid var(--line-2);
       padding:12px 0 0}
-    .dtrend{max-width:520px}
+    .dtrend{max-width:520px;height:auto;min-height:200px}
   }
   /* 이 판의 높이는 그림 지름이 정한다(목록은 min-height:0 이라 제 안에서
      줄어든다). 그래서 «세로만 줄이기» = 지름 줄이기다. 340 → 282px.
@@ -1119,10 +1125,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="6128f77bd0">
+<meta name="mes-build" content="f365bd6f3d">
 <script>
 (function(){
-  var mine = "6128f77bd0";
+  var mine = "f365bd6f3d";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -2505,31 +2511,45 @@ async function renderDash(){
           <u class="warn" style="left:90%" title="주의 90%"></u>
           <u class="dang" style="left:100%" title="교체 100%"></u></div>
         <div class="gmk"><span>0%</span><span>주의 90 · 교체 100</span></div>
-        ${det.tool.cls==='breakage'?`<div class="note warn nsm">
-          닳은 정도가 아니라 <b>받은 충격의 누적</b> — 낮아도 부러질 수 있습니다.
-          ${helpBtn('breakage')}</div>`:''}
+        <!-- 파손형에만 띄우던 안내였다. 그런데 공구를 바꿀 때마다 이 한 줄이
+             생겼다 없어져서, 아래 칸·줄·단추가 통째로 위아래로 들썩였다.
+             두 갈래 다 한 줄씩 적어 «늘 있는 자리» 로 만든다. -->
+        ${det.tool.cls==='breakage'
+          ? `<div class="note warn nsm">닳은 정도가 아니라 <b>받은 충격의 누적</b>
+              — 낮아도 부러질 수 있습니다. ${helpBtn('breakage')}</div>`
+          : `<div class="note nsm">기준 수명을 <b>100</b> 으로 본 값입니다
+              — 100 에 가까울수록 갈 때입니다. ${helpBtn('wear')}</div>`}
         <!-- 자주 묻는 넷은 칸으로 세운다. 일곱 줄을 나란히 쌓으면 어느 것이
              «이 공구를 언제 갈아야 하나» 에 답하는 값인지 구분이 안 된다. -->
         <div class="tcards">
           ${cardHtml('예상 수명 <span class="tag w">참고</span>' + helpBtn('life'), days(det.tool.life), '')}
-          ${det.tool.wear_h!==null&&det.tool.wear_h!==undefined
-            ? cardHtml(((b.horizon&&b.horizon.label)||'예상') + ' <span class="tag b">예측</span>',
-                       f2(det.tool.wear_h), '%', 'hl')
-            : ''}
+          <!-- 값이 없어도 칸은 세운다. 빼 버리면 넷이 셋이 되면서 남은 칸이
+               넓어져, 옆 공구와 견줄 때 같은 자리를 못 찾는다. -->
+          ${cardHtml(((b.horizon&&b.horizon.label)||'예상') + ' <span class="tag b">예측</span>',
+                     (det.tool.wear_h!==null&&det.tool.wear_h!==undefined)
+                       ? f2(det.tool.wear_h) : '—',
+                     (det.tool.wear_h!==null&&det.tool.wear_h!==undefined) ? '%' : '', 'hl')}
           ${cardHtml('사용강도 (평균 대비)' + helpBtn('intensity'), inten(det.tool.intensity), '')}
           ${cardHtml('누적 절삭', f2(det.tool.hours), 'h')}
         </div>
-        ${det.tool.trend?`<div class="row">
-          <span>소요 전류 추세 <span class="tag ${det.tool.trend.pct_per_week>1?'b':'w'}">관측</span> ${helpBtn('trend')}</span>
-          <span class="mono">${det.tool.trend.pct_per_week>0?'+':''}${f2(det.tool.trend.pct_per_week)} %/주
-            · 누적 ${det.tool.trend.cum_pct>0?'+':''}${f2(det.tool.trend.cum_pct)} %</span></div>
-          `:''}
+        <!-- 추세를 못 낸 공구(자료가 적은 공구)에서는 이 줄이 통째로 없어져
+             아래가 한 칸 올라왔다. 못 낸 것도 «못 냈다» 고 적는 편이 낫다. -->
+        <div class="row">
+          <span>소요 전류 추세 <span class="tag ${det.tool.trend&&det.tool.trend.pct_per_week>1?'b':'w'}">관측</span> ${helpBtn('trend')}</span>
+          ${det.tool.trend
+            ? `<span class="mono">${det.tool.trend.pct_per_week>0?'+':''}${f2(det.tool.trend.pct_per_week)} %/주
+                · 누적 ${det.tool.trend.cum_pct>0?'+':''}${f2(det.tool.trend.cum_pct)} %</span>`
+            : `<span class="mono muted" title="같은 조건으로 묶이는 자료가 모자라 기울기를 못 냅니다">자료 부족</span>`}</div>
         <div class="row"><span>세트 내 기여도</span><span class="mono">${f2(det.tool.share)} %</span></div>
-        ${det.tool.replaced_at?`<div class="row"><span>교체 기록</span>
-          <span class="mono">${det.tool.replaced_at} 부터</span></div>
-          <div class="note" style="margin:8px 0 0">${det.tool.replaced_at} 교체 이후로만 센 값입니다.
-            ${det.tool.replace_note?`<span style="color:var(--warn-ink)">${det.tool.replace_note}</span>`:''}
-          </div>`:''}
+        <!-- 교체한 공구에서만 줄 하나 + 안내 한 덩이가 붙어 판이 60px 씩
+             길어졌다. 줄은 늘 두고, 안내는 그 줄의 말풍선으로 옮긴다. -->
+        <div class="row"><span>교체 기록</span>
+          ${det.tool.replaced_at
+            ? `<span class="mono" style="color:var(--warn-ink)"
+                 title="${esc(det.tool.replaced_at)} 교체 이후로만 센 값입니다.${
+                   det.tool.replace_note ? ' ' + esc(det.tool.replace_note) : ''}"
+                >${esc(det.tool.replaced_at)} 부터</span>`
+            : '<span class="mono muted">없음</span>'}</div>
         ${ME.role==='manager'?`<div style="margin-top:11px">
           <button class="act sec" title="이 공구를 갈았다고 기록합니다 — 그날부터 다시 셉니다"
             onclick="openReplace(${det.tool.tool})">교체 처리</button></div>`:''}
@@ -2644,9 +2664,16 @@ async function renderDash(){
 
    zoom 을 쓴다. transform:scale 은 줄여도 «원래 크기의 자리» 를 그대로
    차지해서, 줄인 만큼 빈 칸이 남고 누르는 자리도 어긋난다. */
-function fitDash(){
+let FIT_Z = null, FIT_KEY = '';
+function fitDash(force){
   const m = $('main'), d = $('dfit');
   if(!m || !d) return;
+  /* 배율은 «창 크기» 가 정하는 값이지 «고른 공구» 가 정하는 값이 아니다.
+     공구를 누를 때마다 다시 재면, 내용이 한 줄 다른 것만으로 화면 전체가
+     미묘하게 커졌다 작아졌다 한다 — 위 ①~⑥ 으로 높이를 맞춰 놨어도
+     소수점 아래에서 흔들린다. 창 크기가 그대로면 앞서 잰 값을 그대로 쓴다. */
+  const key = m.clientWidth + 'x' + m.clientHeight;
+  if(!force && FIT_Z !== null && FIT_KEY === key){ d.style.zoom = FIT_Z; return; }
   d.style.zoom = '';                       // 먼저 원래 크기로 되돌려 잰다
   const g = d.querySelector('.grid2');
   if(!g) return;
@@ -2654,8 +2681,10 @@ function fitDash(){
   try{ pad = parseFloat(getComputedStyle(m).paddingTop) || 14; }catch(e){}
   const avail = m.clientHeight - pad - 10;             // 밑선 아래 숨 쉴 틈
   const need  = g.getBoundingClientRect().bottom - d.getBoundingClientRect().top;
-  if(!(avail > 40 && need > 0) || need <= avail) return;
-  d.style.zoom = Math.max(0.78, avail / need).toFixed(4);
+  if(!(avail > 40 && need > 0)) return;
+  FIT_KEY = key;
+  FIT_Z = need <= avail ? '' : Math.max(0.78, avail / need).toFixed(4);
+  d.style.zoom = FIT_Z;
 }
 /* 창 크기가 바뀌면 다시 맞춘다. 매 픽셀마다 재면 끌 때 화면이 떤다.
    「크게 보기」 로 산점도를 띄운 동안에는 건드리지 않는다 — 그 창은 화면을
@@ -2665,7 +2694,7 @@ if(typeof window !== 'undefined' && window.addEventListener)
   window.addEventListener('resize', () => {
     if(FIT_T) clearTimeout(FIT_T);
     FIT_T = setTimeout(() => {
-      if(TAB === 'dash' && !(typeof SCAT_BIG !== 'undefined' && SCAT_BIG)) fitDash();
+      if(TAB === 'dash' && !(typeof SCAT_BIG !== 'undefined' && SCAT_BIG)) fitDash(true);
     }, 160);
   });
 
