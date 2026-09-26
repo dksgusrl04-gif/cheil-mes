@@ -378,6 +378,139 @@
   .dchart{position:relative;width:100%;max-width:232px;aspect-ratio:1/1;
     margin:0 auto;align-self:center}
   .dchart svg{width:100%;height:100%;display:block}
+  /* ── 사용시간 × 마모율 산점도 (원그래프 자리) ── */
+  .schart{position:relative;min-width:0;width:100%;max-width:600px;margin:0 auto;align-self:center}
+  .schart svg{width:100%;height:auto;display:block;overflow:visible}
+  .scat .sax{fill:var(--faint);font-size:10.5px;font-variant-numeric:tabular-nums}
+  .scat .sgl{stroke:var(--line-2);stroke-width:1}
+  .scat .sbase{stroke:var(--line);stroke-width:1}
+  .scat .szone{fill:var(--warn);opacity:.05}
+  .scat .szt{fill:var(--warn-ink);font-size:10.5px;font-weight:600;opacity:.8}
+  .scat .savg{stroke:var(--faint);stroke-width:1.5;stroke-dasharray:5 4}
+  .scat .savgt{fill:var(--muted);font-size:10.5px}
+  .spt{cursor:pointer;transition:opacity .12s}
+  .spt:focus{outline:none}
+  .spt .shit{fill:transparent}
+  .spt .sdot{fill:var(--chart-bar);stroke:var(--surface);stroke-width:1.5}
+  .spt.fast .sdot{fill:var(--accent)}
+  .spt.lv1 .sdot{fill:var(--warn)} .spt.lv2 .sdot{fill:var(--danger)}
+  .spt text{fill:var(--ink-2);font-size:10.5px;font-weight:600;pointer-events:none}
+  .spt:hover .sdot,.spt:focus .sdot{stroke:var(--ink);stroke-width:1.5}
+  /* 고른 점 — 원그래프 때처럼 주황 테두리로만 짚는다 (칠하는 색은 단계가 쓴다) */
+  .spt.sel .sdot{stroke:var(--warn);stroke-width:3}
+  .spt.sel text{fill:var(--warn-ink)}
+  .spt.dim{opacity:.3}
+  .stip{position:absolute;pointer-events:none;background:#0F172A;color:#fff;border-radius:7px;
+    padding:7px 10px;font-size:11.5px;line-height:1.55;white-space:nowrap;opacity:0;
+    transform:translate(-50%,calc(-100% - 12px));transition:opacity .1s;z-index:5}
+  .stip.on{opacity:1}
+  .stip span{color:#CBD5E1}
+  .slh{display:flex;align-items:center;gap:8px;padding:0 9px 5px;font-size:10.5px;color:var(--faint);
+    border-bottom:1px solid var(--line-2)}
+  .slh .nm{flex:1}
+  .slh .hr{width:auto} .slh .we{width:50px;text-align:right}
+  .dleg .rt,.slh .rt{width:40px;text-align:right;flex:none;font-size:11.5px;color:var(--faint);
+    font-variant-numeric:tabular-nums}
+  .dleg .rt.fast{color:var(--accent);font-weight:650}
+  .scat .dlegs{max-height:236px}
+  .dleg.off{opacity:.45}
+  /* ── 큰 자리 | 미리보기 | 목록 ── */
+  .smain{min-width:0;display:flex;flex-direction:column}
+  .smhead{display:flex;align-items:center;gap:8px;margin-bottom:4px;min-height:28px}
+  .smhead > b{font-size:13.5px;color:var(--ink)}
+  .smhead > span{font-size:11.5px;color:var(--faint)}
+  .smexp,.smx{margin-left:auto;display:flex;align-items:center;gap:5px;border:1px solid var(--line-in);
+    background:var(--surface);color:var(--ink-2);border-radius:var(--r-sm);padding:4px 10px;font:inherit;
+    font-size:12px;cursor:pointer;white-space:nowrap}
+  .smexp svg{width:13px;height:13px}
+  .smexp:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .smx{font-size:20px;line-height:1;padding:2px 10px;border-color:transparent;color:var(--muted)}
+  .smx:hover{background:var(--line-2);color:var(--ink)}
+  .smtabs{display:flex;border:1px solid var(--line-in);border-radius:var(--r-sm);overflow:hidden}
+  .smtabs button{border:0;background:var(--surface);font:inherit;font-size:12.5px;padding:6px 14px;
+    cursor:pointer;color:var(--ink-2)}
+  .smtabs button + button{border-left:1px solid var(--line-in)}
+  .smtabs button.on{background:var(--accent);color:#fff;font-weight:650}
+  .sdonut{flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px}
+  .sdonut .skey{margin-top:2px}
+  .tbig{flex:1;display:flex;align-items:center;justify-content:center}
+  .tbig .dtrend{border:0;padding:0;width:100%;max-width:560px}
+  .tbig .tth{display:none}
+  .sthumbs{display:flex;flex-direction:column;gap:9px;min-width:0;
+    border-left:1px solid var(--line-2);border-right:1px solid var(--line-2);padding:0 14px}
+  .sth{display:block;width:100%;border:1px solid var(--line);border-radius:9px;background:var(--surface);
+    padding:7px 9px 6px;font:inherit;text-align:left;cursor:pointer;color:inherit;
+    transition:border-color .12s,box-shadow .12s}
+  .sth:hover{border-color:var(--accent-line);box-shadow:0 2px 8px rgba(15,23,42,.06)}
+  .sth.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft);cursor:default}
+  .stt{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ink);margin-bottom:3px}
+  .stt em{margin-left:auto;font-style:normal;font-size:10px;font-weight:650;color:var(--accent)}
+  .sth svg{display:block;width:100%;height:auto;max-height:92px;pointer-events:none}
+  .sth .tslice{stroke:var(--surface);stroke-width:1}
+  .sthnone{font-size:11px;color:var(--faint);padding:14px 0;text-align:center}
+  /* ── ⤢ 크게 보기 — 같은 판의 큰 자리를 화면 위로 띄운다 ── */
+  .scat.big .smain{position:fixed;inset:4vh 4vw;z-index:61;background:var(--surface);border-radius:12px;
+    padding:16px 22px 18px;box-shadow:0 20px 50px rgba(15,23,42,.25);overflow:auto}
+  .scat.big .smhead{margin-bottom:10px}
+  .scat.big .smhead > span{margin-left:6px}
+  .scat.big .schart{max-width:min(1300px, calc((92vh - 170px) * 1000 / 520))}
+  .scat.big .dchart{max-width:min(460px, calc(92vh - 200px))}
+  .scat.big .tbig .dtrend{max-width:min(1000px, calc((92vh - 260px) * 240 / 116))}
+  .sback{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:60}
+  body.scat-big{overflow:hidden}
+  @media(max-width:1460px){
+    .scat .sthumbs{grid-column:1/-1;grid-row:2;flex-direction:row;border:0;
+      border-top:1px solid var(--line-2);padding:12px 0 0}
+    .scat .sth{flex:1;max-width:240px}
+  }
+  /* 산점도 밑 범례 */
+  .skey{justify-content:center;margin-top:4px}
+  .skey .savgk{width:16px;height:0;border-radius:0;border-top:1.5px dashed var(--faint)}
+  /* 목록 밑 범례 — 줄 칠의 뜻 */
+  .lkey{gap:4px 12px;font-size:11px}
+  .lkey b{font-weight:700;font-variant-numeric:tabular-nums;margin-right:2px}
+  .lkey .lk-bar{width:22px;height:10px;border-radius:2px;
+    background:linear-gradient(90deg,var(--accent-soft) 60%,transparent 60%);box-shadow:inset 0 0 0 1px var(--line)}
+  .lkey .lk-fast{color:var(--accent)}
+  .lkey .lk-w1{color:var(--warn)} .lkey .lk-w2{color:var(--danger)}
+  .lkey .lk-sel{width:14px;height:10px;border-radius:2px;box-shadow:inset 3px 0 0 var(--warn),inset 0 0 0 1px var(--warn-line)}
+  .lkey .lk-off{width:14px;height:10px;border-radius:2px;background:var(--line);opacity:.5}
+  .schart svg{user-select:none}
+  .schart.zoomed svg{cursor:grab;touch-action:none}
+  body.scat-panning,body.scat-panning .schart svg{cursor:grabbing!important;user-select:none}
+  body.scat-panning .spt{pointer-events:none}
+  /* 확대 중에만 그림 왼쪽 위 모서리에 뜬다 (오른쪽 위는 평균선 글자 자리) */
+  .szreset{position:absolute;top:calc(4.67% + 6px);left:calc(7.15% + 6px);border:1px solid var(--line-in);background:var(--surface);
+    color:var(--accent);font:inherit;font-size:11.5px;font-weight:650;padding:3px 10px;
+    border-radius:var(--r-sm);cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.06)}
+  .szreset:hover{border-color:var(--accent);background:var(--accent-soft)}
+  /* 산점도 개수 칸 — 한 칸(버튼)을 누르면 세 가지가 펼쳐진다 */
+  .ncnt{position:relative}
+  .ncnt summary{list-style:none;cursor:pointer;padding:7px 28px 7px 11px;border:1px solid var(--line-in);
+    border-radius:var(--r-sm);font-size:12.5px;color:var(--muted);background:var(--surface);
+    box-shadow:0 1px 1px rgba(15,23,42,.04);white-space:nowrap;position:relative;
+    transition:border-color .12s,box-shadow .12s}
+  .ncnt summary::-webkit-details-marker{display:none}
+  .ncnt summary::after{content:'';position:absolute;right:11px;top:50%;width:6px;height:6px;
+    border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);
+    transform:translateY(-70%) rotate(45deg)}
+  .ncnt summary b{color:var(--ink);font-weight:650}
+  .ncnt summary:hover{border-color:var(--line-in-2)}
+  .ncnt[open] summary{border-color:var(--accent);box-shadow:var(--ring)}
+  .ncm{position:absolute;right:0;top:calc(100% + 6px);z-index:20;min-width:230px;padding:6px;
+    background:var(--surface);border:1px solid var(--line);border-radius:9px;
+    box-shadow:0 8px 24px rgba(15,23,42,.12);display:flex;flex-direction:column;gap:2px}
+  .ncm > button{border:0;background:none;font:inherit;font-size:12.5px;text-align:left;
+    padding:7px 10px;border-radius:6px;color:var(--ink-2);cursor:pointer}
+  .ncm > button:hover{background:var(--accent-soft)}
+  .ncm > button.on,.ncin.on{color:var(--accent);font-weight:650;background:var(--accent-soft)}
+  .ncin{display:flex;align-items:center;gap:6px;padding:5px 10px;font-size:12.5px;color:var(--ink-2);
+    border-radius:6px;border-top:1px solid var(--line-2);margin-top:2px}
+  .ncin input{width:58px;padding:4px 6px;border:1px solid var(--line-in);border-radius:5px;
+    font:inherit;font-size:12.5px}
+  .ncin button{margin-left:auto;border:0;background:var(--accent);color:#fff;font:inherit;
+    font-size:12px;padding:4px 10px;border-radius:5px;cursor:pointer}
+  .ncnote{font-size:10.5px;color:var(--faint);padding:4px 10px 2px}
   .dside{display:flex;flex-direction:column;gap:7px;min-height:0}
   .dside .dkey{flex:none;margin-top:0;padding-top:8px;border-top:1px solid var(--line-2)}
   .dslice{cursor:pointer;transition:opacity .12s,transform .12s;transform-origin:100px 100px}
@@ -522,7 +655,7 @@
     .donut{grid-template-columns:1fr 300px;gap:16px}
     .dchart{max-width:206px}
     .dmid b{font-size:25px} .dmid{padding:0 18px}
-    .dleg .hr{display:none}
+    .dleg .hr,.slh .hr{display:none}
   }
   @media(max-width:900px){ .srow{padding:9px 13px}
     .donut{grid-template-columns:1fr} .dchart{margin:0 auto}
@@ -1319,6 +1452,8 @@ const HELP = {
     '마모율은 «기준 공구(앵커)가 400일에 100%» 라는 자로 잽니다. 그 기준 공구가 이 구간에서 안 돌면 「기준 대비 진행」만 멈춥니다.\n자(k)는 한 번 만들고 얼려 두기 때문에 다른 공구의 마모율은 흔들리지 않습니다.\n기준 공구가 계속 안 돌면, 꾸준히 도는 공구로 기준을 옮기는 것을 검토하세요 (옮겨도 공구들 사이의 비율은 안 바뀝니다).'],
   'donut': ['원그래프 읽는 법',
     '조각의 «크기» 는 그 공구가 실제로 돈 절삭시간입니다. 많이 돌수록 조각이 큽니다.\n조각에 마우스를 올리면 그 공구의 마모율이 가운데에 나옵니다. 누르면 아래에서 자세히 볼 수 있습니다.\n조각의 «진하기» 는 마모율입니다 — 다만 절대 위험도가 아니라 이 열 종 안에서 견준 상대값입니다. 지금은 90%를 넘은 공구가 없어 절대 단계로는 색이 갈리지 않기 때문입니다.\n90%를 넘으면 주황, 100%를 넘으면 빨강으로 바뀝니다. 그때는 진하기가 아니라 색으로 바로 보입니다.\n많이 쓴 순서로 열 종만 그립니다. 나머지가 전체에서 몇 시간인지는 그림 아래에 적습니다.'],
+  'scatter': ['사용 대비 마모 읽는 법',
+    '점 하나가 공구 하나입니다. 가로는 그 공구가 실제로 돈 절삭시간, 세로는 마모율입니다.\n점선은 «평균 닳는 속도» 입니다 — 보이는 공구 전체의 마모율 합을 사용시간 합으로 나눈 값(%/h)입니다.\n점선보다 위에 있으면 같은 시간을 돌렸을 때 평균보다 빨리 닳는 공구입니다(진한 파랑). 적게 돌았는데 많이 닳은 공구가 왼쪽 위로 올라옵니다.\n90%를 넘으면 주황, 100%를 넘으면 빨강입니다.\n이름표는 겹치지 않게 주요 공구에만 붙입니다. 나머지는 점에 마우스를 올리면 보입니다.\n점이 몰린 곳은 마우스 휠로 확대·축소합니다(커서 자리 기준). 확대한 뒤에는 빈 곳을 누른 채 끌어 옮길 수 있고, 「전체 보기」 나 더블클릭으로 돌아옵니다.\n파손형(TAP·6mm 미만 드릴)은 가중치가 달라서 시간당 마모를 마모형과 그대로 견주면 안 됩니다.'],
   'wear': ['마모율이란',
     '1초마다 «이번 1초에 공구가 얼마나 상했나» 를 계산해 더한 값입니다. 그 합을 0~100% 로 환산합니다.\n무엇이 공구를 상하게 하는가 — 실가공 50 · 과부하 30 · 충격 10 · 알림 10 으로 배분했습니다. 알림은 수집이 안 돼 실제로는 실가공 55.56 · 과부하 33.33 · 충격 11.11 % 가 됩니다.\n절대 잔여 수명이 아니라, 기준 공구와 견준 «상대값» 입니다.'],
   'breakage': ['파손형 공구',
@@ -1479,7 +1614,86 @@ const TSORT = {
   hours: ['사용시간 많은 순', (a,b)=> (b.hours||0) - (a.hours||0)],
   no:    ['공구 번호 순',     (a,b)=> (a.tool ||0) - (b.tool ||0)],
   name:  ['이름 순',          (a,b)=> String(a.name||'').localeCompare(String(b.name||''),'ko')],
+  /* 시간당 마모 = 마모율 ÷ 사용시간. 적게 돌았는데 많이 닳은 공구가 위로 온다 */
+  rate:  ['시간당 마모 빠른 순', (a,b)=> tRate(b) - tRate(a)],
 };
+/* ═════ 산점도에 몇 종을 찍을지 — 상위 10 · 전체 · 직접 입력, 한 칸에 ═════
+   0 이면 전체. 「상위」 는 지금 정렬 칸의 차례를 따른다 — 마모율 순이면
+   마모율 상위, 사용시간 순이면 사용시간 상위. 목록은 그대로 전부 보인다. */
+let SCAT_N = 0;
+/* 산점도 확대 창 — {x0,x1,y0,y1} (h, %) 또는 null. 다시 그려도 유지된다 */
+let SCAT_ZOOM = null;
+/* 큰 자리에 무엇을 보이나 — scatter(사용 대비 마모) · donut(사용 비중) · trend(마모 추이) */
+let SCAT_VIEW = 'scatter';
+let SCAT_BIG = false;          // ⤢ 크게 보기 (화면을 덮는 창)
+const SVIEWS = {
+  scatter: '사용 대비 마모',
+  donut:   '사용 비중',
+  trend:   '마모 추이',
+};
+/* 미리보기를 누르면 큰 자리가 바뀐다. 정렬 옆 개수 칸·설명 줄도 같이 바뀌므로 전체를 다시 그린다 */
+function scatView(v){ if(SVIEWS[v] && v !== SCAT_VIEW){ SCAT_VIEW = v; render(); } }
+/* 크게 보기는 이 판만 다시 그린다 — 같은 판을 화면 위로 띄우는 것이라 확대·선택이 그대로 산다 */
+function scatBig(on){ SCAT_BIG = !!on; document.body.classList.toggle('scat-big', SCAT_BIG); scatZoom(SCAT_ZOOM); }
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && SCAT_BIG) scatBig(false); });
+let SCAT_ARGS = null;
+let SCAT_PAN = null;           // 끌어서 옮기는 중이면 시작점·그때의 창
+let SCAT_PAN_RAF = null;
+window.addEventListener('pointermove', e => {
+  const P = SCAT_PAN; if(!P) return;
+  const z = P.z;
+  const dx = (e.clientX - P.x) * P.k / P.PW * (z.x1 - z.x0);
+  const dy = (e.clientY - P.y) * P.k / P.PH * (z.y1 - z.y0);
+  const nz = P.fit({ x0: z.x0 - dx, x1: z.x1 - dx, y0: z.y0 + dy, y1: z.y1 + dy });
+  if(SCAT_PAN_RAF) cancelAnimationFrame(SCAT_PAN_RAF);
+  SCAT_PAN_RAF = requestAnimationFrame(() => { SCAT_PAN_RAF = null; if(SCAT_PAN) scatZoom(nz); });
+});
+const scatPanEnd = () => { if(SCAT_PAN){ SCAT_PAN = null; document.body.classList.remove('scat-panning'); } };
+window.addEventListener('pointerup', scatPanEnd);
+window.addEventListener('pointercancel', scatPanEnd);          // 마지막으로 그린 scatTop 인자 — 확대 때 이 판만 다시 그린다
+/* 확대·이동은 휠 한 칸마다 일어난다. 그때마다 render() 로 화면 전체를 다시
+   만들면 조회까지 다시 돈다. 산점도 판(.donut.scat)만 새로 그려 갈아 끼운다. */
+function scatZoom(z){
+  SCAT_ZOOM = z;
+  const old = document.querySelector('.donut.scat');
+  if(!old || !SCAT_ARGS){ render(); return; }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = scatTop(...SCAT_ARGS);
+  const nu = tmp.firstElementChild;
+  const sc = old.querySelector('.dlegs'), top = sc ? sc.scrollTop : 0;   // 목록 스크롤 자리 유지
+  old.replaceWith(nu);
+  const ns = nu.querySelector('.dlegs'); if(ns) ns.scrollTop = top;
+  bindScat(); bindDonut();
+}
+function scatN(v){
+  const n = parseInt(v, 10);
+  SCAT_N = (isFinite(n) && n > 0) ? n : 0;
+  render();
+}
+function scatNBox(){
+  const total = (TOOLS || []).filter(t => (t.hours || 0) > 0).length;
+  const all = !SCAT_N || SCAT_N >= total;
+  const lab = all ? `전체 ${total}종` : `상위 ${SCAT_N}종`;
+  const own = !all && SCAT_N !== 10;
+  return `<details class="ncnt" id="ncnt">
+    <summary title="「사용 대비 마모」 그래프에 몇 종을 찍을지">사용 대비 마모 <b>${lab}</b></summary>
+    <div class="ncm">
+      <button type="button" class="${SCAT_N === 10 && !all ? 'on' : ''}" onclick="scatN(10)">상위 10종</button>
+      <button type="button" class="${all ? 'on' : ''}" onclick="scatN(0)">전체 ${total}종</button>
+      <div class="ncin${own ? ' on' : ''}">상위
+        <input type="number" min="1" max="${total}" value="${own ? SCAT_N : ''}" placeholder="개수"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();scatN(this.value)}">종
+        <button type="button" onclick="scatN(this.previousElementSibling.value)">적용</button></div>
+      <div class="ncnote">지금 정렬(${esc(TSORT[TSEL_SORT][0])}) 기준으로 위에서부터 찍습니다</div>
+    </div>
+  </details>`;
+}
+/* 바깥을 누르면 접는다 — details 는 스스로 안 닫힌다 */
+document.addEventListener('click', e => {
+  const d = document.getElementById('ncnt');
+  if(d && d.open && !d.contains(e.target)) d.open = false;
+});
+function tRate(t){ return (t && t.hours > 0) ? (t.wear || 0) / t.hours : 0; }
 /* 찾는 말이 번호에도 이름에도 걸리게 한다. 「33」 과 「T33」 과 「드릴」 이
    모두 통해야 사람이 외운 대로 칠 수 있다. */
 function toolHits(){
@@ -1619,9 +1833,19 @@ function donutTop(tools, n, sel, mid2, sortKey){
                               op: WLV(t.wear) ? 1 : wden(t.wear, lo, hi),
                               lv: WLV(t.wear) }));
 
+  /* 차례는 정렬 칸이 정하고, 그림과 목록이 «같은 차례» 를 쓴다.
+     조각 크기는 언제나 사용시간이다 — 정렬이 바꾸는 것은 12시부터 시계방향으로
+     놓이는 순서뿐이다. 그래야 목록 1번이 그림에서도 12시 첫 조각이 된다.
+     TSORT 는 hours 로 견주므로 조각에도 hours 를 달아 둔다.
+     data-i 는 원래 조각 번호를 그대로 들고 간다(목록에 올리면 그 조각이 짚인다). */
+  seg.forEach(g => { g.hours = g.h; });
+  const ord = seg.map((g, i) => ({g, i}));
+  if(sortKey && typeof TSORT === 'object' && TSORT[sortKey])
+    ord.sort((a, b) => TSORT[sortKey][1](a.g, b.g));
+
   const R = 88, r = 54, C = 100;      // 바깥·안쪽 반지름, 중심
   let a0 = -Math.PI / 2;              // 12시부터 시계방향
-  const arcs = seg.map((g, i) => {
+  const arcs = ord.map(({g, i}) => {
     const a1 = a0 + (g.h / all) * Math.PI * 2;
     const big = (a1 - a0) > Math.PI ? 1 : 0;
     const P = (rad, ang) => [C + rad * Math.cos(ang), C + rad * Math.sin(ang)];
@@ -1645,13 +1869,7 @@ function donutTop(tools, n, sel, mid2, sortKey){
      줄 바탕을 사용 비중만큼 칠한다 — 막대를 따로 그리면 줄 높이가 두 배가
      되는데, 바탕으로 깔면 높이를 안 먹고도 «누가 큰가» 가 한눈에 보인다.
      그림을 못 보는 상황(작은 화면·흑백 인쇄)에서도 목록만으로 읽힌다. */
-  /* 목록의 차례는 정렬 칸이 정한다. 그림 조각은 «사용량» 순서 그대로 두고
-     줄만 다시 세운다 — 마모율 순으로 그림까지 다시 그리면, 조각 크기는
-     여전히 사용량인데 차례만 마모율이라 둘이 어긋난 그림이 된다.
-     data-i 는 원래 조각 번호를 그대로 들고 간다(올리면 그 조각이 짚인다). */
-  const ord = seg.map((g, i) => ({g, i}));
-  if(sortKey && typeof TSORT === 'object' && TSORT[sortKey])
-    ord.sort((a, b) => TSORT[sortKey][1](a.g, b.g));
+  /* 목록 차례(ord)는 위에서 그림과 함께 정했다. */
   /* 「최다 사용」 은 차례가 아니라 «그 공구» 에 붙는다. 칸 번호로 달면
      마모율 순으로 바꿨을 때 엉뚱한 줄에 최다 사용이 붙는다. */
   const busiest = seg.length ? seg[0].tool : null;
@@ -1776,19 +1994,368 @@ function trendCol(det){
   </div>`;
 }
 
+/* ═════ 사용시간 × 마모율 산점도 ════════════════════════════════
+   원그래프는 «누가 많이 도는가» 하나만 말했고, 그마저 조각 크기를 눈으로
+   견줘야 해서 7.9h 와 8.8h 가 구분이 안 됐다. 여기서는 두 값을 두 축에 놓는다.
+
+     가로 = 사용시간(h)   세로 = 마모율(%)
+     점선 = 평균 닳는 속도 (보이는 공구 전체 마모율 합 ÷ 사용시간 합, 원점을 지난다)
+
+   점선보다 위에 있으면 «같은 시간 돌렸을 때 평균보다 빨리 닳는» 공구다.
+   원그래프에서는 조각이 작아 안 보이던 것 — 적게 돌았는데 많이 닳은 공구 —
+   이 왼쪽 위로 튀어나온다.
+
+   이름표는 전부 달지 않는다. 38종에 다 달면 글자가 겹쳐 아무것도 안 읽힌다.
+   고른 공구 → 주의 이상 → 마모율 상위 → 시간당 마모 상위 순으로 자리를 주고,
+   앞서 놓인 이름표와 겹치면 건너뛴다. 나머지는 올리면 말풍선으로 읽는다. */
+function scatTop(tools, sel, mid2, sortKey){
+  SCAT_ARGS = [tools, sel, mid2, sortKey];
+  const used = tools.filter(t => (t.hours || 0) > 0);
+  if(!used.length) return '<div class="muted" style="padding:20px 0">돌아간 공구가 없습니다</div>';
+
+  const sumW = used.reduce((s, t) => s + (t.wear || 0), 0);
+  const sumH = used.reduce((s, t) => s + t.hours, 0);
+  const AVG = sumH > 0 ? sumW / sumH : 0;
+  const seg = used.map(t => {
+    const w = t.wear || 0, rate = w / t.hours;
+    return { tool: t.tool, name: t.name, h: t.hours, hours: t.hours, wear: w,
+             rate, fast: rate > AVG, lv: WLV(w) };
+  });
+  const busiest = seg.slice().sort((a, b) => b.h - a.h)[0].tool;
+
+  /* 목록 차례 = 정렬 칸. 산점도는 그 차례의 위에서 SCAT_N 종만 찍는다.
+     고른 공구는 범위 밖이어도 찍는다 — 안 그러면 아래 상세와 그림이 따로 논다.
+     평균선(AVG)은 «전체» 로 잡은 그대로 둔다 — 보는 개수에 따라 기준이 움직이면
+     같은 공구가 선 위였다 아래였다 한다. */
+  const ord = seg.slice();
+  if(sortKey && TSORT[sortKey]) ord.sort((a, b) => TSORT[sortKey][1](a, b));
+  const vis = (SCAT_N > 0 && SCAT_N < ord.length)
+    ? ord.filter((g, k) => k < SCAT_N || g.tool === sel) : ord;
+
+  /* 눈금 — 사람이 읽기 좋은 간격(1·2·5 배수)으로 잡는다 */
+  const nstep = (span, n) => {
+    const raw = span / n, p = Math.pow(10, Math.floor(Math.log10(raw)));
+    return [1, 2, 5, 10].map(m => m * p).find(v => v >= raw) || raw;
+  };
+  /* 확대 — SCAT_ZOOM 이 있으면 그 범위만 본다(자료 단위: h, %).
+     없으면 0 부터 가장 큰 점 조금 위까지. */
+  const Z = SCAT_ZOOM;
+  const fmx = Math.max(...vis.map(g => g.h)) * 1.08 || 1, fmy = Math.max(...vis.map(g => g.wear), 1) * 1.12;
+  const fxs = nstep(fmx, 6), fys = nstep(fmy, 5);
+  const FX = Math.ceil(fmx / fxs) * fxs, FY = Math.ceil(fmy / fys) * fys;   // 확대 전 전체 범위
+  let xa, ya;
+  if(Z){
+    const xs = nstep(Z.x1 - Z.x0, 6), ys = nstep(Z.y1 - Z.y0, 5);
+    xa = { lo: Z.x0, max: Z.x1, step: xs };
+    ya = { lo: Z.y0, max: Z.y1, step: ys };
+  } else {
+    xa = { lo: 0, max: FX, step: fxs };
+    ya = { lo: 0, max: FY, step: fys };
+  }
+  /* 확대했을 때는 창 안에 든 점만 그린다 */
+  const inView = g => g.h >= xa.lo && g.h <= xa.max && g.wear >= ya.lo && g.wear <= ya.max;
+  const pv = Z ? vis.filter(inView) : vis;
+
+  /* 크게 보기에서는 그림판 자체를 넓힌다 — 작은 판을 늘리기만 하면 글자까지 커진다 */
+  const W = SCAT_BIG ? 1000 : 560, H = SCAT_BIG ? 520 : 300, M = { l: 40, r: 14, t: 14, b: 30 };
+  const PW = W - M.l - M.r, PH = H - M.t - M.b;
+  const X = v => M.l + (v - xa.lo) / (xa.max - xa.lo) * PW;
+  const Y = v => H - M.b - (v - ya.lo) / (ya.max - ya.lo) * PH;
+  const fmt = v => String(+v.toFixed(Math.max(0, -Math.floor(Math.log10(Math.min(xa.step, ya.step))) + 1)));
+
+  let s = `<defs><clipPath id="sclip"><rect x="${M.l}" y="${M.t}" width="${PW}" height="${PH}"/></clipPath></defs>`;
+  /* 평균선 위쪽 = 빨리 닳는 쪽. 아주 옅게만 깐다 — 점보다 눈에 띄면 안 된다.
+     확대해도 선은 원점을 지나는 같은 선이다 — 창 밖은 잘라 낸다. */
+  const far = Math.max(xa.max, ya.max / (AVG || 1)) * 2;
+  if(AVG > 0)
+    s += `<g clip-path="url(#sclip)"><path class="szone" d="M${X(0)} ${Y(0)} L${X(far)} ${Y(far * AVG)} L${X(0)} ${Y(far * AVG)} Z"/>
+      <line class="savg" x1="${X(0)}" y1="${Y(0)}" x2="${X(far)}" y2="${Y(far * AVG)}"/></g>`;
+  const t0x = Math.ceil(xa.lo / xa.step - 1e-9) * xa.step, t0y = Math.ceil(ya.lo / ya.step - 1e-9) * ya.step;
+  for(let v = t0y; v <= ya.max + 1e-9; v += ya.step){
+    s += `<line class="${Math.abs(v - ya.lo) < 1e-9 ? 'sbase' : 'sgl'}" x1="${M.l}" x2="${M.l + PW}" y1="${Y(v)}" y2="${Y(v)}"/>`
+       + `<text class="sax" x="${M.l - 7}" y="${Y(v) + 3.5}" text-anchor="end">${fmt(v)}%</text>`;
+  }
+  for(let v = t0x; v <= xa.max + 1e-9; v += xa.step){
+    if(Math.abs(v - xa.lo) > 1e-9) s += `<line class="sgl" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${M.t + PH}"/>`;
+    s += `<text class="sax" x="${X(v)}" y="${M.t + PH + 15}" text-anchor="middle">${fmt(v)}h</text>`;
+  }
+  if(Z) s += `<line class="sbase" x1="${M.l}" x2="${M.l + PW}" y1="${M.t + PH}" y2="${M.t + PH}"/>`;
+  if(AVG > 0){
+    /* 평균선 글자는 선이 창 오른쪽·위쪽 가장자리를 나가는 곳에 붙인다 */
+    const xe = Math.min(xa.max, ya.max / AVG), ye = xe * AVG;
+    if(xe > xa.lo && ye > ya.lo)
+      s += `<text class="savgt" x="${X(xe) - 4}" y="${Y(ye) + 14}" text-anchor="end">평균 ${AVG.toFixed(2)}%/h</text>`;
+    if(!Z) s += `<text class="szt" x="${M.l + 8}" y="${M.t + 14}">평균보다 빨리 닳는 쪽</text>`;
+  }
+
+  /* 이름표 자리 정하기 — 우선순위대로 놓고, 겹치면 반대편, 그래도 겹치면 생략.
+     확대하면 자리가 넓어지므로 거의 모든 점에 단다(겹치는 것만 빼고). */
+  const pri = g => (g.tool === sel ? 0 : 1e6) + (g.lv ? 0 : 1e5) - g.wear * 100 - (g.fast ? g.rate * 10 : 0);
+  const boxes = [];
+  const hit = b => boxes.some(o => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
+  const labels = {};
+  /* 점 자체도 자리를 차지한다 — 이름표가 남의 점을 덮지 않게 먼저 깔아 둔다 */
+  pv.forEach(g => boxes.push({ x1: X(g.h) - 5, x2: X(g.h) + 5, y1: Y(g.wear) - 5, y2: Y(g.wear) + 5 }));
+  const cand = pv.slice().sort((a, b) => pri(a) - pri(b));
+  const maxLab = (Z || SCAT_BIG) ? 40 : 12;
+  for(const g of cand){
+    if(Object.keys(labels).length >= maxLab && g.tool !== sel) break;
+    /* 원점 근처(적게 돌고 적게 닳은 것)는 점이 몰리는 자리라 이름표를 안 단다 */
+    if(!Z && !SCAT_BIG && !(g.tool === sel || g.lv || ((g.fast || g.wear >= ya.max * 0.5) && g.wear >= ya.max * 0.25))) continue;
+    const txt = `T${g.tool}`, tw = txt.length * 6.6 + 5;
+    const cx = X(g.h), cy = Y(g.wear);
+    const tries = [
+      { x: cx + 9, a: 'start', b: { x1: cx + 8, x2: cx + 9 + tw, y1: cy - 7, y2: cy + 6 } },
+      { x: cx - 9, a: 'end',   b: { x1: cx - 9 - tw, x2: cx - 8, y1: cy - 7, y2: cy + 6 } },
+    ];
+    const ok = tries.find(t => t.b.x2 < W - 2 && t.b.x1 > M.l && !hit(t.b));
+    if(ok){ boxes.push(ok.b); labels[g.tool] = ok; }
+  }
+
+  /* 고른 점은 맨 위에 오도록 마지막에 그린다 */
+  const drawOrd = pv.slice().sort((a, b) => (a.tool === sel) - (b.tool === sel));
+  s += drawOrd.map(g => {
+    const cx = X(g.h).toFixed(1), cy = Y(g.wear).toFixed(1), L = labels[g.tool];
+    const cls = 'spt' + (g.fast ? ' fast' : '') + (g.lv ? ' lv' + g.lv : '') + (g.tool === sel ? ' sel' : '');
+    return `<g class="${cls}" data-tool="${g.tool}" tabindex="0" role="button"
+        data-lab="T${g.tool} ${esc(g.name)}" data-h="${g.h.toFixed(1)}" data-wear="${g.wear.toFixed(2)}"
+        data-rate="${g.rate.toFixed(2)}" data-x="${cx}" data-y="${cy}"
+        data-mul="${AVG > 0 ? (g.rate / AVG).toFixed(1) : '-'}">
+      <circle class="shit" cx="${cx}" cy="${cy}" r="11"/>
+      <circle class="sdot" cx="${cx}" cy="${cy}" r="${g.tool === sel ? 6.5 : 5}"/>
+      ${L ? `<text x="${L.x.toFixed(1)}" y="${(+cy + 3.5).toFixed(1)}" text-anchor="${L.a}">T${g.tool}</text>` : ''}
+    </g>`;
+  }).join('');
+  if(Z && !pv.length)
+    s += `<text class="savgt" x="${M.l + PW / 2}" y="${M.t + PH / 2}" text-anchor="middle">이 범위에 점이 없습니다</text>`;
+  /* 지금 창과 전체 범위가 자료 좌표로 어디인지 — bindScat 가 휠·끌기를 자료 단위로 바꿀 때 쓴다 */
+  const frame = `data-l="${M.l}" data-t="${M.t}" data-pw="${PW}" data-ph="${PH}"
+    data-x0="${xa.lo}" data-x1="${xa.max}" data-y0="${ya.lo}" data-y1="${ya.max}"
+    data-fx="${FX}" data-fy="${FY}"`;
+
+  /* 목록 — 정렬 칸의 차례(ord). 쓰는 공구 전부를 넣고 칸 안에서 굴린다.
+     산점도에 안 찍힌 줄은 흐리게 둔다. */
+  const shown = new Set((SCAT_VIEW === 'scatter' ? pv : ord).map(g => g.tool));
+  const legend = ord.map((g, k) => {
+    const pct = 100 * g.h / sumH, sel_ = g.tool === sel;
+    return `<button class="dleg${sel_ ? ' sel' : ''}${shown.has(g.tool) ? '' : ' off'}" data-tool="${g.tool}" aria-pressed="${sel_}"
+      title="${esc(g.name)} — 절삭 ${g.h.toFixed(2)}h · 사용량의 ${pct.toFixed(1)}% · 시간당 ${g.rate.toFixed(2)}%/h"
+      style="background-image:linear-gradient(90deg,var(--accent-soft) ${pct.toFixed(1)}%,transparent ${pct.toFixed(1)}%)"
+      onclick="SEL.tool=${g.tool};render()">
+      <span class="rk">${k + 1}</span>
+      <span class="nm">T${g.tool} ${esc(g.name)}${g.tool === busiest ? '<span class="top1">최다 사용</span>' : ''}</span>
+      <span class="hr">${g.h.toFixed(1)}h</span>
+      <span class="we lv${g.lv}">${g.wear.toFixed(1)}%</span>
+      <span class="rt${g.fast ? ' fast' : ''}">${g.rate.toFixed(2)}</span>
+    </button>`;
+  }).join('');
+
+  /* 점 색의 뜻 — 산점도 바로 밑에 둔다 */
+  const key = `<div class="dkey skey">
+    <span><i style="background:var(--accent);border-radius:50%"></i>평균보다 빨리 닳음</span>
+    <span><i style="background:var(--chart-bar);border-radius:50%"></i>평균 이하</span>
+    <span><i style="background:var(--warn);border-radius:50%"></i>주의 90%↑</span>
+    <span><i style="background:var(--danger);border-radius:50%"></i>교체 100%↑</span>
+    <span><i class="savgk"></i>평균 닳는 속도</span>
+    ${typeof helpBtn === 'function' ? helpBtn('scatter') : ''}</div>`;
+
+  /* 목록 줄 칠의 뜻 — 목록 바로 밑에 둔다. 줄 바탕·글자색·왼쪽 띠가 저마다
+     다른 것을 말하므로 한 번은 적어 둔다. 흐린 줄은 실제로 있을 때만 적는다. */
+  const hidN = ord.length - shown.size;
+  const lkey = `<div class="dkey lkey">
+    <span><i class="lk-bar"></i>줄 바탕 = 전체 사용시간 중 비중</span>
+    <span><b class="lk-fast">2.50</b>파란 %/h = 평균보다 빨리 닳음</span>
+    <span><b class="lk-w1">90%</b>주황 · <b class="lk-w2">100%</b>빨강 = 교체 준비·교체</span>
+    <span><i class="lk-sel"></i>고른 공구</span>
+    ${hidN > 0 ? `<span><i class="lk-off"></i>흐린 줄 = 그래프에 안 보이는 공구 ${hidN}종</span>` : ''}
+  </div>`;
+
+  /* ── 큰 자리에 올릴 것 셋 ──────────────────────────────────
+     원그래프는 원래 함수(donutTop)가 그린 그림 칸만 떼어 쓴다. 추이는 trendCol
+     그대로다. 미리보기는 같은 그림을 작게 — 글자 없이 모양만 보인다. */
+  const tpl = document.createElement('template');
+  tpl.innerHTML = donutTop(tools, 10, sel, '', sortKey);
+  const dch = tpl.content.querySelector('.dchart');
+  const donutMain = dch ? dch.outerHTML : '<div class="ttnone">돌아간 공구가 없습니다</div>';
+  const donutThumb = dch ? dch.querySelector('svg').outerHTML.replace(/dslice/g, 'tslice') : '';
+  const trendHTML = mid2 || '<div class="dtrend"><div class="ttnone">공구를 고르면 날짜별 마모가 나옵니다</div></div>';
+  tpl.innerHTML = trendHTML;
+  const tsv = tpl.content.querySelector('.ttsvg');
+  const trendThumb = tsv ? tsv.outerHTML : '<div class="sthnone">자료 없음</div>';
+
+  /* 사용 대비 마모 미리보기 — 점·평균선만 */
+  const scatThumb = (() => {
+    const w = 180, h = 96, m = 5;
+    const mx = Math.max(...seg.map(g => g.h)) * 1.08 || 1, my = Math.max(...seg.map(g => g.wear), 1) * 1.12;
+    const tx = v => m + v / mx * (w - 2 * m), ty = v => h - m - v / my * (h - 2 * m);
+    const xe = AVG > 0 ? Math.min(mx, my / AVG) : mx;
+    return `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true">
+      <path d="M${tx(0)} ${ty(0)} L${tx(xe)} ${ty(xe * AVG)} L${tx(xe)} ${ty(my)} L${tx(0)} ${ty(my)} Z" fill="var(--warn)" opacity=".05"/>
+      <line x1="${tx(0)}" y1="${ty(0)}" x2="${tx(mx)}" y2="${ty(0)}" stroke="var(--line)"/>
+      <line x1="${tx(0)}" y1="${ty(0)}" x2="${tx(xe)}" y2="${ty(xe * AVG)}" stroke="var(--faint)" stroke-dasharray="3 3"/>
+      ${seg.map(g => `<circle cx="${tx(g.h).toFixed(1)}" cy="${ty(g.wear).toFixed(1)}" r="${g.tool === sel ? 3.6 : 2.4}"
+        fill="${g.lv === 2 ? 'var(--danger)' : g.lv === 1 ? 'var(--warn)' : g.fast ? 'var(--accent)' : 'var(--chart-bar)'}"
+        ${g.tool === sel ? 'stroke="var(--warn)" stroke-width="1.6"' : ''}/>`).join('')}
+    </svg>`;
+  })();
+
+  const V = SCAT_VIEW;
+  const selT = seg.find(g => g.tool === sel);
+  const SUB = {
+    scatter: '가로 사용시간(h) · 세로 마모율(%)',
+    donut: '사용시간 상위 10종 · 진할수록 많이 닳음',
+    trend: selT ? `T${selT.tool} ${esc(selT.name)} · 날짜별 마모율` : '고른 공구의 날짜별 마모율',
+  };
+  const donutKey = `<div class="dkey skey"><span>조각 크기 = 사용시간</span>
+    <span><i style="background:var(--chart-bar);opacity:.35"></i><i style="background:var(--chart-bar);margin-left:-2px"></i>진할수록 많이 닳음</span>
+    <span><i style="background:var(--warn)"></i>주의 90%↑</span><span><i style="background:var(--danger)"></i>교체 100%↑</span>
+    ${typeof helpBtn === 'function' ? helpBtn('donut') : ''}</div>`;
+
+  const body = V === 'donut' ? `<div class="sdonut">${donutMain}${donutKey}</div>`
+    : V === 'trend' ? `<div class="tbig">${trendHTML}</div>`
+    : `<div class="schart${Z ? ' zoomed' : ''}">
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="공구별 사용시간과 마모율" ${frame}>${s}</svg>
+      <div class="stip" id="stip"></div>
+      ${key}
+      ${Z ? '<button type="button" class="szreset" onclick="scatZoom(null)">전체 보기</button>' : ''}
+    </div>`;
+
+  const ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2h4v4M6 14H2v-4M14 2l-5 5M2 14l5-5"/></svg>';
+  const head = `<div class="smhead">
+      ${SCAT_BIG
+        ? `<div class="smtabs">${Object.entries(SVIEWS).map(([k, n]) =>
+            `<button type="button" class="${k === V ? 'on' : ''}" onclick="scatView('${k}')">${n}</button>`).join('')}</div>`
+        : `<b>${SVIEWS[V]}</b>`}
+      <span>${SUB[V]}</span>
+      ${SCAT_BIG
+        ? '<button type="button" class="smx" title="닫기 (Esc)" onclick="scatBig(false)">×</button>'
+        : `<button type="button" class="smexp" title="화면 가득 크게 보기" onclick="scatBig(true)">${ICON}크게 보기</button>`}
+    </div>`;
+
+  const TH = { scatter: scatThumb, donut: donutThumb, trend: trendThumb };
+  const thumbs = `<div class="sthumbs">${Object.entries(SVIEWS).map(([k, n]) => `
+      <button type="button" class="sth${k === V ? ' on' : ''}" onclick="scatView('${k}')"
+        title="${n} 크게 보기" aria-pressed="${k === V}">
+        <span class="stt">${n}${k === V ? '<em>보는 중</em>' : ''}</span>${TH[k]}</button>`).join('')}
+    </div>`;
+
+  return `<div class="donut scat has3${SCAT_BIG ? ' big' : ''}">
+    <div class="smain sv-${V}">${head}${body}</div>
+    ${thumbs}
+    <div class="dside">
+      <div class="slh"><span class="rk"></span><span class="nm">공구</span><span class="hr">시간</span>
+        <span class="we">마모율</span><span class="rt">%/h</span></div>
+      <div class="dlegs">${legend}</div>
+      ${lkey}
+    </div>
+    ${SCAT_BIG ? '<div class="sback" onclick="scatBig(false)"></div>' : ''}
+  </div>`;
+}
+
+/* 산점도 — 점이나 목록 줄에 올리면 말풍선, 나머지 점은 흐리게. 누르면 고른다 */
+function bindScat(){
+  const box = document.querySelector('.donut.scat'); if(!box) return;
+  const tip = $('stip'), svg = box.querySelector('.schart svg');
+  if(!svg){                      // 다른 그림을 보는 중 — 원그래프 묶기(bindDonut)가 맡는다
+    return;
+  }
+  const pts = () => box.querySelectorAll('.spt');
+  const show = t => {
+    const p = box.querySelector(`.spt[data-tool="${t}"]`); if(!p) return;
+    pts().forEach(q => q.classList.toggle('dim', q !== p));
+    box.querySelectorAll('.dleg').forEach(b => b.classList.toggle('on', b.dataset.tool === String(t)));
+    const k = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+    tip.style.left = (+p.dataset.x * k) + 'px';
+    tip.style.top = (+p.dataset.y * k) + 'px';
+    tip.innerHTML = `<b>${esc(p.dataset.lab)}</b><br>마모율 ${p.dataset.wear}% <span>·</span> 사용 ${p.dataset.h}h`
+      + `<br><span>시간당</span> ${p.dataset.rate}%/h <span>(평균의 ${p.dataset.mul}배)</span>`;
+    tip.classList.add('on');
+  };
+  const clear = () => {
+    pts().forEach(q => q.classList.remove('dim'));
+    box.querySelectorAll('.dleg').forEach(b => b.classList.remove('on'));
+    tip.classList.remove('on');
+  };
+  pts().forEach(p => {
+    p.addEventListener('mouseenter', () => show(p.dataset.tool));
+    p.addEventListener('focus', () => show(p.dataset.tool));
+    p.addEventListener('mouseleave', clear);
+    p.addEventListener('blur', clear);
+    p.addEventListener('click', () => { SEL.tool = +p.dataset.tool; render(); });
+  });
+  box.querySelectorAll('.dleg').forEach(b => {
+    b.addEventListener('mouseenter', () => show(b.dataset.tool));
+    b.addEventListener('mouseleave', clear);
+  });
+
+  /* ── 휠로 확대·축소, 끌어서 이동 ─────────────────────────────
+     휠은 커서가 있는 자리를 붙잡고 그 둘레를 늘이고 줄인다 — 보고 있던 점이
+     커서 밑에서 안 도망간다. 끝까지 줄이면 원래 전체 화면으로 돌아간다.
+     확대 중에는 빈 곳을 누른 채 끌면 창이 따라 움직인다. 전체 범위 밖으로는
+     안 나간다. 더블클릭은 전체 보기. */
+  const F = svg.dataset;
+  const L = +F.l, T = +F.t, PW = +F.pw, PH = +F.ph, FX = +F.fx, FY = +F.fy;
+  const cur = () => ({ x0: +F.x0, x1: +F.x1, y0: +F.y0, y1: +F.y1 });
+  const toSvg = e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  };
+  /* 창을 전체 범위 안으로 밀어 넣는다. 전체보다 크면 확대를 푼다(null) */
+  const fit = z => {
+    let { x0, x1, y0, y1 } = z;
+    if(x1 - x0 >= FX * 0.999 && y1 - y0 >= FY * 0.999) return null;
+    const cl = (a, b, lim) => {
+      const w = Math.min(b - a, lim);
+      if(a < 0){ a = 0; b = w; }
+      if(b > lim){ b = lim; a = lim - w; }
+      return [a, b];
+    };
+    [x0, x1] = cl(x0, x1, FX); [y0, y1] = cl(y0, y1, FY);
+    return { x0, x1, y0, y1 };
+  };
+  let wheelAcc = null;
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    clear();
+    const q = toSvg(e), z = cur();
+    const fx = Math.min(Math.max((q.x - L) / PW, 0), 1), fy = Math.min(Math.max((T + PH - q.y) / PH, 0), 1);
+    const cx = z.x0 + fx * (z.x1 - z.x0), cy = z.y0 + fy * (z.y1 - z.y0);
+    const f = e.deltaY < 0 ? 0.8 : 1.25;
+    let nw = (z.x1 - z.x0) * f, nh = (z.y1 - z.y0) * f;
+    /* 너무 깊이 들어가면 눈금이 의미를 잃는다 — 전체의 1/40 까지만 */
+    nw = Math.max(nw, FX / 40); nh = Math.max(nh, FY / 40);
+    const nz = fit({ x0: cx - fx * nw, x1: cx + (1 - fx) * nw, y0: cy - fy * nh, y1: cy + (1 - fy) * nh });
+    if(wheelAcc) cancelAnimationFrame(wheelAcc);
+    wheelAcc = requestAnimationFrame(() => { wheelAcc = null; scatZoom(nz); });
+  }, { passive: false });
+
+  /* 끌기 — 끄는 동안 판을 계속 갈아 끼우므로 svg 가 바뀐다. 그래서 움직임은
+     svg 가 아니라 window 에서 받는다(scatPanMove). 여기서는 시작만 적는다. */
+  svg.addEventListener('pointerdown', e => {
+    if(e.button !== 0 || !SCAT_ZOOM || e.target.closest('.spt')) return;
+    e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    SCAT_PAN = { x: e.clientX, y: e.clientY, z: cur(), k: svg.viewBox.baseVal.width / r.width,
+                 PW, PH, fit };
+    document.body.classList.add('scat-panning'); clear();
+  });
+  svg.addEventListener('dblclick', e => { if(SCAT_ZOOM && !e.target.closest('.spt')) scatZoom(null); });
+}
+
 /* 마우스를 올리면 가운데 글자를 바꾼다. 조각마다 말풍선을 띄우면
    화면이 어지럽고, 가운데는 어차피 비어 있다. */
 function bindDonut(){
   const mid = $('dmid'); if(!mid) return;
   const base = mid.innerHTML;
   const show = el => {
+    if(!el) return;
     const w = el.dataset.wear;
     mid.innerHTML = `<b class="${w === '' ? '' : 'lv' + el.dataset.lv}">${
         w === '' ? el.dataset.h + 'h' : w + '%'}</b>` +
       `<span>${esc(el.dataset.lab)}</span>` +
       `<span class="sub">${el.dataset.h}h · 사용량의 ${el.dataset.pct}%</span>`;
     document.querySelectorAll('.dleg').forEach(b =>
-      b.classList.toggle('on', b.dataset.i === el.dataset.i));
+      b.classList.toggle('on', b.dataset.i != null ? b.dataset.i === el.dataset.i : b.dataset.tool === el.dataset.tool));
     document.querySelectorAll('.dslice').forEach(p =>
       p.classList.toggle('dim', p.dataset.i !== el.dataset.i));
   };
@@ -1804,7 +2371,8 @@ function bindDonut(){
   });
   document.querySelectorAll('.dleg').forEach(b => {
     b.addEventListener('mouseenter', () =>
-      show(document.querySelector(`.dslice[data-i="${b.dataset.i}"]`)));
+      show(b.dataset.i != null ? document.querySelector(`.dslice[data-i="${b.dataset.i}"]`)
+                               : document.querySelector(`.dslice[data-tool="${b.dataset.tool}"]`)));
   });
   const box = document.querySelector('.donut');
   if(box) box.addEventListener('mouseleave', clear);
@@ -1882,6 +2450,7 @@ async function renderDash(){
             ${Object.entries(TSORT).map(([k,v])=>
               `<option value="${k}" ${k===TSEL_SORT?'selected':''}>${v[0]}</option>`).join('')}
           </select>
+          ${SCAT_VIEW === 'scatter' ? scatNBox() : ''}
           <select id="tsel" title="공구 고르기" size="1"
                   onchange="if(this.value){SEL.tool=+this.value;render()}">
             ${toolOptions()}
@@ -1891,11 +2460,11 @@ async function renderDash(){
       <!-- 「쓰는 공구 67종」 도 카드 한 장을 쓰고 있었다. 그 숫자가 뜻이
            생기는 곳은 «그중 위 10종이 얼마나 도는가» 옆이므로 한 문장으로
            합쳤다 — 숫자가 설명과 붙어 있어야 읽고 나서 남는 게 있다. -->
-      <div class="psub">쓰는 공구 <b>${s.tools}종</b> 중 사용시간 상위 ${
-        Math.min(10, busy.length)}종이 전체의 <b>${busyPct}%</b>
-        · 목록은 <b>${esc(TSORT[TSEL_SORT][0])}</b> · 행을 누르면 아래에 자세히</div>
+      <div class="psub">사용 공구 <b>${s.tools}종</b>${SCAT_VIEW === 'scatter'
+        ? ` · 가로 사용시간(h), 세로 마모율(%) · 점선 위의 경우 <b>평균보다 빨리 닳는 공구</b>` : ''}
+        · 정렬 <b>${esc(TSORT[TSEL_SORT][0])}</b></div>
       <div class="dwrap">
-        ${donutTop(TOOLS, 10, SEL.tool, trendCol(det), TSEL_SORT)}
+        ${scatTop(TOOLS, SEL.tool, trendCol(det), TSEL_SORT)}
       </div>
     </div>
     <div class="panel">
@@ -2056,6 +2625,7 @@ async function renderDash(){
     : null;
   drawDays(bd || ov.days, !bd);
   bindDonut();
+  bindScat();
   tickSens(b.built);
 }
 
