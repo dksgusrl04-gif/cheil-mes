@@ -695,7 +695,7 @@
   .item.zero{color:rgba(255,255,255,.52)}
   .item.zero .m{color:rgba(255,255,255,.38)}
   .item.muted{color:rgba(255,255,255,.5);cursor:default}
-  main{padding:18px 26px 40px;overflow-y:auto;min-height:0}
+  main{padding:14px 26px 40px;overflow-y:auto;min-height:0}
   h2{font-size:16.5px;margin-bottom:0;font-weight:700;letter-spacing:-.025em}
   .desc{color:var(--muted);font-size:12px;margin-bottom:6px;
     display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -1119,10 +1119,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="3408c8928a">
+<meta name="mes-build" content="6128f77bd0">
 <script>
 (function(){
-  var mine = "3408c8928a";
+  var mine = "6128f77bd0";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -2418,7 +2418,7 @@ async function renderDash(){
       : '<span class="muted" style="font-size:12px">마모 90% 넘긴 공구 없음</span>'}
   </div>`;
 
-  $('main').innerHTML = `
+  $('main').innerHTML = `<div id="dfit">
     ${pageHead('대시보드', '지금 무엇이 급한지 · 무엇이 제일 많이 도는지', undefined, rstat)}
     ${s.anchor_live===false?`<div class="note warn">
       <b>기준 공구가 이 구간에서 안 돌았습니다</b> — 「기준 대비 진행」이 멈춰 있습니다.
@@ -2617,17 +2617,57 @@ async function renderDash(){
 
     <!-- 서류 출력은 맨 아래로. 그림과 공구 상세 사이에 있으면 매번 보게 되는
          내용을 한 줄 밀어내는데, 서류는 하루에 한 번 쓸까 말까 한 기능이다. -->
-    ${reportBar('wear')}`;
+    ${reportBar('wear')}</div>`;
   /* 고른 공구의 날짜별 기록이 있으면 그것을, 없거나 「설비 전체」 를 눌렀으면
      설비 기준 일별 절삭시간을 그린다. */
   const bd = (!DAYS_ALL && det && Array.isArray(det.tool.byday) && det.tool.byday.length)
     ? det.tool.byday.map(d => ({date:d.date, cut_h:d.hours, wear:d.wear}))
     : null;
+  fitDash();                 // 아래 판 밑선까지 화면에 들어오게 맞춘다
   drawDays(bd || ov.days, !bd);
   bindDonut();
   bindScat();
   tickSens(b.built);
 }
+
+/* ═════ 첫 화면 맞추기 ═══════════════════════════════════════════
+   «켜자마자 아래 공구 상세 판의 밑선까지 보이게» 는 눈금을 손으로 깎아서
+   맞출 수가 없다. 사람마다 창 높이도 브라우저 확대 배율도 다르고, 한 곳을
+   줄이면 다른 곳이 늘어난다. 실제로 그린 «뒤» 에 재서, 넘친 만큼만 줄인다.
+
+   재는 기준은 «본문 전체» 가 아니라 «첫 상세 판 줄(.grid2)의 밑선» 이다.
+   그 아래 일자별 그림·프로그램 표·서류 출력은 원래 굴려서 보는 내용이라,
+   거기까지 넣으려 들면 글자가 못 읽을 만큼 작아진다.
+
+   0.78 이 바닥이다. 그보다 더 줄여야 들어가는 창이라면 줄이는 대신 굴리게
+   둔다 — 다 보이지만 못 읽는 화면은 안 보이는 것과 같다.
+
+   zoom 을 쓴다. transform:scale 은 줄여도 «원래 크기의 자리» 를 그대로
+   차지해서, 줄인 만큼 빈 칸이 남고 누르는 자리도 어긋난다. */
+function fitDash(){
+  const m = $('main'), d = $('dfit');
+  if(!m || !d) return;
+  d.style.zoom = '';                       // 먼저 원래 크기로 되돌려 잰다
+  const g = d.querySelector('.grid2');
+  if(!g) return;
+  let pad = 14;
+  try{ pad = parseFloat(getComputedStyle(m).paddingTop) || 14; }catch(e){}
+  const avail = m.clientHeight - pad - 10;             // 밑선 아래 숨 쉴 틈
+  const need  = g.getBoundingClientRect().bottom - d.getBoundingClientRect().top;
+  if(!(avail > 40 && need > 0) || need <= avail) return;
+  d.style.zoom = Math.max(0.78, avail / need).toFixed(4);
+}
+/* 창 크기가 바뀌면 다시 맞춘다. 매 픽셀마다 재면 끌 때 화면이 떤다.
+   「크게 보기」 로 산점도를 띄운 동안에는 건드리지 않는다 — 그 창은 화면을
+   덮고 있어서 본문 높이를 재 봐야 뜻이 없다. */
+let FIT_T = null;
+if(typeof window !== 'undefined' && window.addEventListener)
+  window.addEventListener('resize', () => {
+    if(FIT_T) clearTimeout(FIT_T);
+    FIT_T = setTimeout(() => {
+      if(TAB === 'dash' && !(typeof SCAT_BIG !== 'undefined' && SCAT_BIG)) fitDash();
+    }, 160);
+  });
 
 /* 그림 색은 위 :root 에서 읽는다. 코드에 박아 두면 화면 색을 바꿔도
    이 그래프만 옛 색으로 남는다. mes_dash.js 도 같은 방식이다. */
