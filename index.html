@@ -1125,10 +1125,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="f365bd6f3d">
+<meta name="mes-build" content="2c2582149b">
 <script>
 (function(){
-  var mine = "f365bd6f3d";
+  var mine = "2c2582149b";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -2206,12 +2206,7 @@ function scatTop(tools, sel, mid2, sortKey){
   })();
 
   const V = SCAT_VIEW;
-  const selT = seg.find(g => g.tool === sel);
-  const SUB = {
-    scatter: '가로 사용시간(h) · 세로 마모율(%)',
-    donut: '사용시간 상위 10종 · 진할수록 많이 닳음',
-    trend: selT ? `T${selT.tool} ${esc(selT.name)} · 날짜별 마모율` : '고른 공구의 날짜별 마모율',
-  };
+
   const donutKey = `<div class="dkey skey"><span>조각 크기 = 사용시간</span>
     <span><i style="background:var(--chart-bar);opacity:.35"></i><i style="background:var(--chart-bar);margin-left:-2px"></i>진할수록 많이 닳음</span>
     <span><i style="background:var(--warn)"></i>주의 90%↑</span><span><i style="background:var(--danger)"></i>교체 100%↑</span>
@@ -2232,7 +2227,6 @@ function scatTop(tools, sel, mid2, sortKey){
         ? `<div class="smtabs">${Object.entries(SVIEWS).map(([k, n]) =>
             `<button type="button" class="${k === V ? 'on' : ''}" onclick="scatView('${k}')">${n}</button>`).join('')}</div>`
         : `<b>${SVIEWS[V]}</b>`}
-      <span>${SUB[V]}</span>
       ${SCAT_BIG
         ? '<button type="button" class="smx" title="닫기 (Esc)" onclick="scatBig(false)">×</button>'
         : `<button type="button" class="smexp" title="화면 가득 크게 보기" onclick="scatBig(true)">${ICON}크게 보기</button>`}
@@ -2425,7 +2419,7 @@ async function renderDash(){
   </div>`;
 
   $('main').innerHTML = `<div id="dfit">
-    ${pageHead('대시보드', '지금 무엇이 급한지 · 무엇이 제일 많이 도는지', undefined, rstat)}
+    ${pageHead('대시보드', '', undefined, rstat)}
     ${s.anchor_live===false?`<div class="note warn">
       <b>기준 공구가 이 구간에서 안 돌았습니다</b> — 「기준 대비 진행」이 멈춰 있습니다.
       다른 공구 마모율은 정상입니다. ${helpBtn('anchor-stall')}</div>`:''}
@@ -2466,9 +2460,9 @@ async function renderDash(){
       <!-- 「쓰는 공구 67종」 도 카드 한 장을 쓰고 있었다. 그 숫자가 뜻이
            생기는 곳은 «그중 위 10종이 얼마나 도는가» 옆이므로 한 문장으로
            합쳤다 — 숫자가 설명과 붙어 있어야 읽고 나서 남는 게 있다. -->
-      <div class="psub">사용 공구 <b>${s.tools}종</b>${SCAT_VIEW === 'scatter'
-        ? ` · 가로 사용시간(h), 세로 마모율(%) · 점선 위의 경우 <b>평균보다 빨리 닳는 공구</b>` : ''}
-        · 정렬 <b>${esc(TSORT[TSEL_SORT][0])}</b></div>
+      <!-- 판 제목 밑 한 줄 설명은 뺐다. 축이 무엇인지·점선이 무엇인지는
+           그림 옆 「?」 단추 뒤에 그대로 있다 — 거기는 찾아 읽는 자리고,
+           여기는 켤 때마다 눈에 걸리는 자리다. -->
       <div class="dwrap">
         ${scatTop(TOOLS, SEL.tool, trendCol(det), TSEL_SORT)}
       </div>
@@ -2780,7 +2774,7 @@ async function renderMfg(){
   const kmax = Math.max(...kinds.kinds.map(k=>k.wear), 0.0001);
 
   $('main').innerHTML = `
-    ${pageHead('제조관리', '프로그램(제품)별 가동 현황과 공구 소모 — 왼쪽 목록에서 고르세요')}
+    ${pageHead('제조관리', '')}
     ${detail}
     <div class="panel">
       <h4>프로그램 목록 ${SEL.main?`— 메인 O${SEL.main}`:''}</h4>
@@ -2911,7 +2905,7 @@ async function renderSales(){
   if(SALES_SEL){ $('main').innerHTML = productView(s, s.mains.find(m=>m.main===SALES_SEL), nameOf); return; }
 
   $('main').innerHTML = `
-    ${pageHead('영업관리', '생산량 기준 공구 소모 — 왼쪽에서 제품을 고르면 그 제품만 봅니다')}
+    ${pageHead('영업관리', '')}
     <div class="cards">
       ${cardHtml('누적 생산', num(s.parts),'개')}
       ${cardHtml('누적 마모', f3(s.wear),'%')}
@@ -3171,8 +3165,7 @@ async function renderOrder(){
   })();
 
   const head = `
-    ${pageHead('공구 주문', back + `<span>소모가 많은 순 — ${
-        canManage?'발주 가능':'조회 전용 (관리자만 발주)'}</span>`)}
+    ${pageHead('공구 주문', back)}
     <div class="cards">
       ${clickCard(cardHtml(`마모 ${o.order_level}% 초과`, o.recommend_count,'종',
           o.recommend_count?'warn':'ok'), `pickOrder('cand')`, V==='cand')}
@@ -3582,9 +3575,7 @@ async function renderAlert(){
 
   $('main').innerHTML = `
     ${pageHead('알림' + (F?` — ${F.label}`:''),
-      F ? `<button class="act gray" onclick="ALERT_SEL=null;renderAlert()">← 전체 알림</button>`
-          + `<span>${F.desc}</span>`
-        : '<span>자동 경보는 선택한 기준으로 매번 다시 판정합니다 — 근거를 그대로 보여줍니다</span>')}
+      F ? `<button class="act gray" onclick="ALERT_SEL=null;renderAlert()">← 전체 알림</button>` : '')}
     <div class="cards">
       ${clickCard(cardHtml('위험', a.counts.danger,'건', a.counts.danger?'warn':'ok'),
         `pickAlert('danger')`, V==='danger')}
@@ -3693,7 +3684,7 @@ async function renderAsk(){
       : '<div class="item muted">기록 없음</div>');
 
   $('main').innerHTML = `
-    ${pageHead('질의', '집계된 값과 MES 활동 로그로 답합니다 — 원본 데이터는 전송하지 않습니다', '')}
+    ${pageHead('질의', '', '')}
     ${info.agent.online?'':`<div class="panel" style="background:var(--warn-soft);border-color:var(--warn-line)">
       <div style="font-size:12px;color:var(--warn-ink);line-height:1.7">
         <b>규칙 기반 모드</b> — <code>supabase functions deploy mes-ask</code> 를
@@ -3812,8 +3803,7 @@ async function renderHealth(){
     <div class="item">진동 주파수<span class="m">회전체 상태</span></div>
     <div class="item">온습도<span class="m">환경 조건</span></div>`;
   $('main').innerHTML = `
-    ${pageHead('설비 건전성',
-      '공구가 아니라 <b>설비 자체</b>의 상태. 지금까지 안 쓰던 컬럼으로 만들었습니다')}
+    ${pageHead('설비 건전성', '')}
 
     <div class="cards">
       ${cardHtml('3상 불평형 (중앙)', imb?f2(imb.p50):'-','%', lvl)}
@@ -3885,7 +3875,7 @@ async function renderOee(){
     <div class="item">카운터<span class="m">${p.counter_stuck?'정지 — 집계 불가':num(p.produced)+'개 (' + p.n_events + '회)'}</span></div>
     ${p.cycle_min.median?`<div class="item">실측 사이클<span class="m">${p.cycle_min.median}분/개</span></div>`:''}`;
   $('main').innerHTML = `
-    ${pageHead('가동률', '조업창(첫 가동~마지막 가동) 대비 실제로 깎은 시간의 비율')}
+    ${pageHead('가동률', '')}
 
     <div class="cards">
       ${cardHtml('조업일', s.operating_days,'일')}
@@ -3940,7 +3930,7 @@ async function renderMach(){
     `<h3>이송모드</h3>` +
     m.gcode.map(g=>`<div class="item">${g.name}<span class="m">${f2(g.h)}h · ${g.share}%</span></div>`).join('');
   $('main').innerHTML = `
-    ${pageHead('가공 분석', '지그 위치(G54~G59)와 이송모드별 절삭 분해')}
+    ${pageHead('가공 분석', '')}
 
     <div class="grid2">
       <div class="panel">
@@ -3999,8 +3989,7 @@ async function renderData(){
      <div class="item">3 Agent<span class="m">값의 형태로 판단</span></div>`;
 
   $('main').innerHTML = `
-    ${pageHead('데이터 추가',
-      '이름이 다른 데이터셋을 올리면 표준 컬럼에 자동 대응시킵니다 — 확정은 사람이 합니다', '')}
+    ${pageHead('데이터 추가', '', '')}
     <div class="panel">
       <div class="drop" onclick="$('fpick').click()">
         <b>CSV 파일을 선택하세요</b>
