@@ -30,21 +30,59 @@ note: 구매팀 제출용. 발주 이력에서 건별 또는 일괄 발주 단�
   .head td.v{font-weight:600;border-bottom:1px solid #999;padding-left:6px}
   .two{display:flex;gap:30px;margin-bottom:18px}
   .two > div{flex:1}
-  .sign{margin-top:26px;display:flex;justify-content:flex-end;gap:0}
-  .sign div{border:1px solid #333;width:92px;text-align:center;font-size:9pt}
-  .sign div .t{background:#eef1f5;padding:4px;border-bottom:1px solid #333}
-  .sign div .b{height:54px}
+  /* 결재란 — 오른쪽 위. 종이 서류의 결재란은 늘 이 자리에 있어서,
+     받는 사람이 «누가 승인했나» 를 맨 먼저 본다. 제목을 가리지 않도록
+     절대 위치로 띄우고 제목 쪽에 그만큼 위 여백을 준다. */
+  /* 흐름 안에서 오른쪽 끝에 세운다. 절대 위치로 띄우면 위의 인쇄 띠와
+     겹치고, 그 띠는 인쇄할 때만 사라져서 화면과 종이의 자리가 달라진다. */
+  .sign{display:flex;justify-content:flex-end;gap:0;margin-bottom:10px}
+  .sign > div{border:1px solid #333;width:92px;text-align:center;font-size:9pt;
+    background:#fff}
+  .sign > div + div{border-left:0}
+  .sign .t{background:#eef1f5;padding:3px;border-bottom:1px solid #333;font-weight:600}
+  .sign .b{height:58px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:1px;cursor:pointer;position:relative}
+  .sign .b:hover{background:#f5f8fc}
+  .sign .b img{width:42px;height:42px;display:block}
+  .sign .b .who{font-size:7pt;color:#555;line-height:1.1}
+  .sign .b .ph{font-size:7.5pt;color:#bbb}
+  /* 서명자 고르는 칸 — 칸을 누르면 그 밑에 펼친다 */
+  .pick{position:absolute;top:100%;left:-1px;z-index:9;background:#fff;
+    border:1px solid #333;min-width:150px;text-align:left;display:none}
+  .pick.on{display:block}
+  .pick button{display:block;width:100%;border:0;background:none;font:inherit;
+    font-size:9pt;padding:6px 10px;text-align:left;cursor:pointer;color:#111}
+  .pick button:hover{background:#eef1f5}
+  .pick button + button{border-top:1px solid #e5e5e5}
+  .pick .rm{color:#c0392b}
   .note{margin-top:16px;font-size:9pt;color:#555;line-height:1.7;
     border-left:3px solid #ccc;padding-left:10px}
   .tot{background:#f7f9fb;font-weight:700}
   .tag{display:inline-block;padding:1px 6px;border:1px solid #999;border-radius:3px;font-size:8.5pt}
   .hot{color:#c0392b;font-weight:700}
-  @media print { .bar{display:none} body{padding:0} }
+  /* 인쇄·PDF 에서는 결재란을 뺀다. 이 서류는 그대로 거래처로 나가는데,
+     내부 결재 도장까지 같이 나가면 안 된다. 사내 보관본이 필요하면
+     위 띠의 「결재란 포함」 을 켜고 인쇄한다. */
+  @media print {
+    .bar{display:none} body{padding:0}
+    .sign{display:none}
+    body.keep-sign .sign{display:flex}
+    .pick{display:none!important}
+  }
 </style>
 
 <div class="bar">
   <button onclick="window.print()">인쇄 / PDF 저장</button>
-  <span>인쇄 대화상자에서 «PDF로 저장» 을 고르면 파일로 남습니다</span>
+  <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+    <input type="checkbox" id="ks" onchange="document.body.classList.toggle('keep-sign',this.checked)">
+    결재란 포함 (사내 보관본)</label>
+  <span>기본은 결재란을 빼고 나갑니다 — 거래처 발송본</span>
+</div>
+
+<div class="sign" id="sign">
+  <div><div class="t">담당</div><div class="b" data-k="담당"></div></div>
+  <div><div class="t">검토</div><div class="b" data-k="검토"></div></div>
+  <div><div class="t">승인</div><div class="b" data-k="승인"></div></div>
 </div>
 
 <h1>공 구 발 주 서</h1>
@@ -105,12 +143,6 @@ note: 구매팀 제출용. 발주 이력에서 건별 또는 일괄 발주 단�
 <p style="padding:40px;text-align:center;color:#888">출력할 발주 건이 없습니다.</p>
 {{/if}}
 
-<div class="sign">
-  <div><div class="t">담당</div><div class="b"></div></div>
-  <div><div class="t">검토</div><div class="b"></div></div>
-  <div><div class="t">승인</div><div class="b"></div></div>
-</div>
-
 <div class="note">
   <b>산출 기준</b> — {{구간}} ({{구간기간}}) · 기준 수명 {{기준일수}}일 · 주간 가동시간 {{주간시간}}h ·
   앵커 {{앵커}} · 관측 절삭 {{관측시간|f2}}h<br>
@@ -118,3 +150,76 @@ note: 구매팀 제출용. 발주 이력에서 건별 또는 일괄 발주 단�
   잔여 일수는 산출하지 않습니다. 사용강도는 평균 공구 대비 소모 배수로, 기준과 무관한 관측값입니다.<br>
   집계본 {{집계시각}} · 발행 {{발행자}}
 </div>
+
+<script>
+/* ── 결재란 서명 ───────────────────────────────────────────────
+   칸을 누르면 서명할 사람을 고르고, 고르면 도장과 이름·날짜가 찍힌다.
+   다시 누르면 지울 수 있다.
+
+   도장 그림은 이 파일 안에 SVG 로 들어 있다 — 바깥 파일을 부르지
+   않는다. 공장 안은 인터넷이 없을 수 있고, 발주서는 그때도 떠야 한다.
+
+   ※ 여기 실린 넷은 화면을 보여 주기 위한 «표본» 이다. 실제 결재에
+      쓰려면 사람·도장을 실제 것으로 바꾸고, 누가 언제 찍었는지를
+      서버에 남겨야 한다 — 지금은 이 창에서만 산다. */
+var SIGNERS = [
+  {n:'안현기',t:'생산기술팀',s:'data:image/svg+xml;utf8,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="none" stroke="%23C0392B" stroke-width="5"/%3E%3Ctext x="50" y="37" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EC%95%88%3C/text%3E%3Ctext x="50" y="63" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%ED%98%84%3C/text%3E%3Ctext x="50" y="89" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EA%B8%B0%3C/text%3E%3C/svg%3E'},
+  {n:'김도현',t:'생산기술팀장',s:'data:image/svg+xml;utf8,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="none" stroke="%23C0392B" stroke-width="5"/%3E%3Ctext x="50" y="37" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EA%B9%80%3C/text%3E%3Ctext x="50" y="63" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EB%8F%84%3C/text%3E%3Ctext x="50" y="89" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%ED%98%84%3C/text%3E%3C/svg%3E'},
+  {n:'박성우',t:'공장장',s:'data:image/svg+xml;utf8,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="none" stroke="%23C0392B" stroke-width="5"/%3E%3Ctext x="50" y="37" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EB%B0%95%3C/text%3E%3Ctext x="50" y="63" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EC%84%B1%3C/text%3E%3Ctext x="50" y="89" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EC%9A%B0%3C/text%3E%3C/svg%3E'},
+  {n:'이재민',t:'생산기술팀',s:'data:image/svg+xml;utf8,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="none" stroke="%23C0392B" stroke-width="5"/%3E%3Ctext x="50" y="37" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EC%9D%B4%3C/text%3E%3Ctext x="50" y="63" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EC%9E%AC%3C/text%3E%3Ctext x="50" y="89" font-family="Batang,%EB%B0%94%ED%83%95,serif" font-size="25" fill="%23C0392B" text-anchor="middle" font-weight="700"%3E%EB%AF%BC%3C/text%3E%3C/svg%3E'}
+];
+
+function _today(){
+  var d = new Date(), p = function(v){ return String(v).padStart(2,'0'); };
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+}
+function _close(){
+  var q = document.querySelectorAll('.pick.on');
+  for (var i=0;i<q.length;i++) q[i].classList.remove('on');
+}
+function _stamp(box, u){
+  box.innerHTML = '';
+  if (!u){ box.innerHTML = '<span class="ph">서명하기</span>'; box.removeAttribute('data-by'); return; }
+  var im = document.createElement('img');
+  im.src = u.s; im.alt = u.n + ' 서명';
+  var w = document.createElement('div');
+  w.className = 'who'; w.textContent = u.n + ' · ' + _today();
+  box.appendChild(im); box.appendChild(w);
+  box.setAttribute('data-by', u.n);
+}
+function _menu(box){
+  var m = document.createElement('div');
+  m.className = 'pick on';
+  SIGNERS.forEach(function(u){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = u.n + ' — ' + u.t;
+    b.onclick = function(e){ e.stopPropagation(); _stamp(box, u); _close(); };
+    m.appendChild(b);
+  });
+  if (box.getAttribute('data-by')){
+    var r = document.createElement('button');
+    r.type = 'button'; r.className = 'rm'; r.textContent = '서명 지우기';
+    r.onclick = function(e){ e.stopPropagation(); _stamp(box, null); _close(); };
+    m.appendChild(r);
+  }
+  return m;
+}
+document.addEventListener('click', function(){ _close(); });
+(function(){
+  var boxes = document.querySelectorAll('#sign .b');
+  for (var i=0;i<boxes.length;i++){
+    (function(box){
+      _stamp(box, null);
+      box.addEventListener('click', function(e){
+        e.stopPropagation();
+        var had = box.querySelector('.pick');
+        _close();
+        if (had){ had.remove(); return; }
+        var old = box.querySelector('.pick'); if (old) old.remove();
+        box.appendChild(_menu(box));
+      });
+    })(boxes[i]);
+  }
+})();
+</script>
