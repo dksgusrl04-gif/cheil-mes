@@ -243,6 +243,57 @@
     } catch (e) { console.warn('로그 기록 실패', e.message); }
   }
 
+  /* 결재를 되살리려면 활동 기록을 충분히 넓게 읽어야 한다. 200줄만 읽으면
+     발주가 잦은 달에 옛 결재가 목록 밖으로 밀려 «안 찍힌 것» 이 된다. */
+  const auditRows = () => db('GET', '/mes_audit?select=*&order=at.desc&limit=1000');
+
+  /* ── 발주 결재 ──────────────────────────────────────────────
+     새 표도 새 칸도 만들지 않는다. 결재는 «누가 언제 무엇을 승인했나» 이므로
+     본질적으로 활동 기록이고, 이미 있는 mes_audit 의 칸(action·detail·user·at)
+     으로 충분하다. 예전에 알림 표에 없는 칸을 만들려다 Supabase 가 저장을
+     거절한 일이 있었다 — 저장 자리를 먼저 확인하고 시작했다.
+
+       결재 단위 키   묶음 발주면 'b:'+batch, 건별이면 'o:'+id
+       찍기          action='결재'     detail='<키>|<단계>|<서명자>'
+       물리기        action='결재취소' detail='<키>|<단계>'
+       판정          시간순으로 훑어 «마지막 것이 이긴다»
+
+     현장 서버(mes_store.py)에 같은 이름으로 한 벌 더 있다. 한쪽만 고치면
+     현장에서는 결재된 것이 웹에서는 안 된 것으로 보인다 — _test_sign.py 가
+     두 벌을 대조한다. */
+  const SIGN_STEPS = ['담당', '검토', '승인'];
+  const SIGN_ON = '결재', SIGN_OFF = '결재취소';
+
+  const signKey = (row) => (row && row.batch)
+    ? 'b:' + row.batch : 'o:' + ((row && row.id) || '');
+
+  const signDetail = (key, step, name) =>
+    name ? (key + '|' + step + '|' + name) : (key + '|' + step);
+
+  function signState(auditRows) {
+    const out = {};
+    (auditRows || []).slice()
+      .sort((a, b) => String(a.at || '').localeCompare(String(b.at || '')))
+      .forEach(r => {
+        const act = String(r.action || '');
+        if (act !== SIGN_ON && act !== SIGN_OFF) return;
+        const part = String(r.detail || '').split('|');
+        if (part.length < 2) return;
+        const key = part[0], step = part[1];
+        if (SIGN_STEPS.indexOf(step) < 0) return;
+        if (!out[key]) out[key] = {};
+        if (act === SIGN_ON) {
+          out[key][step] = { name: part[2] || '', at: String(r.at || '').slice(0, 10),
+                             by: String(r.user || '') };
+        } else {
+          delete out[key][step];
+        }
+      });
+    // 셋 다 물린 단위는 칸 자체를 지운다 — «빈 껍데기» 가 남지 않게
+    Object.keys(out).forEach(k => { if (!Object.keys(out[k]).length) delete out[k]; });
+    return out;
+  }
+
   const hex = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)))
     .map(b => b.toString(16).padStart(2, '0')).join('');
 
@@ -797,7 +848,12 @@
       }
       case path === '/api/orders': {
         const rows = await db('GET', '/mes_orders?select=*&order=at.desc&limit=500');
-        return ok(MES.orders(b, rows));
+        const r = MES.orders(b, rows);
+        /* 결재 상태를 같이 싣는다. 발주 목록과 따로 부르면 «표는 떴는데
+           결재칸만 비어 있는» 순간이 생겨, 아직 결재 안 된 것으로 읽힌다. */
+        r.signs = signState(await auditRows());
+        r.steps = SIGN_STEPS.slice();
+        return ok(r);
       }
       /* ── 공구 교체 이력 ──────────────────────────────────────
          목록과 함께 «지금 화면에 뭐가 반영돼 있나» 도 같이 준다.
@@ -910,10 +966,18 @@
         }
         let alerts = null;
         if (t.data === 'alert') alerts = { auto: autoAlerts(b) };
+        /* 결재는 서류 창에서 누르는 게 아니라, 공구 주문 탭에서 이미 찍힌
+           것을 «싣고 나간다». 그래야 창을 닫아도 남고, 누가 언제 결재했는지
+           활동 기록과 서류가 같은 것을 말한다. */
+        let signs = null;
+        if (t.data === 'order' && orders.length) {
+          const all = signState(await auditRows());
+          signs = all[signKey(orders[0])] || {};
+        }
         const out = MESDOC.build(t.src, {
           MES, basis: b, user: u, orders,
           batch: qs.get('batch') || (orders[0] && orders[0].batch) || null,
-          alerts,
+          alerts, signs,
         });
         await log('서류 출력', t.title);
         return new Response(out.html, {
@@ -1223,6 +1287,22 @@
         await log('발주 등록', added.map(r => `T${r.tool} ${r.name} × ${r.qty}`).join(' · '));
         return ok({ ok: true, added: added.length });
       } catch (e) { return err({ error: '발주 저장 실패 — ' + e.message }, 500); }
+    }
+
+    /* 결재 찍기·물리기. 관리자만 — 작업자가 승인란을 채울 수는 없다. */
+    if (path === '/api/order/sign' || path === '/api/order/unsign') {
+      if (u.role !== 'manager') return err({ error: '관리자만 결재할 수 있습니다' }, 403);
+      const key = String(body.key || '');
+      const step = String(body.step || '');
+      if (!key) return err({ error: '결재할 발주를 찾지 못했습니다' }, 400);
+      if (SIGN_STEPS.indexOf(step) < 0) return err({ error: '모르는 결재 단계입니다' }, 400);
+      const off = path.endsWith('/unsign');
+      const name = off ? '' : String(body.name || '').slice(0, 20);
+      if (!off && !name) return err({ error: '서명할 사람을 고르세요' }, 400);
+      try {
+        await log(off ? SIGN_OFF : SIGN_ON, signDetail(key, step, name));
+        return ok({ ok: true, signs: signState(await auditRows()) });
+      } catch (e) { return err({ error: '결재 저장 실패 — ' + e.message }, 500); }
     }
 
     if (path.startsWith('/api/order/') && path.endsWith('/status')) {

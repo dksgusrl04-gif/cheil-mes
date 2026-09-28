@@ -166,8 +166,17 @@
           사용강도: t.intensity === undefined ? 0 : t.intensity,
         });
       });
+      /* 결재 — 공구 주문 탭에서 찍힌 것을 그대로 싣는다. 양식은 여기 실린
+         것만 도장으로 그린다(서류에서 누르지 않는다). 없으면 빈 칸이다. */
+      const sg = o.signs || {};
       return Object.assign({}, common, {
         items: items,
+        결재: ['담당', '검토', '승인'].map(k => ({
+          단계: k,
+          이름: (sg[k] && sg[k].name) || '',
+          일자: (sg[k] && sg[k].at) || '',
+        })),
+        결재됨: ['담당', '검토', '승인'].filter(k => sg[k] && sg[k].name).length,
         발주번호: o.batch || (orders[0] && orders[0].batch) || '-',
         발주일: (orders[0] && String(orders[0].at || '').slice(0, 10)) || common.발행시각.slice(0, 10),
         건수: items.length,

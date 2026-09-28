@@ -771,6 +771,37 @@
   /* ── 「없습니다」 판 ───────────────────────────────────────
      빈 화면을 그냥 비워 두면 «안 뜬 건가» 하고 기다리게 된다.
      0건이라는 사실과 «무슨 기준으로 0인지» 를 같이 적는다. */
+  /* ── 발주 결재 ────────────────────────────────────────────
+     표 안에서는 «몇 단계 찍혔나» 만 점으로 보여 준다. 이름·날짜까지 넣으면
+     한 줄이 두 줄이 되어 발주 이력 전체가 두 배로 길어진다. */
+  .sbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-in);
+    background:var(--surface);border-radius:999px;padding:3px 10px;font:inherit;
+    font-size:11.5px;color:var(--ink-2);cursor:pointer;white-space:nowrap;
+    transition:border-color .12s,color .12s}
+  .sbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .sbtn.full{border-color:var(--ok-line);background:var(--ok-soft);color:var(--ok)}
+  .sdot{width:7px;height:7px;border-radius:50%;background:var(--line);flex:none;
+    box-shadow:inset 0 0 0 1px var(--line-in)}
+  .sdot.on{background:var(--accent);box-shadow:none}
+  .sbtn.full .sdot.on{background:var(--ok)}
+  .sbtn span{font-variant-numeric:tabular-nums;font-weight:650}
+  /* 결재 창 — 세 칸을 나란히 */
+  .sgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .scol{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+    background:var(--surface);display:flex;flex-direction:column}
+  .scol .sh{background:var(--raise);border-bottom:1px solid var(--line);
+    padding:6px;text-align:center;font-size:12.5px;font-weight:700}
+  .scol .sb{min-height:62px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:2px;padding:8px}
+  .scol .sb b{font-size:14.5px;font-weight:700;color:var(--accent)}
+  .scol .sb span{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .scol .sb .none{font-size:11.5px;color:var(--faint)}
+  .sact{border-top:1px solid var(--line-2);padding:7px;display:flex;flex-direction:column;gap:5px}
+  .sact select{width:100%;padding:5px 7px;border:1px solid var(--line-in);
+    border-radius:var(--r-sm);font:inherit;font-size:12px;background:var(--surface)}
+  .sact .act{padding:5px;font-size:12px}
+  @media(max-width:820px){ .sgrid{grid-template-columns:1fr} }
+
   /* 자동 경보 칸 아래의 「경보 끄기」 줄 — 본문과 섞이지 않게 선으로 나눈다 */
   .almute{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
     margin-top:9px;padding-top:8px;border-top:1px solid var(--line-2)}
@@ -1142,10 +1173,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="982aff3340">
+<meta name="mes-build" content="47ff4a5736">
 <script>
 (function(){
-  var mine = "982aff3340";
+  var mine = "47ff4a5736";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -1191,9 +1222,9 @@
 <script src="mes_calc.js?v=c868abe7"></script>
 <script src="mes_agg.js?v=11275ab8"></script>
 <script src="mes_match.js?v=b3aad343"></script>
-<script src="mes_doc.js?v=8c8f7911"></script>
+<script src="mes_doc.js?v=3ab2987a"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=7136bb36"></script>
+<script src="mes_supa.js?v=59300cff"></script>
 <script src="mes_ui.js?v=06ee9ac5"></script>
 <script src="mes_dash.js?v=6bae9cee"></script>
 <script>
@@ -3044,6 +3075,10 @@ function pickOrder(v){ ORDER_VIEW = (ORDER_VIEW===v? null : v); renderOrder(); }
 async function renderOrder(){
   const o = await api('/api/orders');
   const b = o.basis;
+  /* 결재 상태는 발주 목록과 «같이» 내려온다. 따로 부르면 표는 떴는데
+     결재칸만 비어 있는 순간이 생겨, 아직 결재 안 된 것으로 읽힌다. */
+  ORDER_SIGNS = o.signs || {};
+  if(Array.isArray(o.steps) && o.steps.length) ORDER_STEPS = o.steps;
   /* 교체 이력 표가 아직 없어도 화면은 떠야 한다 */
   let rep = {rows:[],applied:[],applied_count:0,note:'',table_missing:false,hint:'',can_edit:false};
   try{ rep = await api('/api/replacements'); }catch(e){ /* 없으면 없는 대로 */ }
@@ -3234,6 +3269,7 @@ async function renderOrder(){
   const ordPanel = `<div class="panel">
       <h4>발주 이력</h4>
       <table><thead><tr><th>일시</th><th>공구</th><th class="n">수량</th><th>담당</th><th>상태</th>
+        <th style="width:128px">결재</th>
         <th>비고</th><th style="width:74px">출력</th></tr></thead><tbody>
       ${o.orders.length? o.orders.map(x=>`<tr><td class="mono">${x.at}</td>
         <td>T${x.tool} ${x.name}</td><td class="n">${x.qty}</td><td>${x.by}</td>
@@ -3243,11 +3279,12 @@ async function renderOrder(){
           ${canManage&&x.status==='입고'?`<button class="act sec" style="margin-left:6px"
             title="이 공구를 실제로 물렸다면 눌러 주세요 — 그날부터 다시 셉니다"
             onclick="openReplace(${x.tool})">교체 처리</button>`:''}</td>
+        <td>${signCell(x)}</td>
         <td class="muted">${x.note||''}</td>
         <td><button class="act sec" title="이 건의 발주서를 새 창에서 엽니다"
           onclick="openReport('order','${x.batch?('batch='+x.batch):('ids='+x.id)}')">발주서</button></td>
         </tr>`).join('')
-        : '<tr><td colspan=7 class="muted">발주 이력이 없습니다</td></tr>'}
+        : '<tr><td colspan=8 class="muted">발주 이력이 없습니다</td></tr>'}
       </tbody></table>
     </div>`;
 
@@ -3417,6 +3454,106 @@ async function doUnmute(id){
     if(r && r.error) throw new Error(r.error);
   }catch(e){ alert('켜지 못했습니다 — ' + e.message); return; }
   renderAlert();
+}
+
+/* ═════ 발주 결재 ══════════════════════════════════════════════
+   서류 창 안에서만 찍히던 서명을 여기로 옮겼다. 창을 닫으면 사라지는 서명은
+   기록이 아니라 그림이다 — 누가 언제 결재했는지 아무 데도 안 남는다.
+
+   지금은 발주 목록과 같이 내려오는 결재 상태(ORDER_SIGNS)를 읽어 표시하고,
+   찍으면 서버의 활동 기록(mes_audit)에 남는다. 발주서를 열면 그 기록이
+   도장으로 찍혀 나온다 — 서류에서 누르는 게 아니라 이미 결재된 것이 보인다.
+
+   ※ 여기 넷은 화면을 보여 주기 위한 «표본» 이다. 실제로 쓰려면 이 목록을
+      실제 결재선으로 바꾸고, 지금처럼 아무나 고르는 게 아니라 로그인한
+      본인만 자기 칸에 찍게 해야 한다. 지금은 «누가 눌렀는지» 도 활동
+      기록의 user 칸에 같이 남으므로, 나중에 그쪽으로 옮기기 쉽다. */
+const SIGNERS = [
+  {n:'안현기', t:'생산기술팀'},
+  {n:'김도현', t:'생산기술팀장'},
+  {n:'박성우', t:'공장장'},
+  {n:'이재민', t:'생산기술팀'},
+];
+let ORDER_SIGNS = {}, ORDER_STEPS = ['담당','검토','승인'];
+
+const signKeyOf = x => x && x.batch ? ('b:'+x.batch) : ('o:'+((x&&x.id)||''));
+
+/* 표 안의 한 칸 — 몇 단계가 찍혔는지를 점으로. 좁은 칸이라 이름까지는
+   말풍선에 넣는다. 누르면 찍는 창이 열린다. */
+function signCell(x){
+  const key = signKeyOf(x);
+  const st = ORDER_SIGNS[key] || {};
+  const done = ORDER_STEPS.filter(k=>st[k]).length;
+  const tip = ORDER_STEPS.map(k=>`${k} ${st[k]?(st[k].name+' · '+st[k].at):'-'}`).join('\n');
+  const dots = ORDER_STEPS.map(k=>
+    `<i class="sdot${st[k]?' on':''}" title="${esc(k)}"></i>`).join('');
+  return `<button class="sbtn${done===ORDER_STEPS.length?' full':''}" title="${esc(tip)}"
+    onclick="openSign('${key}')">${dots}<span>${done}/${ORDER_STEPS.length}</span></button>`;
+}
+
+function openSign(key){
+  const st = ORDER_SIGNS[key] || {};
+  const can = ME.role==='manager';
+  $('modal').classList.remove('hide');
+  $('modal').innerHTML = `
+    <div class="mbox">
+      <div class="mhead">
+        <h3>발주 결재</h3>
+        <div class="s">${can?'칸을 누르면 서명할 사람을 고릅니다. 발주서에는 여기서 찍힌 것만 나옵니다.'
+                          :'관리자만 결재할 수 있습니다 — 보기만 가능합니다.'}</div>
+      </div>
+      <div class="mbody">
+        <div class="sgrid">
+          ${ORDER_STEPS.map(k=>{
+            const v = st[k];
+            return `<div class="scol">
+              <div class="sh">${k}</div>
+              <div class="sb">${v
+                ? `<b>${esc(v.name)}</b><span>${esc(v.at)}</span>`
+                : '<span class="none">미결재</span>'}</div>
+              ${can?`<div class="sact">
+                <select id="ss_${k}">
+                  <option value="">고르기…</option>
+                  ${SIGNERS.map(u=>`<option value="${esc(u.n)}" ${v&&v.name===u.n?'selected':''}
+                    >${esc(u.n)} — ${esc(u.t)}</option>`).join('')}
+                </select>
+                <button class="act" onclick="doSign('${key}','${k}')">서명</button>
+                ${v?`<button class="act gray" onclick="doUnsign('${key}','${k}')">물리기</button>`:''}
+              </div>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="note" style="margin-top:12px">
+          결재는 활동 기록에 남습니다 — 찍은 사람과 시각이 같이 남고, 물려도
+          지워지지 않고 «물렸다» 로 남습니다.
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="act gray" onclick="closeOrder()">닫기</button>
+      </div>
+    </div>`;
+}
+
+async function doSign(key, step){
+  const sel = $('ss_'+step);
+  const name = sel ? sel.value : '';
+  if(!name){ alert('서명할 사람을 고르세요'); return; }
+  await sendSign('/api/order/sign', {key, step, name});
+}
+async function doUnsign(key, step){
+  if(!confirm(`${step} 결재를 물립니다.\n기록에는 «물렸다» 로 남습니다.`)) return;
+  await sendSign('/api/order/unsign', {key, step});
+}
+async function sendSign(url, payload){
+  try{
+    const r = await fetch(url, {method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const j = await r.json();
+    if(!r.ok){ alert(j.error||'결재 저장 실패'); return; }
+    if(j.signs) ORDER_SIGNS = j.signs;
+    openSign(payload.key);        // 창은 열어 둔 채로 방금 결과를 보여 준다
+    render();                     // 뒤의 표도 같이 갱신
+  }catch(e){ alert('결재 저장 실패 — ' + e.message); }
 }
 
 function openReplace(tno){
