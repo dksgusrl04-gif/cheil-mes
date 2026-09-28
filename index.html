@@ -1173,10 +1173,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="66910c036e">
+<meta name="mes-build" content="8ed10290dc">
 <script>
 (function(){
-  var mine = "66910c036e";
+  var mine = "8ed10290dc";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -2476,7 +2476,7 @@ async function renderDash(){
       <b>먼저 보세요</b> — ${hot.slice(0,4).map(x=>`<button class="lnk" onclick="SEL.tool=${x.tool};render()">T${x.tool} ${esc(x.name)} ${f2(x.wear)}%</button>`).join(' ')}
       ${hot.length>4?`<span class="muted">외 ${hot.length-4}종</span>`:''}</div>`:''}
 
-    <!-- 첫 줄은 판 둘 — 왼쪽 «어느 공구가 많이 도는가», 오른쪽 «이 숫자가
+    <!-- 첫 줄은 판 둘 — 왼쪽 «공구별 사용 현황», 오른쪽 «이 숫자가
          언제 것인가». 예전에는 넉 장짜리 요약 카드 줄이 위에 따로 서고,
          그 아래 한 판이 센서·요약·원그래프 세 칸으로 갈려 있었다. 카드 줄은
          네 숫자를 같은 무게로 세워 무엇이 급한지를 오히려 감췄고, 세 칸으로
@@ -2487,7 +2487,7 @@ async function renderDash(){
     <div class="dash2">
     <div class="panel">
       <div class="phead">
-        <h4>어느 공구가 많이 도는가</h4>
+        <h4>공구별 사용 현황</h4>
         <!-- 67종을 한 줄 목록으로만 두면 «T43 이 어디 있지» 를 눈으로 훑게
              된다. 찾기(글자)와 정렬(무엇이 위로 오나)을 칸 옆에 붙인다. -->
         <div class="tpick">
