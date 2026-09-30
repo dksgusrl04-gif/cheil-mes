@@ -1062,6 +1062,16 @@
     border-radius:12px 12px 12px 3px;font-size:12.5px;display:inline-block;max-width:80%}
   /* 글자가 흘러 들어오는 중 — 끝에 깜박이는 막대를 붙여 «아직 오는 중» 을
      보여 준다. 다 오면 이 표시가 사라진다. */
+  /* 도구를 부르는 동안 뜨는 한 줄 · 다 끝난 뒤 남는 「찾아본 자료」 */
+  .qa .look{font-size:11.5px;color:var(--accent);margin:2px 0 4px;
+    display:flex;align-items:center;gap:6px}
+  .qa .look::before{content:'';width:9px;height:9px;border-radius:50%;
+    border:2px solid var(--accent-line);border-top-color:var(--accent);
+    animation:spin .7s linear infinite;flex:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){ .qa .look::before{animation:none} }
+  .qa .used{font-size:11px;color:var(--muted);margin-top:5px;
+    padding-top:5px;border-top:1px dashed var(--line)}
   .qa .a.flow::after{content:'';display:inline-block;width:2px;height:1em;
     margin-left:2px;vertical-align:-2px;background:var(--accent);
     animation:caret 1s steps(1) infinite}
@@ -1173,10 +1183,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="8ed10290dc">
+<meta name="mes-build" content="7511e913b5">
 <script>
 (function(){
-  var mine = "8ed10290dc";
+  var mine = "7511e913b5";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -1224,7 +1234,7 @@
 <script src="mes_match.js?v=b3aad343"></script>
 <script src="mes_doc.js?v=3ab2987a"></script>
 <script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=59300cff"></script>
+<script src="mes_supa.js?v=4a3e3e62"></script>
 <script src="mes_ui.js?v=06ee9ac5"></script>
 <script src="mes_dash.js?v=6bae9cee"></script>
 <script>
@@ -3817,6 +3827,15 @@ function askCache(key, val){
   ASK_CACHE.set(key, {a: val.a, provider: val.provider, fallback: val.fallback});
   if(ASK_CACHE.size > 20) ASK_CACHE.delete(ASK_CACHE.keys().next().value);
 }
+/* 도구 이름을 사람이 읽는 말로. 화면에 tool_detail 이라고 뜨면 이 일을
+   모르는 관리자는 한 줄도 못 읽는다. */
+const TOOL_LABEL = {
+  tool_detail:'공구 상세', program_detail:'프로그램 상세', orders:'발주 이력',
+  audit:'활동 기록', alerts:'경보', health:'설비 건전성', oee:'가동률',
+  machining:'가공 분석', sales:'제품별 소모', replacements:'교체 기록',
+};
+const toolLabel = k => TOOL_LABEL[k] || k;
+
 async function renderAsk(){
   /* 함수를 미리 깨운다. Edge Function 은 한동안 안 부르면 잠들어서 그날
      첫 질문만 1~2초를 더 기다린다. 탭을 여는 순간 깨우면 질문을 다 칠
@@ -3853,7 +3872,12 @@ async function renderAsk(){
     <div class="panel" id="qalog">
       <h4>대화</h4>
       ${QA.length? QA.map((x,i)=>`<div class="qa"><div class="q">${x.q}</div>
+        ${x.streaming&&(x.looking||[]).length
+          ? `<div class="look" id="qlk-${i}">${(x.looking||[]).map(toolLabel).join(' · ')} 찾아보는 중…</div>`
+          : (x.streaming ? `<div class="look hide" id="qlk-${i}"></div>` : '')}
         <div class="a${x.streaming?' flow':''}" id="qa-${i}">${x.a}</div>
+        ${(x.used||[]).length?`<div class="used">찾아본 자료 — ${
+          [...new Set(x.used)].map(toolLabel).join(' · ')}</div>`:''}
         <div class="src">${x.provider}${x.cached?' · 앞서 물어본 답':''}${x.fallback?' · 오프라인으로 대체됨':''}${
           x.context_size?` · 전송 ${(x.context_size/1024).toFixed(1)}KB`:''}</div></div>`).reverse().join('')
         : '<div class="muted">질문을 입력하면 여기에 표시됩니다</div>'}
@@ -3883,13 +3907,25 @@ async function ask(preset){
     renderAsk();
     /* 조각마다 화면 전체를 다시 그리면 글 쓰던 칸에서 커서가 튄다.
        답 칸 하나만 고쳐 넣는다. */
-    const paint = (_, all) => {
+    /* 도구를 부르는 동안은 2~3초 아무것도 안 뜬다. 그때 무엇을 찾아보는
+       중인지 적어 주면 «멈춘 것» 이 «찾는 중» 으로 읽힌다. */
+    const seen = [];
+    const paint = (_, all, info) => {
+      if(info && info.tool){
+        if(seen.indexOf(info.tool) < 0) seen.push(info.tool);
+        QA[i].looking = seen.slice();
+        const lk = $('qlk-'+i);
+        if(lk) lk.textContent = seen.map(toolLabel).join(' · ') + ' 찾아보는 중…';
+        else renderAsk();
+        return;
+      }
       const el = $('qa-'+i);
       if(el){ el.textContent = all; el.scrollIntoView({block:'nearest'}); }
     };
     try{
       const r = await window.MES_ASK_STREAM(q, qs(), paint);
-      QA[i] = {q, a: r.answer || '응답 없음', provider: r.model||'', streaming:false};
+      QA[i] = {q, a: r.answer || '응답 없음', provider: r.model||'', streaming:false,
+               used: r.tools_used || []};
       if(r.answer) askCache(ckey, QA[i]);
       renderAsk();
       return;

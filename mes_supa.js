@@ -511,31 +511,73 @@
   const FN = () => `${URL_BASE}/functions/v1/${CFG.ASK_FUNCTION || 'mes-ask'}`;
 
   /* 집계본을 통째로 보내면 요금이 커진다. 물어볼 만한 것만 추린다. */
-  function askContext(qs) {
+  /* 질의에 실어 보내는 자료.
+
+     예전에는 기준·공구 상위 20종·일자별·프로그램 이름만 보냈다. 그래서
+     «누가 발주했나», «어느 프로그램이 많이 닳나» 같은 질문에 모델이 답할
+     수가 없었다 — 모델이 모자란 게 아니라 그 자료를 아예 안 보낸 것이다.
+     현장 서버(mes_agent.py build_context)는 처음부터 보내고 있었는데 웹만
+     빈약했다. 두 벌이 갈라진 자리라서 파이썬 쪽 모양에 맞춘다.
+
+     읽다가 실패하는 부분은 그 항목만 비우고 나머지는 보낸다 — 발주 표를
+     못 읽었다고 마모율 질문까지 못 답하게 둘 이유가 없다. */
+  async function askContext(qs) {
     if (!SNAPSHOT) return {};
     const b = basisFrom(qs || new URLSearchParams());
     const i = b.info();
-    const tools = MES.toolList(b).slice(0, 20);
+
+    let orders = [], audit = [], alerts = [], signs = {};
+    try {
+      const rows = await db('GET', '/mes_orders?select=*&order=at.desc&limit=500');
+      orders = (MES.orders(b, rows).orders || []).slice(0, 40);
+    } catch (e) { /* 그 항목만 빈다 */ }
+    try {
+      audit = (await auditRows()).slice(0, 50);
+      signs = signState(audit);
+    } catch (e) { /* 그 항목만 빈다 */ }
+    try { alerts = autoAlerts(b).slice(0, 25); } catch (e) { /* 그 항목만 빈다 */ }
+
     return {
       기준: {
         구간: i.segment_label, 기간: i.segment_period,
         기준수명일: i.life_days, 주간가동시간: i.week_hours,
         앵커: i.anchor_label, 관측절삭시간h: i.observed_hours,
       },
+      설비: 'FANUC Series 32i / G50A · 설비번호 JPS-1070 (MCT 1대)',
       전환: SNAPSHOT.switch,
       가중치: SNAPSHOT.weights,
       임계값: SNAPSHOT.thresholds,
-      공구: tools.map(t => ({
+      /* 상위 20종만 보내면 «T57 은?» 에 못 답한다. 전부 보낸다. */
+      공구: MES.toolList(b).map(t => ({
         번호: t.tool, 이름: t.name, 부류: t.cls === 'breakage' ? '파손형' : '마모형',
         마모율: t.wear, 사용강도: t.intensity, 기여도: t.share, 절삭시간h: t.hours,
+      })),
+      /* 마모 기여가 없으면 «어느 프로그램이 많이 닳나» 를 못 답한다.
+         집계본의 progs 에는 raw 만 있고 wear 가 없다 — 자로 잰 값은
+         MES.programs() 가 만든다. 그쪽을 써야 한다. */
+      프로그램: (MES.programs(b).progs || []).map(p => ({
+        이름: p.prog, 이름표: p.name || '', 메인: p.main, 메인이름: p.main_name || '',
+        절삭h: p.hours, 마모기여: p.wear,
       })),
       일자별: (b.seg.days || []).map(d => ({
         날짜: d.date, 절삭h: d.cut_h, 행수: d.rows, 생산: d.parts,
       })),
-      프로그램: (b.seg.progs || []).slice(0, 10).map(p => ({
-        이름: p.prog, 메인: p.main, 절삭h: p.hours,
+      발주이력: orders.map(o => ({
+        일시: o.at, 공구: o.tool, 이름: o.name, 수량: o.qty,
+        담당: o.by, 상태: o.status, 묶음: o.batch || null,
+        결재: signs[o.batch ? ('b:' + o.batch) : ('o:' + o.id)] || null,
       })),
+      MES활동로그: audit.map(a => ({
+        시각: a.at, 사용자: a.user, 역할: a.role, 행위: a.action, 내용: a.detail,
+      })),
+      경보: alerts.map(a => ({ 단계: a.level, 규칙: a.rule, 제목: a.title, 내용: a.body })),
       비고: b.seg.parts_note || '',
+      주의사항: [
+        '공구 교체 이력이 수집되지 않아 실제 교체 시점은 알 수 없다',
+        '2026-08-24 16:00 에 부품 모델이 바뀌어 공구 세트가 통째로 교체됐다',
+        '진동 첨도(Vib_Kurt)가 전량 0이라 파손 전조는 감지할 수 없다',
+        '인자별(실가공·과부하·충격) 값은 공구 상세에만 있다 — 위 공구 목록에는 없다',
+      ],
     };
   }
 
@@ -550,6 +592,60 @@
       FN_OK = r.ok || r.status === 204;
     } catch (e) { FN_OK = false; }
     return FN_OK;
+  }
+
+  /* ═══════════════════════════ 도구 실행 ═══════════════════════
+     모델이 «tool_detail 을 no=33 으로 불러 줘» 라고 하면 여기서 실행한다.
+
+     실행을 브라우저가 맡는 이유 둘.
+       1) 계산이 mes_calc.js 한 벌에만 있다. Edge Function 에서 또 계산하면
+          두 벌이 되고, 이 프로젝트가 계속 지켜 온 «한 벌» 이 깨진다.
+       2) 여기서 부르면 기존 역할·권한 검사가 그대로 걸린다. 함수가 DB 를
+          직접 읽으면 그 방어선을 우회하게 된다.
+
+     전부 읽기 전용이다. 쓰는 도구는 두지 않는다 — 질의가 발주를 넣거나
+     경보를 끄는 일은 없어야 한다. */
+  const TOOL_PATH = {
+    tool_detail:    (a) => '/api/tool/' + parseInt(a.no, 10),
+    program_detail: (a) => '/api/program/' + encodeURIComponent(String(a.name || '')),
+    orders:         () => '/api/orders',
+    audit:          () => '/api/audit',
+    alerts:         () => '/api/alerts',
+    health:         () => '/api/health',
+    oee:            () => '/api/oee',
+    machining:      () => '/api/machining',
+    sales:          () => '/api/sales',
+    replacements:   () => '/api/replacements',
+  };
+  /* 한 질문에 도구를 몇 번까지 부를 수 있나. 없으면 모델이 67종을 하나씩
+     훑다가 요금과 시간이 함께 터진다. */
+  const TOOL_ROUNDS = 4;
+  const TOOL_CALLS = 6;          // 한 번에 부를 수 있는 도구 수
+  const TOOL_CHARS = 12000;      // 결과 하나의 글자 상한
+
+  async function runTools(list, qs) {
+    const out = [];
+    for (const t of (list || []).slice(0, TOOL_CALLS)) {
+      let body;
+      try {
+        const mk = TOOL_PATH[t.name];
+        if (!mk) throw new Error('모르는 도구입니다: ' + t.name);
+        const path = mk(t.input || {});
+        /* 화면이 쓰는 그 길로 그대로 부른다 — 권한·계산이 한 벌로 유지된다 */
+        const res = await handleGet(path, new URLSearchParams(qs || ''));
+        const j = await res.json().catch(() => ({}));
+        body = JSON.stringify(j);
+        if (body.length > TOOL_CHARS) {
+          body = body.slice(0, TOOL_CHARS)
+            + '\n…(너무 길어 잘렸습니다. 더 좁혀 물어 주세요)';
+        }
+      } catch (e) {
+        /* 실패도 결과로 돌려준다. 안 돌려주면 모델이 답을 못 맺고 멈춘다. */
+        body = JSON.stringify({ error: String(e && e.message || e) });
+      }
+      out.push({ type: 'tool_result', tool_use_id: t.id, content: body });
+    }
+    return out;
   }
 
   async function askClaude(q, context) {
@@ -597,7 +693,38 @@
      함수가 줄 단위로 «data: {"t":"조각"}» 을 흘려보내고, 여기서 조각마다
      onText 를 부른다. 중간에 끊기면 그때까지 받은 글자를 그대로 돌려준다 —
      반쯤 온 답이라도 «아무것도 안 나옴» 보다는 낫다. */
-  async function askClaudeStream(q, context, onText) {
+  async function askClaudeStream(q, context, onText, qs) {
+    /* 도구를 부르면 한 번에 안 끝난다. 모델이 «이 도구를 불러 줘» 하면
+       실행해서 결과를 담아 다시 묻는다. TOOL_ROUNDS 번까지만 돈다 —
+       없으면 모델이 67종을 하나씩 훑다가 요금과 시간이 함께 터진다. */
+    /* 이어 물을 때는 첫 메시지를 그대로 다시 실어야 한다. 함수가 만드는
+       모양과 «똑같이» 만들어야 자료가 두 번 들어가거나 빠지지 않는다. */
+    const prompt0 = (context !== undefined && context !== null)
+      ? '[자료]\n' + JSON.stringify(context) + '\n\n[질문]\n' + q
+      : q;
+    let msgs = null, used = [];
+    for (let round = 0; ; round++) {
+      const r = await askOnce(q, context, msgs, onText);
+      if (!r.need_tools) {
+        if (used.length) r.tools_used = used;
+        return r;
+      }
+      used = used.concat(r.need_tools.map(t => t.name));
+      if (round >= TOOL_ROUNDS - 1) {
+        /* 더 못 돈다. 지금까지 받은 글이라도 돌려준다 — 빈 답보다 낫다. */
+        return { answer: r.answer || '자료를 더 찾아야 하는데 조회 횟수를 넘었습니다. '
+                 + '질문을 좁혀서 다시 물어 주세요.',
+                 model: r.model || null, usage: r.usage || null,
+                 fallback: false, tools_used: used };
+      }
+      const results = await runTools(r.need_tools, qs);
+      msgs = (msgs || [{ role: 'user', content: prompt0 }])
+        .concat([{ role: 'assistant', content: r.assistant },
+                 { role: 'user', content: results }]);
+    }
+  }
+
+  async function askOnce(q, context, messages, onText) {
     if (!SESSION || !SESSION.access_token) {
       throw Object.assign(new Error('로그인이 필요합니다'), { status: 401 });
     }
@@ -609,7 +736,7 @@
           apikey: KEY, Authorization: 'Bearer ' + SESSION.access_token,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ q, context }),
+        body: JSON.stringify(messages ? { messages } : { q, context }),
       });
     } catch (e) {
       FN_OK = false;
@@ -646,7 +773,7 @@
     }
 
     const rd = r.body.getReader(), dec = new TextDecoder();
-    let buf = '', text = '', fin = {};
+    let buf = '', text = '', fin = {}, need = null, asst = null;
     for (;;) {
       const { done, value } = await rd.read();
       if (done) break;
@@ -660,9 +787,21 @@
         try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
         if (ev.error) throw Object.assign(new Error(ev.error), { status: 502 });
         if (ev.t) { text += ev.t; if (onText) onText(ev.t, text); }
+        /* 「무엇을 찾아보는 중인지」 — 도구 이름이 확정되는 순간 알려 준다.
+           2~3초 멈춰 있는 것처럼 보이는 구간이 여기라서, 이 한 줄이
+           있고 없고의 체감 차이가 크다. */
+        if (ev.tool && onText) onText('', text, { tool: ev.tool });
+        if (ev.need_tools) { need = ev.need_tools; asst = ev.assistant; }
         if (ev.done) fin = ev;
       }
     }
+
+    /* 아직 답이 아니다 — 도구를 불러 달라는 응답. 위 고리가 실행하고 다시 묻는다. */
+    if (need) {
+      return { need_tools: need, assistant: asst, answer: text,
+               model: fin.model || null, usage: fin.usage || null };
+    }
+
     /* 한 글자도 못 받았으면 «성공했는데 빈 답» 으로 두지 않는다. 그렇게
        두면 화면이 «응답 없음» 만 보여 주고, 무엇이 잘못됐는지 알 길이 없다.
        오류로 올려 보내 규칙 기반 길로 떨어지게 한다. */
@@ -1035,7 +1174,7 @@
 
       if (await probeFn()) {
         try {
-          const r = await askClaude(q, body.context !== undefined ? body.context : askContext(qs));
+          const r = await askClaude(q, body.context !== undefined ? body.context : await askContext(qs));
           await log('질의', q.slice(0, 80));
           return ok(r);
         } catch (e) {
@@ -1360,8 +1499,12 @@
   async function askStream(q, qsStr, onText) {
     if (!(await probeFn())) throw Object.assign(new Error('질의 미설정'), { status: 501 });
     const qs = new URLSearchParams(String(qsStr || '').replace(/^\?/, ''));
-    const r = await askClaudeStream(q, askContext(qs), onText);
-    try { await log('질의', q.slice(0, 80)); } catch (e) { /* 기록은 곁다리다 */ }
+    const r = await askClaudeStream(q, await askContext(qs), onText, qs);
+    try {
+      /* 무엇을 찾아봤는지도 기록에 남긴다 — 나중에 답을 되짚을 때 쓴다 */
+      const t = (r.tools_used || []).join(',');
+      await log('질의', (q.slice(0, 70) + (t ? ' [' + t + ']' : '')).slice(0, 200));
+    } catch (e) { /* 기록은 곁다리다 */ }
     return r;
   }
 
