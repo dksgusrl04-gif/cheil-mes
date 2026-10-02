@@ -537,7 +537,27 @@
     } catch (e) { /* 그 항목만 빈다 */ }
     try { alerts = autoAlerts(b).slice(0, 25); } catch (e) { /* 그 항목만 빈다 */ }
 
+    /* 세는 일은 코드가 한다.
+       평가에서 「파손형 몇 종이야」 에 12종이라고 답했다 — 실제는 15종이다.
+       67줄을 눈으로 세다 셋을 놓친 것인데, 이건 모델이 못하는 일이다.
+       미리 세어서 같이 보내면 틀릴 일이 없다. 이 프로젝트의 원칙 그대로다 —
+       «계산은 코드가, 말은 AI가». */
+    const TL = MES.toolList(b);
+    const cnt = (f) => TL.filter(f).length;
+
     return {
+      요약: {
+        공구수: TL.length,
+        파손형: cnt(t => t.cls === 'breakage'),
+        마모형: cnt(t => t.cls !== 'breakage'),
+        '마모70이상': cnt(t => t.wear >= 70),
+        '마모90이상': cnt(t => t.wear >= 90),
+        '마모100이상': cnt(t => t.wear >= 100),
+        '마모20이상': cnt(t => t.wear >= 20),
+        프로그램수: (MES.programs(b).progs || []).length,
+        발주건수: orders.length,
+        경보건수: alerts.length,
+      },
       기준: {
         구간: i.segment_label, 기간: i.segment_period,
         기준수명일: i.life_days, 주간가동시간: i.week_hours,
@@ -548,7 +568,7 @@
       가중치: SNAPSHOT.weights,
       임계값: SNAPSHOT.thresholds,
       /* 상위 20종만 보내면 «T57 은?» 에 못 답한다. 전부 보낸다. */
-      공구: MES.toolList(b).map(t => ({
+      공구: TL.map(t => ({
         번호: t.tool, 이름: t.name, 부류: t.cls === 'breakage' ? '파손형' : '마모형',
         마모율: t.wear, 사용강도: t.intensity, 기여도: t.share, 절삭시간h: t.hours,
       })),
