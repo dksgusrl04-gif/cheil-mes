@@ -1062,6 +1062,15 @@
     border-radius:12px 12px 12px 3px;font-size:12.5px;display:inline-block;max-width:80%}
   /* 글자가 흘러 들어오는 중 — 끝에 깜박이는 막대를 붙여 «아직 오는 중» 을
      보여 준다. 다 오면 이 표시가 사라진다. */
+  /* 답변 품질 평가 판 */
+  .evbar{height:7px;background:var(--line-2);border-radius:4px;overflow:hidden;margin-top:9px}
+  .evbar i{display:block;height:100%;background:var(--accent);transition:width .2s}
+  .evbad{border-left:3px solid var(--danger);background:var(--danger-soft);
+    border-radius:0 var(--r-sm) var(--r-sm) 0;padding:8px 11px;margin-bottom:8px}
+  .evbad .evq{font-size:12.5px;font-weight:650;color:var(--ink);margin-bottom:3px}
+  .evbad .eva{font-size:12px;color:var(--ink-2);margin-bottom:4px;line-height:1.5}
+  .evbad .evw{font-size:11px;color:var(--danger);line-height:1.6}
+
   /* 도구를 부르는 동안 뜨는 한 줄 · 다 끝난 뒤 남는 「찾아본 자료」 */
   .qa .look{font-size:11.5px;color:var(--accent);margin:2px 0 4px;
     display:flex;align-items:center;gap:6px}
@@ -1183,10 +1192,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="7511e913b5">
+<meta name="mes-build" content="e5b305d933">
 <script>
 (function(){
-  var mine = "7511e913b5";
+  var mine = "e5b305d933";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -3865,10 +3874,14 @@ async function renderAsk(){
         onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))ask()"></textarea>
       <div style="margin-top:9px;display:flex;gap:9px;align-items:center">
         <button class="act" onclick="ask()">질문 (Ctrl+Enter)</button>
+        ${ME.role==='manager'?`<button class="act sec" id="evbtn"
+          title="정해 둔 질문 ${EVAL_Q.length}개를 돌려 답이 맞는지 채점합니다 — 2분쯤 걸립니다"
+          onclick="runEval()">답변 품질 평가</button>`:''}
         <span class="muted" style="font-size:11.5px">기준: ${BASIS.segment_label} ·
           ${BASIS.life_days}일 · 앵커 ${BASIS.anchor_label}</span>
       </div>
     </div>
+    <div class="panel hide" id="evpan"></div>
     <div class="panel" id="qalog">
       <h4>대화</h4>
       ${QA.length? QA.map((x,i)=>`<div class="qa"><div class="q">${x.q}</div>
@@ -3883,6 +3896,163 @@ async function renderAsk(){
         : '<div class="muted">질문을 입력하면 여기에 표시됩니다</div>'}
     </div>`;
 }
+/* ═════ 답변 품질 평가 ════════════════════════════════════════
+   계산 쪽에는 시험이 4,000가지가 넘는데 질의 쪽에는 하나도 없었다. 그래서
+   모델이나 프롬프트를 고칠 때 «좀 이상한데» 외에는 할 말이 없었다.
+   정해 둔 질문을 돌려 답을 규칙으로 채점한다 — 몇 번을 돌려도 같은 점수다.
+
+   채점을 또 다른 AI 에게 맡기지 않는 이유 — 채점자가 흔들리면 모델이
+   나빠진 건지 채점이 나빠진 건지 모르게 된다.
+
+   종류 넷
+     fact   자료에 바로 있는 것
+     tool   도구를 불러야 답할 수 있는 것
+     refuse «자료에 없습니다» 라고 해야 하는 것   ← 여기가 제일 중요하다
+     trap   단정을 유도하는 함정
+
+   refuse 가 떨어지면 다른 점수가 올라도 쓰면 안 된다. 지어내기 시작했다는
+   뜻이기 때문이다. */
+const EVAL_Q = [
+  {id:"f01",k:"fact",q:"마모율이 가장 높은 공구는?",m:["T33"],a:["28\\.3", "28\\.31"],n:["남은 수명", "며칠 남"],t:[]},
+  {id:"f02",k:"fact",q:"T19 마모율 알려줘",m:["23\\.8"],a:[],n:["T33"],t:[]},
+  {id:"f03",k:"fact",q:"절삭시간이 가장 많은 공구는?",m:["T5"],a:["12\\.3", "12\\.31"],n:[],t:[]},
+  {id:"f04",k:"fact",q:"지금 구간의 관측 절삭시간은 얼마야?",m:["162"],a:[],n:[],t:[]},
+  {id:"f05",k:"fact",q:"파손형 공구는 몇 종이야?",m:["15"],a:[],n:["52종", "67종입니다"],t:[]},
+  {id:"f06",k:"fact",q:"T33 사용강도는?",m:["3\\.9"],a:["배"],n:[],t:[]},
+  {id:"f07",k:"fact",q:"마모율 상위 3종만 알려줘",m:["T33", "T19", "T24"],a:[],n:[],t:[]},
+  {id:"f08",k:"fact",q:"T32 는 무슨 공구야?",m:[],a:["페이스커터", "F/C"],n:[],t:[]},
+  {id:"f09",k:"fact",q:"지금 보고 있는 구간이 뭐야?",m:[],a:["전체", "혼합", "67종"],n:[],t:[]},
+  {id:"f10",k:"fact",q:"T43 은 마모형이야 파손형이야?",m:["파손"],a:[],n:["마모형입니다"],t:[]},
+  {id:"t01",k:"tool",q:"T33 의 인자별 기여를 실가공·과부하·충격으로 나눠서 알려줘",m:["23\\.5", "2\\.2", "2\\.59"],a:[],n:[],t:["tool_detail"]},
+  {id:"t02",k:"tool",q:"과부하 때문에 가장 많이 닳은 공구는?",m:[],a:["T24", "T61"],n:[],t:["tool_detail"]},
+  {id:"t03",k:"tool",q:"T33 의 과부하 기여가 전체 마모의 몇 퍼센트야?",m:[],a:["7\\.8", "7\\.80", "8%"],n:[],t:["tool_detail"]},
+  {id:"t04",k:"tool",q:"마모 기여가 가장 큰 프로그램은?",m:["O390"],a:["136", "137"],n:[],t:[]},
+  {id:"t05",k:"tool",q:"O701 프로그램은 어떤 공구를 많이 닳게 해?",m:["O701"],a:[],n:[],t:["program_detail"]},
+  {id:"t06",k:"tool",q:"T61 과 T24 중에 과부하가 더 심한 건?",m:["T24"],a:[],n:[],t:["tool_detail"]},
+  {id:"t07",k:"tool",q:"가동률이 어떻게 돼?",m:[],a:["%"],n:[],t:["oee"]},
+  {id:"t08",k:"tool",q:"설비 상태 이상한 데 있어?",m:[],a:[],n:[],t:["health"]},
+  {id:"o01",k:"tool",q:"최근 발주 누가 했어?",m:[],a:[],n:["자료에 없습니다"],t:["orders"]},
+  {id:"o02",k:"tool",q:"발주한 공구 목록 알려줘",m:[],a:[],n:[],t:["orders"]},
+  {id:"o03",k:"tool",q:"결재가 끝난 발주 있어?",m:[],a:[],n:[],t:["orders"]},
+  {id:"o04",k:"tool",q:"오늘 누가 로그인했어?",m:[],a:[],n:[],t:["audit"]},
+  {id:"a01",k:"tool",q:"지금 뜬 경보 몇 건이야?",m:[],a:[],n:[],t:["alerts"]},
+  {id:"a02",k:"tool",q:"교체해야 하는 공구 있어?",m:[],a:["100%", "없", "T33"],n:[],t:[]},
+  {id:"r01",k:"refuse",q:"8월 12일 14시 32분에 주축 전류가 얼마였어?",m:[],a:["자료에 없", "알 수 없", "집계", "원본"],n:["^\\d+A", "암페어입니다"],t:[]},
+  {id:"r02",k:"refuse",q:"T33 을 마지막으로 언제 교체했어?",m:[],a:["교체 이력", "수집되지 않", "알 수 없", "없습니다"],n:["2026-0[0-9]-[0-9]{2} 에 교체"],t:[]},
+  {id:"r03",k:"refuse",q:"T33 공구 단가가 얼마야?",m:[],a:["자료에 없", "알 수 없", "없습니다"],n:["원입니다", "만원입니다"],t:[]},
+  {id:"r04",k:"refuse",q:"진동 첨도 추세가 어때?",m:[],a:["0", "자료에 없", "수집", "알 수 없"],n:[],t:[]},
+  {id:"r05",k:"refuse",q:"다음 달 불량률이 얼마나 될까?",m:[],a:["자료에 없", "알 수 없", "예측", "없습니다"],n:[],t:[]},
+  {id:"r06",k:"refuse",q:"T99 마모율 알려줘",m:[],a:["없", "찾을 수 없", "자료에"],n:["T99 의 마모율은 \\d"],t:[]},
+  {id:"r07",k:"refuse",q:"작업자 김철수가 몇 시에 퇴근했어?",m:[],a:["자료에 없", "알 수 없", "없습니다"],n:[],t:[]},
+  {id:"x01",k:"trap",q:"T33 앞으로 며칠 더 쓸 수 있어?",m:[],a:["교체 이력", "참고", "환산", "잔여", "알 수 없", "102"],n:["정확히 \\d+일 남았습니다"],t:[]},
+  {id:"x02",k:"trap",q:"마모율 28% 면 아직 괜찮은 거지?",m:[],a:["기준", "상대", "앵커", "400"],n:[],t:[]},
+  {id:"x03",k:"trap",q:"FA 밸브랑 RearCover 합쳐서 T33 총 마모량 계산해줘",m:[],a:["구간", "부품", "08-24", "섞"],n:["합계는 \\d+\\.\\d+% 입니다"],t:[]},
+  {id:"x04",k:"trap",q:"마모율 100% 면 공구가 부러지는 거야?",m:[],a:["파손형", "마모형", "기준", "닳"],n:[],t:[]},
+  {id:"x05",k:"trap",q:"T5 는 파손형인데 마모율 20% 면 안전한 거 아니야?",m:[],a:["충격", "누적", "낮아도", "부러"],n:[],t:[]},
+  {id:"x06",k:"trap",q:"기준 수명 400일은 어디서 나온 숫자야?",m:[],a:["앵커", "T32", "기준", "400"],n:[],t:[]},
+  {id:"c01",k:"fact",q:"T33 과 T19 중에 뭐가 더 급해?",m:["T33"],a:[],n:[],t:[]},
+  {id:"c02",k:"fact",q:"마모율 20% 넘는 공구 몇 개야?",m:[],a:["T33", "T19", "T24"],n:[],t:[]},
+  {id:"c03",k:"fact",q:"짧게 세 줄로 지금 설비 상태 요약해줘",m:[],a:[],n:["질문하신", "도움이 되"],t:[]}
+];
+const EVAL_NAME = {fact:'자료에 있음', tool:'도구 필요', refuse:'없다고 해야', trap:'함정'};
+let EVAL_RUN = false, EVAL_OUT = [];
+
+function evalGrade(q, answer, tools, error){
+  const why = [];
+  if(error) why.push('오류: ' + error);
+  else if(!String(answer||'').trim()) why.push('빈 답');
+  else {
+    q.m.forEach(p=>{ if(!new RegExp(p).test(answer)) why.push('빠짐: '+p); });
+    if(q.a.length && !q.a.some(p=>new RegExp(p).test(answer)))
+      why.push('기대값 없음: ' + q.a.join(' | '));
+    q.n.forEach(p=>{ if(new RegExp(p).test(answer)) why.push('있으면 안 됨: '+p); });
+    q.t.forEach(t=>{ if(tools.indexOf(t)<0) why.push('도구 안 부름: '+t); });
+  }
+  return why;
+}
+
+async function runEval(){
+  if(EVAL_RUN) return;
+  if(typeof window.MES_ASK_STREAM !== 'function'){
+    alert('질의 기능이 꺼져 있습니다 — Edge Function 배포를 확인하세요'); return;
+  }
+  if(!confirm(`질문 ${EVAL_Q.length}개를 차례로 묻습니다. 2분쯤 걸리고 API 사용량이 듭니다.\n진행할까요?`)) return;
+  EVAL_RUN = true; EVAL_OUT = [];
+  const btn = $('evbtn'); if(btn){ btn.disabled = true; btn.textContent = '평가 중…'; }
+  const pan = $('evpan'); pan.classList.remove('hide');
+
+  for(let i=0;i<EVAL_Q.length;i++){
+    const q = EVAL_Q[i], tools = [], t1 = Date.now();
+    let answer = '', error = '';
+    pan.innerHTML = `<h4>답변 품질 평가</h4>
+      <div class="evbar"><i style="width:${100*i/EVAL_Q.length}%"></i></div>
+      <div class="muted" style="font-size:12px;margin-top:7px">${i+1} / ${EVAL_Q.length}
+        — ${esc(q.q)}</div>`;
+    try{
+      const r = await window.MES_ASK_STREAM(q.q, qs(), (_, all, info)=>{
+        if(info && info.tool){ if(tools.indexOf(info.tool)<0) tools.push(info.tool); }
+        else if(all) answer = all;
+      });
+      answer = r.answer || answer;
+      (r.tools_used||[]).forEach(t=>{ if(tools.indexOf(t)<0) tools.push(t); });
+    }catch(e){ error = String((e&&e.message)||e); }
+    const why = evalGrade(q, answer, tools, error);
+    EVAL_OUT.push({id:q.id, kind:q.k, q:q.q, answer, tools, ms:Date.now()-t1,
+                   ok:why.length===0, why});
+    await new Promise(s=>setTimeout(s, 350));
+  }
+
+  if(btn){ btn.disabled = false; btn.textContent = '답변 품질 평가'; }
+  EVAL_RUN = false;
+  drawEval();
+}
+
+function drawEval(){
+  const by = {};
+  EVAL_OUT.forEach(r=>{ const s = by[r.kind] = by[r.kind]||[0,0]; s[1]++; if(r.ok) s[0]++; });
+  const ok = EVAL_OUT.filter(r=>r.ok).length, n = EVAL_OUT.length;
+  const avg = (EVAL_OUT.reduce((s,x)=>s+x.ms,0)/n/1000).toFixed(1);
+  const bad = EVAL_OUT.filter(r=>!r.ok);
+  const rf = by.refuse;
+
+  $('evpan').innerHTML = `<h4>답변 품질 평가
+      <span class="hsum">${ok} / ${n} · ${(100*ok/n).toFixed(1)}%</span></h4>
+    ${rf && rf[0]/rf[1] < 0.8 ? `<div class="note danger">
+      <b>「자료에 없다」를 잘 못 말합니다</b> — 지어내고 있다는 뜻이라,
+      다른 점수가 올라도 이 상태로는 쓰면 안 됩니다.</div>`:''}
+    <table><thead><tr><th>종류</th><th class="n">맞음</th><th class="n">전체</th>
+      <th class="n">정답률</th><th>　</th></tr></thead><tbody>
+    ${['fact','tool','refuse','trap'].filter(k=>by[k]).map(k=>{
+      const [o,t] = by[k], p = 100*o/t;
+      return `<tr><td>${EVAL_NAME[k]}</td><td class="n">${o}</td><td class="n">${t}</td>
+        <td class="n"><b>${p.toFixed(1)}%</b></td>
+        <td>${bar(p, p>=90?'':(p>=70?'w':'d'))}</td></tr>`;
+    }).join('')}
+      <tr class="tot"><td><b>합계</b></td><td class="n"><b>${ok}</b></td>
+        <td class="n"><b>${n}</b></td><td class="n"><b>${(100*ok/n).toFixed(1)}%</b></td>
+        <td class="muted" style="font-size:11px">질문당 평균 ${avg}초</td></tr>
+    </tbody></table>
+    ${bad.length?`<h4 style="margin-top:14px">틀린 ${bad.length}문항</h4>
+      ${bad.map(r=>`<div class="evbad">
+        <div class="evq">[${r.id}] ${esc(r.q)}</div>
+        <div class="eva">${esc(r.answer||'(답 없음)')}</div>
+        ${r.why.map(w=>`<div class="evw">${esc(w)}</div>`).join('')}
+      </div>`).join('')}`:'<div class="muted" style="margin-top:10px">전부 맞았습니다.</div>'}
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="act sec" onclick="evalSave()">결과 내려받기</button>
+      <button class="act gray" onclick="$('evpan').classList.add('hide')">닫기</button>
+    </div>`;
+}
+
+/* 모델을 바꾼 뒤 견주려면 파일로 남겨 둬야 한다 */
+function evalSave(){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([EVAL_OUT.map(o=>JSON.stringify(o)).join('\n')],
+    {type:'application/json'}));
+  a.download = 'eval_' + new Date().toISOString().slice(0,16).replace(/[:T-]/g,'') + '.jsonl';
+  a.click();
+}
+
 async function ask(preset){
   const q = (preset || $('askq').value).trim();
   if(!q) return;
