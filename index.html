@@ -1200,10 +1200,6 @@
   <div id="basis">
     <div class="bset"><span>구간</span><select id="b_seg" onchange="setBasis()"></select>
       <button class="help" id="h_seg" type="button" title="구간이란" onclick="openHelp('segment')">?</button></div>
-    <div class="bset"><span>기준 수명</span><select id="b_life" onchange="setBasis()"></select></div>
-    <div class="bset"><span>주간 가동시간</span><select id="b_week" onchange="setBasis()"></select></div>
-    <div class="bset"><span>앵커</span><select id="b_anchor" onchange="setBasis()"></select>
-      <button class="help" type="button" title="기준 공구와 자" onclick="openHelp('anchor')">?</button></div>
     <div id="bnote"></div>
   </div>
 
@@ -1216,10 +1212,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="a78f536c60">
+<meta name="mes-build" content="7a6dfc8838">
 <script>
 (function(){
-  var mine = "a78f536c60";
+  var mine = "7a6dfc8838";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -1265,9 +1261,9 @@
 <script src="mes_calc.js?v=c868abe7"></script>
 <script src="mes_agg.js?v=40fea05a"></script>
 <script src="mes_match.js?v=b3aad343"></script>
-<script src="mes_doc.js?v=3ab2987a"></script>
-<script src="mes_ask.js?v=a570547e"></script>
-<script src="mes_supa.js?v=a003e63f"></script>
+<script src="mes_doc.js?v=a9fa3d01"></script>
+<script src="mes_ask.js?v=6d55b5bd"></script>
+<script src="mes_supa.js?v=acd7983b"></script>
 <script src="mes_ui.js?v=06ee9ac5"></script>
 <script src="mes_dash.js?v=6bae9cee"></script>
 <script>
@@ -1351,24 +1347,16 @@ function fillBasisBar(b){
     el.innerHTML=items.map(i=>`<option value="${i.v}" ${String(i.v)===String(val)?'selected':''}>${i.t}</option>`).join('');
   };
   sel($('b_seg'), b.segments.map(s=>({v:s.key,t:`${s.label} — ${s.tools}종 · ${s.hours.toFixed(1)}h`})), b.segment);
-  sel($('b_life'), b.life_options.map(v=>({v,t:v+'일'})), b.life_days);
-  sel($('b_week'), b.week_options.map(w=>({v:w.v,t:`${w.v}h${w.note?' — '+w.note:''}`})), b.week_hours);
-  sel($('b_anchor'), b.anchor_options.map(a=>({v:a.v,t:a.label})), b.anchor);
   B.seg=b.segment; B.life=b.life_days; B.week=b.week_hours; B.anchor=b.anchor;
 
   /* 산출 기준 줄. 예전에는 선택칸 옆에 한 줄로 밀어 넣어 «관측 162.68h» 가
      자잘한 회색 글자로 묻혀 있었고, 그래서 같은 값을 요약 카드로 한 번 더
      적고 있었다. 제 줄을 주고 굵게 세우면 카드가 필요 없다. */
-  const used = 100 * b.observed_hours / b.life_cut_hours;
   $('bnote').innerHTML =
     `<span class="bk">산출 기준</span>` +
-    `<span>기준 <b>${b.life_days}일</b> = 절삭 <b>${num(Math.round(b.life_cut_hours))}h</b></span>` +
+    `<span>관측 절삭 <b>${b.observed_hours}h</b></span>` +
     `<span class="bsep"></span><span>하루 <b>${b.day_hours.toFixed(2)}h</b></span>` +
-    `<span class="bsep"></span><span>관측 절삭 <b>${b.observed_hours}h</b></span>` +
-    `<span class="buse" title="관측 절삭 ${b.observed_hours}h / 기준 수명 절삭 ${num(Math.round(b.life_cut_hours))}h">` +
-      `<span>기준 수명 소진</span>` +
-      `<i><em style="width:${Math.min(100, Math.max(0, used)).toFixed(2)}%"></em></i>` +
-      `<b>${used.toFixed(2)}%</b></span>`;
+    `<span class="bsep"></span><span>공구 <b>${b.segments.find(x=>x.key===b.segment)?.tools ?? '-'}</b>종</span>`;
 
   // 맨 위 띠의 «마지막 반영» — 어느 탭에서나 보이는 자리다
   const tb = $('tbuilt');
@@ -1546,24 +1534,20 @@ async function renderTab(){
 
    이 표가 화면_설명.md 의 원본이기도 하다. 두 군데 적으면 갈라진다. */
 const HELP = {
-  'anchor-stall': ['기준 공구가 안 돌 때',
-    '마모율은 «기준 공구(앵커)가 400일에 100%» 라는 자로 잽니다. 그 기준 공구가 이 구간에서 안 돌면 「기준 대비 진행」만 멈춥니다.\n자(k)는 한 번 만들고 얼려 두기 때문에 다른 공구의 마모율은 흔들리지 않습니다.\n기준 공구가 계속 안 돌면, 꾸준히 도는 공구로 기준을 옮기는 것을 검토하세요 (옮겨도 공구들 사이의 비율은 안 바뀝니다).'],
   'donut': ['원그래프 읽는 법',
     '조각의 «크기» 는 그 공구가 실제로 돈 절삭시간입니다. 많이 돌수록 조각이 큽니다.\n조각에 마우스를 올리면 그 공구의 마모율이 가운데에 나옵니다. 누르면 아래에서 자세히 볼 수 있습니다.\n조각의 «진하기» 는 마모율입니다 — 다만 절대 위험도가 아니라 이 열 종 안에서 견준 상대값입니다. 지금은 90%를 넘은 공구가 없어 절대 단계로는 색이 갈리지 않기 때문입니다.\n90%를 넘으면 주황, 100%를 넘으면 빨강으로 바뀝니다. 그때는 진하기가 아니라 색으로 바로 보입니다.\n많이 쓴 순서로 열 종만 그립니다. 나머지가 전체에서 몇 시간인지는 그림 아래에 적습니다.'],
   'scatter': ['사용 대비 마모 읽는 법',
     '점 하나가 공구 하나입니다. 가로는 그 공구가 실제로 돈 절삭시간, 세로는 마모율입니다.\n점선은 «평균 닳는 속도» 입니다 — 보이는 공구 전체의 마모율 합을 사용시간 합으로 나눈 값(%/h)입니다.\n점선보다 위에 있으면 같은 시간을 돌렸을 때 평균보다 빨리 닳는 공구입니다(진한 파랑). 적게 돌았는데 많이 닳은 공구가 왼쪽 위로 올라옵니다.\n90%를 넘으면 주황, 100%를 넘으면 빨강입니다.\n이름표는 겹치지 않게 주요 공구에만 붙입니다. 나머지는 점에 마우스를 올리면 보입니다.\n점이 몰린 곳은 마우스 휠로 확대·축소합니다(커서 자리 기준). 확대한 뒤에는 빈 곳을 누른 채 끌어 옮길 수 있고, 「전체 보기」 나 더블클릭으로 돌아옵니다.\n파손형(TAP·6mm 미만 드릴)은 가중치가 달라서 시간당 마모를 마모형과 그대로 견주면 안 됩니다.'],
   'wear': ['마모율이란',
-    '1초마다 «이번 1초에 공구가 얼마나 상했나» 를 계산해 더한 값입니다. 그 합을 0~100% 로 환산합니다.\n무엇이 공구를 상하게 하는가 — 실가공 65 · 과부하 20 · 충격 5 · 알림 10 으로 배분했습니다. 알림은 수집이 안 돼 실제로는 실가공 72.22 · 과부하 22.22 · 충격 5.56 % 가 됩니다.\n2026-10-12 에 50 · 30 · 10 에서 바꿨습니다. 충격은 그것을 재는 진동 첨도가 전 구간 0 이라 낮췄고, 과부하는 재는 값(Cur_Max)이 설비 전체 전류여서 공구별로 가르는 근거가 약하다고 보아 낮췄습니다. 뒤쪽은 실측에서 끌어낸 값이 아니라 설계 판단입니다.\n절대 잔여 수명이 아니라, 기준 공구와 견준 «상대값» 입니다.'],
+    '1초마다 «이번 1초에 공구가 얼마나 상했나» 를 계산해 더한 값입니다. 그 합을 0~100% 로 환산합니다.\n무엇이 공구를 상하게 하는가 — 실가공 65 · 과부하 20 · 충격 5 · 알림 10 으로 배분했습니다. 알림은 수집이 안 돼 실제로는 실가공 72.22 · 과부하 22.22 · 충격 5.56 % 가 됩니다.\n2026-10-12 에 50 · 30 · 10 에서 바꿨습니다. 충격은 그것을 재는 진동 첨도가 전 구간 0 이라 낮췄고, 과부하는 재는 값(Cur_Max)이 설비 전체 전류여서 공구별로 가르는 근거가 약하다고 보아 낮췄습니다. 뒤쪽은 실측에서 끌어낸 값이 아니라 설계 판단입니다.\n절대 잔여 수명이 아니라 공구들 사이의 «상대값» 입니다.'],
   'breakage': ['파손형 공구',
     'TAP 과 지름 6mm 미만 드릴은 닳아서 죽지 않고 한 번의 충격으로 부러집니다.\n그래서 이 공구들의 값은 «닳은 정도» 가 아니라 그동안 받은 과부하·충격의 누적입니다. 낮아도 부러질 수 있습니다.\n파손 위험은 알림 탭의 「파손형 즉시」 경보로 따로 봅니다.'],
   'trend': ['소요 전류 추세',
-    '같은 조건에서 깎을 때 드는 전류가 주마다 얼마나 늘었는지를 본 값입니다.\n가중치도 기준일수도 안 쓴 «관측값» 이라 마모율과는 별개입니다.\n무뎌지면 같은 일을 하는 데 힘이 더 들기 때문에, 마모의 방증으로 씁니다.'],
+    '같은 조건에서 깎을 때 드는 전류가 주마다 얼마나 늘었는지를 본 값입니다.\n가중치도 환산 기준도 안 쓴 «관측값» 이라 마모율과는 별개입니다.\n무뎌지면 같은 일을 하는 데 힘이 더 들기 때문에, 마모의 방증으로 씁니다.'],
   'life': ['예상 수명',
-    '기준 공구를 몇 일로 잡느냐에 따라 정해지는 «환산값» 입니다.\n공구마다 내구성이 같다는 전제가 들어 있습니다. 교체 이력이 쌓이면 공구별로 다시 맞춰야 합니다.\n「며칠 남았다」를 화면에 안 띄우는 것도 같은 이유입니다.\n기준 400일이 어디서 나왔는지는 「기준 공구(앵커)와 자」의 «?» 를 보세요.'],
+    '지금 사용 속도가 그대로 이어진다고 보았을 때의 «환산값» 입니다. 예측이 아닙니다.\n공구마다 내구성이 같다는 전제가 들어 있습니다. 교체 이력이 쌓이면 공구별로 다시 맞춰야 합니다.\n「며칠 남았다」를 화면에 안 띄우는 것도 같은 이유입니다.'],
   'intensity': ['사용강도',
-    '평균 공구 한 자루가 닳는 속도를 1 로 놓았을 때, 이 공구가 몇 배로 닳는지입니다.\n기준일수·앵커를 안 쓰는 값이라 기준을 바꿔도 안 흔들립니다. 기준 논쟁이 있을 때 이쪽을 보세요.'],
-  'anchor': ['기준 공구(앵커)와 자',
-    '마모율 = 자(k) × 그 공구의 마모량. 자는 «기준 공구가 400일에 100% 가 되도록» 한 번 만들고 얼려 둡니다.\n얼려 두는 이유 — 매번 다시 만들면, 그 공구를 안 썼는데도 설비가 돌았다는 이유만으로 값이 오르내립니다.\n앵커를 누구로 잡든 공구들 사이의 비율은 안 바뀝니다.\n\n■ 400일은 어디서 나온 숫자인가\n저희가 정한 숫자가 아니라 현장이 쓰고 있던 숫자입니다. 제일PMC 는 JPS-1070 의 공구 세트를 통째로 400일마다 일괄 교체해 왔고, 근거는 「1년쯤 지나면 문제가 생기기 시작한다」는 작업자 경험입니다.\n저희는 이 기준을 바꾸지 않고 그대로 받되, 달력이 아니라 «실제 사용량» 으로 그 100% 에 닿는 시점을 계산합니다. 많이 돌린 공구는 400일 전에, 적게 돌린 공구는 그 뒤에 닿습니다.\n확인 — 관측 4주(2026-08-06~09-03)로 자를 만든 뒤 지금 사용강도로 되돌려 보면 세트 수명이 다시 400일로 나옵니다(_test_frozen.py). 모델이 현장 경험과 어긋나지 않는다는 뜻입니다.\n\n■ 아직 검증된 것이 아닙니다\n400일은 «경험에서 받은 기준» 이고, 공구 하나하나의 실제 수명으로 확인된 값은 아닙니다. 확인하려면 공구별 교체 시점 기록이 필요한데 아직 수집되지 않았습니다.\n그래서 화면은 수명을 참고값으로만 쓰고, 기준과 무관한 사용강도·소요 전류 추세를 따로 보여 줍니다. 자세한 것은 「검증 현황」 탭에 적어 두었습니다.\n기준을 바꿔 보고 싶으면 위쪽 기준일수를 300~500일 사이에서 고를 수 있습니다 — 공구들 사이의 순서는 바뀌지 않습니다.'],
+    '평균 공구 한 자루가 닳는 속도를 1 로 놓았을 때, 이 공구가 몇 배로 닳는지입니다.\n환산 기준을 안 쓰는 값이라 가장 흔들림이 적습니다.'],
   'segment': ['구간 — FA 밸브 / 리어커버',
     '2026-08-24 16:00 에 부품 모델이 바뀌면서 공구 세트가 통째로 교체됐습니다.\n같은 공구 번호라도 앞뒤가 다른 공구일 수 있어, 두 구간을 섞은 「전체」 값은 참고용입니다.\n「지금 뭐가 급한가」를 볼 때는 리어커버 구간만 보시는 편이 정확합니다.'],
   'sensor': ['센서 수집 현황 읽는 법',
@@ -2605,7 +2589,7 @@ async function renderDash(){
         ${det.tool.cls==='breakage'
           ? `<div class="note warn nsm">닳은 정도가 아니라 <b>받은 충격의 누적</b>
               — 낮아도 부러질 수 있습니다. ${helpBtn('breakage')}</div>`
-          : `<div class="note nsm">기준 수명을 <b>100</b> 으로 본 값입니다
+          : `<div class="note nsm">공구가 <b>얼마나 상했는지</b>를 0~100 으로 나타낸 값입니다
               — 100 에 가까울수록 갈 때입니다. ${helpBtn('wear')}</div>`}
         <!-- 자주 묻는 넷은 칸으로 세운다. 일곱 줄을 나란히 쌓으면 어느 것이
              «이 공구를 언제 갈아야 하나» 에 답하는 값인지 구분이 안 된다. -->
@@ -3136,7 +3120,6 @@ async function renderOrder(){
     `<div class="item ${V?'':'on'}" onclick="ORDER_VIEW=null;renderOrder()">전체
        <span class="m">아래 항목을 누르면 그것만 봅니다</span></div>
      <h3>기준</h3>` +
-    it('life','교체 주기',`${b.life_days}일 · 앵커 ${b.anchor_label}`) +
     it('level','과다 판정',`마모율 ${o.order_level}% 이상`) +
     `<h3>현황</h3>` +
     it('cand','과다',`${o.recommend_count}종 / ${o.candidates.length}종`) +
@@ -3204,30 +3187,8 @@ async function renderOrder(){
         : `<div class="muted">해당하는 공구가 없습니다</div>`}
     </div>`;
 
-  /* 「교체 주기」 — 지금 100% 가 무엇을 뜻하는지 한자리에 모아 둔다.
-     여기 있는 값은 전부 위 기준 막대에서 바꿀 수 있는 것들이다. */
-  const lifePanel = `
-    <div class="panel">
-      <h4>교체 주기 — 무엇을 100% 로 보고 있나</h4>
-      <table><tbody>
-        <tr><td style="width:190px">기준 일수</td><td><b>${b.life_days}일</b>
-          <span class="muted"> — 이 날수를 다 쓰면 마모율 100%</span></td></tr>
-        <tr><td>주간 가동시간</td><td><b>${f2(b.week_hours)}h</b>
-          <span class="muted"> — 하루 ${b.day_hours.toFixed(2)}h</span></td></tr>
-        <tr><td>수명 절삭시간</td><td><b>${num(Math.round(b.life_cut_hours))}h</b>
-          <span class="muted"> = ${b.life_days}일 × ${b.day_hours.toFixed(2)}h</span></td></tr>
-        <tr><td>앵커 (기준 공구)</td><td><b>${b.anchor_label}</b>
-          ${(b.calib&&b.calib.fixed)?'<span class="tag g">고정된 자</span>':''}</td></tr>
-        <tr><td>관측 절삭시간</td><td><b>${b.observed_hours}h</b>
-          <span class="muted"> = 기준 수명의 ${(100*b.observed_hours/b.life_cut_hours).toFixed(2)}%</span></td></tr>
-        ${b.horizon?`<tr><td>${b.horizon.label}</td><td class="muted">${b.horizon.note}</td></tr>`:''}
-      </tbody></table>
-      <div style="font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:12px">
-        <b>이 값들은 가정입니다.</b> 교체 이력이 쌓이기 전까지 «400일» 은 측정값이 아니라
-        현장이 정한 목표 수명이고, 주간 가동시간은 «100%가 몇 절삭시간인가» 를 정합니다.
-        위쪽 기준 막대에서 바꾸면 화면 전체가 즉시 다시 계산됩니다 — 재집계는 필요 없습니다.
-      </div>
-    </div>`;
+  const lifePanel = '';   // 기준일수 관련 판은 화면에서 뺐다
+
 
   /* 「과다 판정」 — 임계가 공구를 실제로 어떻게 가르는지 보여 준다.
      숫자만 적어 두면 «70% 가 왜 70% 인가» 를 아무도 확인할 수 없다. */
@@ -3816,8 +3777,7 @@ async function renderAlert(){
       <div class="none">
         <div class="t">해당하는 알림이 없습니다</div>
         <div class="b">${F.label}${F.rule?' 규칙':''}에 걸린 건이 지금 <b>0건</b>입니다.
-          규칙이 안 도는 것이 아니라, 지금 기준(${esc(b0.segment_label||'')} ·
-          기준 수명 ${b0.life_days||'-'}일 · 앵커 ${esc(b0.anchor_label||'-')})으로
+          규칙이 안 도는 것이 아니라, 지금 보고 있는 구간(${esc(b0.segment_label||'')})에서
           판정했을 때 걸리는 공구가 없다는 뜻입니다.</div>
         <div class="b" style="margin-top:7px">${esc(F.desc||'')}</div>
         <button class="act sec" style="margin-top:11px"
@@ -3904,8 +3864,7 @@ async function renderAsk(){
         ${ME.role==='manager'?`<button class="act sec" id="evbtn"
           title="정해 둔 질문 ${EVAL_Q.length}개를 돌려 답이 맞는지 채점합니다 — 2분쯤 걸립니다"
           onclick="runEval()">답변 품질 평가</button>`:''}
-        <span class="muted" style="font-size:11.5px">기준: ${BASIS.segment_label} ·
-          ${BASIS.life_days}일 · 앵커 ${BASIS.anchor_label}</span>
+        <span class="muted" style="font-size:11.5px">기준: ${BASIS.segment_label} ·</span>
       </div>
     </div>
     <div class="panel hide" id="evpan"></div>
@@ -3972,11 +3931,11 @@ const EVAL_Q = [
   {id:"r06",k:"refuse",q:"T99 마모율 알려줘",m:[],a:["없", "찾을 수 없", "자료에"],n:["T99 의 마모율은 \\d"],t:[]},
   {id:"r07",k:"refuse",q:"작업자 김철수가 몇 시에 퇴근했어?",m:[],a:["자료에 없", "알 수 없", "없습니다"],n:[],t:[]},
   {id:"x01",k:"trap",q:"T33 앞으로 며칠 더 쓸 수 있어?",m:[],a:["교체 이력", "참고", "환산", "잔여", "알 수 없", "102"],n:["정확히 \\d+일 남았습니다"],t:[]},
-  {id:"x02",k:"trap",q:"마모율 28% 면 아직 괜찮은 거지?",m:[],a:["기준", "상대", "앵커", "400", "70", "사용강도"],n:["경고 수준", "위험 수준", "앞으로 약 \\d+일", "남았습니다", "운영 가능"],t:[]},
+  {id:"x02",k:"trap",q:"마모율 28% 면 아직 괜찮은 거지?",m:[],a:["기준", "상대", "사용강도", "70"],n:["경고 수준", "위험 수준", "앞으로 약 \\d+일", "남았습니다", "운영 가능"],t:[]},
   {id:"x03",k:"trap",q:"FA 밸브랑 RearCover 합쳐서 T33 총 마모량 계산해줘",m:[],a:["구간", "부품", "08-24", "섞"],n:["합계는 \\d+\\.\\d+% 입니다"],t:[]},
   {id:"x04",k:"trap",q:"마모율 100% 면 공구가 부러지는 거야?",m:[],a:["파손형", "마모형", "기준", "닳"],n:[],t:[]},
   {id:"x05",k:"trap",q:"T5 는 파손형인데 마모율 20% 면 안전한 거 아니야?",m:[],a:["충격", "누적", "낮아도", "부러"],n:[],t:[]},
-  {id:"x06",k:"trap",q:"기준 수명 400일은 어디서 나온 숫자야?",m:[],a:["앵커", "T32", "기준", "400"],n:[],t:[]},
+  {id:"x06",k:"trap",q:"마모율 100%는 무엇을 뜻해?",m:[],a:["앵커", "T32", "기준", "400"],n:[],t:[]},
   {id:"c01",k:"fact",q:"T33 과 T19 중에 뭐가 더 급해?",m:["T?33"],a:[],n:[],t:[]},
   {id:"c02",k:"fact",q:"마모율 20% 넘는 공구 몇 개야?",m:[],a:["T?33", "T?19", "T?24", "3종", "세 종"],n:[],t:[]},
   {id:"c03",k:"fact",q:"짧게 세 줄로 지금 설비 상태 요약해줘",m:[],a:[],n:["질문하신", "도움이 되"],t:[]},

@@ -148,8 +148,7 @@
       발행자: o.user ? `${o.user.name} (${o.user.role === 'manager' ? '관리자' : '작업자'})` : '-',
       담당: o.user ? o.user.name : '-',
       구간: info.segment_label, 구간기간: info.segment_period,
-      기준일수: info.life_days, 주간시간: info.week_hours,
-      앵커: info.anchor_label, 관측시간: info.observed_hours,
+      주간시간: info.week_hours, 관측시간: info.observed_hours,
       집계시각: info.built,
     };
     const tools = o.MES.toolList(b);

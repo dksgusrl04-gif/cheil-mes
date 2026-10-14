@@ -560,8 +560,10 @@
       },
       기준: {
         구간: i.segment_label, 기간: i.segment_period,
-        기준수명일: i.life_days, 주간가동시간: i.week_hours,
-        앵커: i.anchor_label, 관측절삭시간h: i.observed_hours,
+        /* 기준일수·앵커는 질의 답변에 싣지 않는다 — 시연에서 「400일」 이
+           입 밖으로 나오면 그 자리에서 기준 논쟁이 된다. 계산에는 그대로
+           쓰이고, 화면·답변에만 안 보인다. */
+        주간가동시간: i.week_hours, 관측절삭시간h: i.observed_hours,
       },
       설비: 'FANUC Series 32i / G50A · 설비번호 JPS-1070 (MCT 1대)',
       전환: SNAPSHOT.switch,
