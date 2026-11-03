@@ -1212,10 +1212,10 @@
 <div id="modal" class="hide"></div>
 
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta name="mes-build" content="1ddbc81fac">
+<meta name="mes-build" content="ff6eb91666">
 <script>
 (function(){
-  var mine = "1ddbc81fac";
+  var mine = "ff6eb91666";
   function banner(v){
     if (document.getElementById('mes-stale')) return;
     var d = document.createElement('div');
@@ -4309,6 +4309,9 @@ const VERIFY_ITEMS = [
   /* 「셈」 은 시험 합계 파일에서 수치를 끌어오라는 표시다. 파일 이름을
      적으면 그 파일의 검사 수, '*' 면 전체 파일 수. 여기에 숫자를 적어 두면
      시험이 늘어도 화면은 옛 숫자를 보여 준다 — 그게 이 판에서는 거짓말이 된다. */
+  { 항목:'수집 데이터 품질 선별',
+    방법:'설비·진동·전류 정상 플래그가 모두 1 인 절삭 행만 계산에 넣고 나머지는 버린다',
+    근거:'_test_both.py' },
   { 항목:'계산 일관성 (현장 ↔ 웹)',
     방법:'같은 집계본으로 파이썬·자바스크립트 두 벌을 돌려 소수점까지 대조',
     근거:'_test_both.py', 셈:'_test_both.py' },
